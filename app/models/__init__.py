@@ -170,3 +170,25 @@ class TransactionLog(Base):
     timestamp: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     user = relationship("User", back_populates="transactions")
+
+
+# ---------------------------------------------------------------------------
+# IngestLog (error log for nightly ingest)
+# ---------------------------------------------------------------------------
+
+
+class IngestLog(Base):
+    __tablename__ = "ingest_log"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    timestamp: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    provider: str = Column(String, nullable=False)
+    message: str = Column(String, nullable=False)
+
+    def as_dict(self) -> dict[str, str]:
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "provider": self.provider,
+            "message": self.message,
+        }

@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Context
 
 The app needs tables for users, leagues, teams, roster slots, stat lines, scores, and logs. We’ll sketch relationships first, then implement with **SQLAlchemy** (Pydantic‑first ORM) and **Alembic** migrations. Local dev DB = `dev.db` (SQLite file), prod can swap to Postgres later by env var.

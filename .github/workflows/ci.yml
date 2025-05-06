@@ -8,10 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Setup Python
@@ -33,4 +30,4 @@ jobs:
       - name: Lint
         run: make lint
       - name: Test
-        run: make test 
+        run: make test

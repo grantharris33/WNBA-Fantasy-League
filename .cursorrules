@@ -1,0 +1,1 @@
+Always run relevant commands using poetry (e.g. `poetry run pytest -q` instead of `pytest -q`)

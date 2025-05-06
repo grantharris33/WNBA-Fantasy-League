@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Context
 
 Scoring and standings depend on fresh stat lines. We’ll use **APScheduler** embedded in FastAPI (in‑process) for simplicity. Tasks run once per day at 03:00 UTC; can be overridden by env var.
