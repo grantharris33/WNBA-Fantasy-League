@@ -100,6 +100,7 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
     db_file = tmp_path / "test.db"
     monkeypatch.setenv("DB_FILENAME", str(db_file))
     monkeypatch.setenv("RAPIDAPI_KEY", "dummy-key")
+    monkeypatch.setenv("TESTING", "true")
 
     import app.core.database as db
 
@@ -163,3 +164,21 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
     count = session.query(m.StatLine).count()
     assert count == 1
     session.close()
+
+
+@pytest.mark.asyncio
+async def test_update_weekly_team_scores(monkeypatch, tmp_path: Path):
+    # Isolate DB
+    db_file = tmp_path / "test.db"
+    monkeypatch.setenv("DB_FILENAME", str(db_file))
+    monkeypatch.setenv("TESTING", "true")
+
+    from app.core import database as db
+
+
+def test_backfill_cli(monkeypatch, tmp_path: Path):
+    db_file = tmp_path / "test.db"
+    monkeypatch.setenv("DB_FILENAME", str(db_file))
+    monkeypatch.setenv("TESTING", "true")
+
+    # Ensure DB has tables

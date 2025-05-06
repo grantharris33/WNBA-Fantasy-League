@@ -10,6 +10,7 @@ async def test_seed_script(tmp_path: Path, monkeypatch):
     # Isolate DB to temporary file
     db_file = tmp_path / "test.db"
     monkeypatch.setenv("DB_FILENAME", str(db_file))
+    monkeypatch.setenv("TESTING", "true")
 
     # Import seed script (this will import DB after env var set) and run
     from scripts import seed_demo  # local import after env var set

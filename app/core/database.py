@@ -21,9 +21,20 @@ Base = declarative_base()
 
 
 def init_db() -> None:
-    """Create database file (if SQLite) and tables for all models imported."""
+    """Create database file (if SQLite) and tables for all models imported.
+
+    In a testing environment (signaled by TESTING env var or DB_FILENAME containing 'test'),
+    this will also drop all existing tables first to ensure a clean state.
+    """
     # Import models here so they register with Base.metadata before create_all
     from app import models  # noqa: F401
+
+    is_testing_env = (
+        os.getenv("TESTING") == "true" or "test" in DB_FILENAME.lower() or (DB_PATH and "test" in DB_PATH.name.lower())
+    )
+
+    if is_testing_env:
+        Base.metadata.drop_all(bind=engine)
 
     if DATABASE_URL.startswith("sqlite"):
         if not DB_PATH.exists():
