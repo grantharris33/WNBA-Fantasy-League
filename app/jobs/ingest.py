@@ -48,7 +48,11 @@ from app.core.database import SessionLocal
 from app.models import IngestLog
 
 BASE_URL = "https://wnba-api.p.rapidapi.com"
-HEADERS = {"X-RapidAPI-Host": "wnba-api.p.rapidapi.com"}
+# RapidAPI requires two headers.  **Header names are case-insensitive**, but
+# we use lower-case to match the official documentation for clarity.
+# (httpx will title-case them before sending.)
+
+HEADERS = {"x-rapidapi-host": "wnba-api.p.rapidapi.com"}
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -119,11 +123,16 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
     date_iso = target_date.strftime("%Y-%m-%d")
     game_datetime = dt.datetime.combine(target_date, dt.time())
 
-    rapid_api_key = os.getenv("RAPIDAPI_KEY")
-    if not rapid_api_key:
-        raise RuntimeError("RAPIDAPI_KEY env var not set")
+    # The RapidAPI key can be supplied via either ``WNBA_API_KEY`` (preferred –
+    # documented in Story-4) **or** the more generic ``RAPIDAPI_KEY`` that some
+    # existing CI pipelines already expose.  We transparently support both to
+    # keep backward-compat.
 
-    headers = {**HEADERS, "X-RapidAPI-Key": rapid_api_key}
+    rapid_api_key = os.getenv("WNBA_API_KEY") or os.getenv("RAPIDAPI_KEY")
+    if not rapid_api_key:
+        raise RuntimeError("WNBA_API_KEY (or RAPIDAPI_KEY) env var not set")
+
+    headers = {**HEADERS, "x-rapidapi-key": rapid_api_key}
 
     async with httpx.AsyncClient(timeout=10, headers=headers) as client:
         try:

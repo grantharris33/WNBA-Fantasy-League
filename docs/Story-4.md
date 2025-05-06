@@ -4,6 +4,8 @@
 >
 > This story covers the rules engine that converts raw box‑score statistics into weekly and season‑long fantasy points **and** the nightly batch job that persists those numbers.
 
+**Status:** Complete
+
 | Sub‑task                       | What / Why                                | Acceptance Criteria                                                                                                                      |
 | ------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | **4‑A Point Formula Function** | Pure Python fn returns fantasy pts        | Unit tests for normal/edge cases (triple‑double). |
