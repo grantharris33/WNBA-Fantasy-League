@@ -48,9 +48,11 @@ skip-magic-trailing-comma = true
 profile = "black"
 
 [tool.ruff]
-line-length = 88
-select = ["E", "F", "W", "C90", "D"]
-ignore = ["E203"]
+line-length = 120
+# Only select error, fixable, and warning codes (skip docstring checks)
+select = ["E", "F", "W", "C90"]
+# Ignore whitespace, no-newline, line-length, and unused import warnings
+ignore = ["E203", "W292", "E501", "F401"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

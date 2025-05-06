@@ -1,16 +1,20 @@
 from fastapi import APIRouter
-from app.models import IngestLog
+
 from app.core.database import SessionLocal
+from app.models import IngestLog
 
 router = APIRouter()
+
 
 @router.get("/health")
 async def health():
     return {"status": "ok"}
 
+
 # ---------------------------------------------------------------------------
 # Admin endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/admin/ingest-log")
 async def ingest_log(page: int = 1, page_size: int = 100):
@@ -27,6 +31,7 @@ async def ingest_log(page: int = 1, page_size: int = 100):
         }
     finally:
         session.close()
+
 
 @router.delete("/admin/ingest-log")
 async def clear_ingest_log():

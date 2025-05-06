@@ -64,11 +64,12 @@ def main():
 
     game = games[0]
     game_id = game["id"]
-    print(f"Found game {game_id} – {game['teams'][0]['displayName']} vs {game['teams'][1]['displayName']}")
+    print(
+        f"Found game {game_id} – {game['teams'][0]['displayName']} vs {game['teams'][1]['displayName']}"
+    )
 
     print("Fetching box-score …")
     boxscore = fetch_boxscore(game_id)
-
 
     for team in boxscore.get("players", []):
         for stat_block in team.get("statistics", []):

@@ -1,7 +1,9 @@
 from pathlib import Path
+
 import pytest
 
 # We purposely defer importing app modules until after we tweak env vars
+
 
 @pytest.mark.asyncio
 async def test_seed_script(tmp_path: Path, monkeypatch):
@@ -15,8 +17,8 @@ async def test_seed_script(tmp_path: Path, monkeypatch):
     seed_demo.main()
 
     # Import db and models after seed script completed
-    from app.core import database as db
     from app import models
+    from app.core import database as db
 
     session = db.SessionLocal()
 

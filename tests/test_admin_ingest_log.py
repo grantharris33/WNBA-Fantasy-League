@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.asyncio
@@ -12,6 +13,7 @@ async def test_ingest_log_admin(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("RAPIDAPI_KEY", "dummy-key")
 
     from importlib import reload
+
     import app.main as main
 
     reload(main)

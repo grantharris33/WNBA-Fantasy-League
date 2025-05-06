@@ -4,11 +4,11 @@ from datetime import datetime
 
 from sqlalchemy import (
     Column,
+    DateTime,
+    Float,
+    ForeignKey,
     Integer,
     String,
-    DateTime,
-    ForeignKey,
-    Float,
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
@@ -72,8 +72,12 @@ class Team(Base):
     owner = relationship("User", back_populates="teams")
     league = relationship("League", back_populates="teams")
 
-    roster_slots = relationship("RosterSlot", back_populates="team", cascade="all, delete-orphan")
-    scores = relationship("TeamScore", back_populates="team", cascade="all, delete-orphan")
+    roster_slots = relationship(
+        "RosterSlot", back_populates="team", cascade="all, delete-orphan"
+    )
+    scores = relationship(
+        "TeamScore", back_populates="team", cascade="all, delete-orphan"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -144,9 +148,7 @@ class StatLine(Base):
 
 class TeamScore(Base):
     __tablename__ = "team_score"
-    __table_args__ = (
-        UniqueConstraint("team_id", "week", name="uq_team_week"),
-    )
+    __table_args__ = (UniqueConstraint("team_id", "week", name="uq_team_week"),)
 
     id: int = Column(Integer, primary_key=True, index=True)
     team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)

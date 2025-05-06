@@ -1,18 +1,19 @@
-from fastapi import FastAPI
-import uvicorn
 import os
 
-from app.core.database import init_db
-from app.core.scheduler import start_scheduler, shutdown_scheduler, scheduler, list_jobs
-from app.jobs.ingest import ingest_stat_lines
+import uvicorn
+from fastapi import FastAPI
 
 from app.api import router as api_router
+from app.core.database import init_db
+from app.core.scheduler import list_jobs, scheduler, shutdown_scheduler, start_scheduler
+from app.jobs.ingest import ingest_stat_lines
 
 init_db()
 
 app = FastAPI()
 
 # ---- Lifespan events ------------------------------------------------------
+
 
 @app.on_event("startup")
 async def _startup() -> None:
@@ -30,17 +31,21 @@ async def _startup() -> None:
             misfire_grace_time=3600,
         )
 
+
 @app.on_event("shutdown")
 async def _shutdown() -> None:
     shutdown_scheduler()
+
 
 app.include_router(api_router)
 
 # Debug route to list scheduled jobs
 
+
 @app.get("/jobs")
 async def jobs():
     return list_jobs()
+
 
 def _schedule_nightly() -> None:
     if not scheduler.get_job("nightly_ingest"):
@@ -53,6 +58,7 @@ def _schedule_nightly() -> None:
             replace_existing=True,
             misfire_grace_time=3600,
         )
+
 
 # Schedule immediately so that tests without lifespan still see job
 _schedule_nightly()

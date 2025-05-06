@@ -1,5 +1,6 @@
+from typing import Dict, List
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from typing import List, Dict
 
 # Global scheduler instance
 scheduler = AsyncIOScheduler(timezone="UTC")

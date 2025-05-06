@@ -11,6 +11,7 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
+
 from alembic import context
 
 # ---------------------------------------------------------------------------
@@ -23,7 +24,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
 # Import engine & metadata after path is set
-from app.core.database import DATABASE_URL, Base  # noqa: E402  pylint: disable=wrong-import-position
+from app.core.database import (  # noqa: E402  pylint: disable=wrong-import-position
+    DATABASE_URL,
+    Base,
+)
 
 # ---------------------------------------------------------------------------
 # Alembic Config
@@ -56,11 +60,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     connectable = engine_from_config(
-        {
-            "sqlalchemy.url": DATABASE_URL,
-        },
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
+        {"sqlalchemy.url": DATABASE_URL}, prefix="sqlalchemy.", poolclass=pool.NullPool
     )
 
     with connectable.connect() as connection:

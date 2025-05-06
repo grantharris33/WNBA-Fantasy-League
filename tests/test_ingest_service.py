@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.asyncio
@@ -17,6 +17,7 @@ async def test_jobs_route(monkeypatch, tmp_path: Path):
 
     # Import app after env vars set
     from importlib import reload
+
     import app.main as main
 
     reload(main)  # ensure startup executed with monkeypatched env
@@ -101,6 +102,7 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("RAPIDAPI_KEY", "dummy-key")
 
     import app.core.database as db
+
     db.init_db()
 
     from app.jobs import ingest as ing
@@ -160,6 +162,7 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
     await ing.ingest_stat_lines(target_date)
 
     from app import models as m
+
     session = db.SessionLocal()
     count = session.query(m.StatLine).count()
     assert count == 1

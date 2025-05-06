@@ -1,7 +1,8 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, scoped_session
-import pathlib
 import os
+import pathlib
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
 DB_FILENAME = os.getenv("DB_FILENAME", "dev.db")
 DB_PATH = pathlib.Path(DB_FILENAME)
@@ -10,12 +11,16 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 # Create engine
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+    connect_args={"check_same_thread": False}
+    if DATABASE_URL.startswith("sqlite")
+    else {},
     echo=False,
 )
 
 # Session factory
-SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False))
+SessionLocal = scoped_session(
+    sessionmaker(bind=engine, autoflush=False, autocommit=False)
+)
 
 # Declarative base
 Base = declarative_base()
