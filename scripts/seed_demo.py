@@ -35,9 +35,7 @@ def main() -> None:
 
     users = []
     for i in range(1, 5):
-        user = models.User(
-            email=f"demo{i}@example.com", hashed_password=get_password_hash("password")
-        )
+        user = models.User(email=f"demo{i}@example.com", hashed_password=get_password_hash("password"))
         db.add(user)
         users.append(user)
     db.flush()  # assign IDs

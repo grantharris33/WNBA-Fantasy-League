@@ -23,12 +23,7 @@ async def _startup() -> None:
     if not scheduler.get_job("nightly_ingest"):
         hour = int(os.getenv("INGEST_HOUR_UTC", "3"))
         scheduler.add_job(
-            ingest_stat_lines,
-            "cron",
-            hour=hour,
-            id="nightly_ingest",
-            replace_existing=True,
-            misfire_grace_time=3600,
+            ingest_stat_lines, "cron", hour=hour, id="nightly_ingest", replace_existing=True, misfire_grace_time=3600
         )
 
 
@@ -51,12 +46,7 @@ def _schedule_nightly() -> None:
     if not scheduler.get_job("nightly_ingest"):
         hour = int(os.getenv("INGEST_HOUR_UTC", "3"))
         scheduler.add_job(
-            ingest_stat_lines,
-            "cron",
-            hour=hour,
-            id="nightly_ingest",
-            replace_existing=True,
-            misfire_grace_time=3600,
+            ingest_stat_lines, "cron", hour=hour, id="nightly_ingest", replace_existing=True, misfire_grace_time=3600
         )
 
 

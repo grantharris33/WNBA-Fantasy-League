@@ -59,9 +59,7 @@ class League(Base):
 
 class Team(Base):
     __tablename__ = "team"
-    __table_args__ = (
-        UniqueConstraint("league_id", "name", name="uq_team_league_name"),
-    )
+    __table_args__ = (UniqueConstraint("league_id", "name", name="uq_team_league_name"),)
 
     id: int = Column(Integer, primary_key=True, index=True)
     name: str = Column(String, nullable=False)
@@ -72,12 +70,8 @@ class Team(Base):
     owner = relationship("User", back_populates="teams")
     league = relationship("League", back_populates="teams")
 
-    roster_slots = relationship(
-        "RosterSlot", back_populates="team", cascade="all, delete-orphan"
-    )
-    scores = relationship(
-        "TeamScore", back_populates="team", cascade="all, delete-orphan"
-    )
+    roster_slots = relationship("RosterSlot", back_populates="team", cascade="all, delete-orphan")
+    scores = relationship("TeamScore", back_populates="team", cascade="all, delete-orphan")
 
 
 # ---------------------------------------------------------------------------
@@ -104,9 +98,7 @@ class Player(Base):
 
 class RosterSlot(Base):
     __tablename__ = "roster_slot"
-    __table_args__ = (
-        UniqueConstraint("team_id", "player_id", name="uq_roster_slot_team_player"),
-    )
+    __table_args__ = (UniqueConstraint("team_id", "player_id", name="uq_roster_slot_team_player"),)
 
     id: int = Column(Integer, primary_key=True, index=True)
     team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)
@@ -124,9 +116,7 @@ class RosterSlot(Base):
 
 class StatLine(Base):
     __tablename__ = "stat_line"
-    __table_args__ = (
-        UniqueConstraint("player_id", "game_date", name="uq_stat_line_player_date"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "game_date", name="uq_stat_line_player_date"),)
 
     id: int = Column(Integer, primary_key=True, index=True)
     player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)

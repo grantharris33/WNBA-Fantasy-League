@@ -27,11 +27,7 @@ HEADERS = {
 def fetch_schedule(date_iso: str) -> List[Dict[str, Any]]:
     """Call /wnbaschedule using year / month / day query params."""
     date_obj = dt.datetime.strptime(date_iso, "%Y-%m-%d").date()
-    params = {
-        "year": date_obj.strftime("%Y"),
-        "month": date_obj.strftime("%m"),
-        "day": date_obj.strftime("%d"),
-    }
+    params = {"year": date_obj.strftime("%Y"), "month": date_obj.strftime("%m"), "day": date_obj.strftime("%d")}
 
     url = f"{BASE_URL}/wnbaschedule"
     resp = requests.get(url, headers=HEADERS, params=params)
@@ -64,9 +60,7 @@ def main():
 
     game = games[0]
     game_id = game["id"]
-    print(
-        f"Found game {game_id} – {game['teams'][0]['displayName']} vs {game['teams'][1]['displayName']}"
-    )
+    print(f"Found game {game_id} – {game['teams'][0]['displayName']} vs {game['teams'][1]['displayName']}")
 
     print("Fetching box-score …")
     boxscore = fetch_boxscore(game_id)

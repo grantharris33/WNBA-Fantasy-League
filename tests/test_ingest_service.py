@@ -117,11 +117,7 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
                     {
                         "athletes": [
                             {
-                                "athlete": {
-                                    "id": "1",
-                                    "displayName": "Player One",
-                                    "position": {"abbreviation": "G"},
-                                },
+                                "athlete": {"id": "1", "displayName": "Player One", "position": {"abbreviation": "G"}},
                                 "stats": [
                                     "20",  # MIN
                                     "2-7",  # FG

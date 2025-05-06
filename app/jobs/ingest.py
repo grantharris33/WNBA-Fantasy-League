@@ -61,24 +61,16 @@ HEADERS = {"X-RapidAPI-Host": "wnba-api.p.rapidapi.com"}
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
-async def _get_json(
-    client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None
-) -> Any:
+async def _get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None) -> Any:
     """HTTP GET with retry/backoff. Raises on non-200."""
     resp = await client.get(url, params=params)
     resp.raise_for_status()
     return resp.json()
 
 
-async def fetch_schedule(
-    client: httpx.AsyncClient, date_iso: str
-) -> List[dict[str, Any]]:
+async def fetch_schedule(client: httpx.AsyncClient, date_iso: str) -> List[dict[str, Any]]:
     date_obj = dt.datetime.strptime(date_iso, "%Y-%m-%d").date()
-    params = {
-        "year": date_obj.strftime("%Y"),
-        "month": date_obj.strftime("%m"),
-        "day": date_obj.strftime("%d"),
-    }
+    params = {"year": date_obj.strftime("%Y"), "month": date_obj.strftime("%m"), "day": date_obj.strftime("%d")}
     url = f"{BASE_URL}/wnbaschedule"
     data = await _get_json(client, url, params=params)
     date_key = date_obj.strftime("%Y%m%d")
@@ -99,9 +91,7 @@ def _upsert_player(session, athlete: dict[str, Any]) -> models.Player:
     player = session.get(models.Player, player_id)
     if player is None:
         player = models.Player(
-            id=player_id,
-            full_name=athlete["displayName"],
-            position=athlete.get("position", {}).get("abbreviation"),
+            id=player_id, full_name=athlete["displayName"], position=athlete.get("position", {}).get("abbreviation")
         )
         session.add(player)
     else:
@@ -144,9 +134,7 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
         try:
             games = await fetch_schedule(client, date_iso)
         except RetryError as exc:
-            _log_error(
-                provider="rapidapi", msg=f"Failed to fetch schedule {date_iso}: {exc}"
-            )
+            _log_error(provider="rapidapi", msg=f"Failed to fetch schedule {date_iso}: {exc}")
             return
 
         for game in games:
@@ -154,9 +142,7 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
             try:
                 box = await fetch_box_score(client, game_id)
             except RetryError as exc:
-                _log_error(
-                    provider="rapidapi", msg=f"Failed to fetch box {game_id}: {exc}"
-                )
+                _log_error(provider="rapidapi", msg=f"Failed to fetch box {game_id}: {exc}")
                 continue
 
             await _process_box_score(box, game_datetime)
@@ -180,20 +166,14 @@ async def _process_box_score(box: dict[str, Any], game_date: dt.datetime) -> Non
 
                     # Upsert StatLine
                     existing = (
-                        session.query(models.StatLine)
-                        .filter_by(player_id=player.id, game_date=game_date)
-                        .one_or_none()
+                        session.query(models.StatLine).filter_by(player_id=player.id, game_date=game_date).one_or_none()
                     )
 
                     if existing:
                         for k, v in stat_vals.items():
                             setattr(existing, k, v)
                     else:
-                        session.add(
-                            models.StatLine(
-                                player_id=player.id, game_date=game_date, **stat_vals
-                            )
-                        )
+                        session.add(models.StatLine(player_id=player.id, game_date=game_date, **stat_vals))
         session.commit()
     except Exception as exc:
         # Guard idempotency: ignore unique constraint duplicate inserts
