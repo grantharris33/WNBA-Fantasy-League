@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "A lightweight fantasy women's basketball web app for a season-long fantasy competition"
 authors = ["Grant Harris <me@grantharris.tech>"]
 
+[[tool.poetry.packages]]
+include = "app"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 fastapi = "^0.101.0"
