@@ -8,12 +8,14 @@ authors = ["Grant Harris <me@grantharris.tech>"]
 python = "^3.10"
 fastapi = "^0.101.0"
 uvicorn = {extras = ["standard"], version = "^0.23.0"}
-sqlmodel = "^0.0.8"
+sqlalchemy = "^2.0.39"
 apscheduler = "^3.11.0"
 passlib = "^1.7.4"
+bcrypt = "^4.3.0"
 python-dotenv = "^1.0.0"
 httpx = "^0.28.1"
 requests = "^2.32.3"
+alembic = "^1.15.2"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^23.9.1", allow-prereleases = false}

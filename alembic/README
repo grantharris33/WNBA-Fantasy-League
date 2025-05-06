@@ -1,0 +1,2 @@
+Alembic migration environment for WNBA Fantasy League.
+Run `poetry run alembic revision --autogenerate -m "init"` to create initial schema.
