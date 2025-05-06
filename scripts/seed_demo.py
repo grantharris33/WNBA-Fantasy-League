@@ -7,35 +7,70 @@ Inserts:
 * One team per user in the league
 
 Run with:
-    poetry run python scripts/seed_demo.py
+    poetry run python scripts/seed_demo.py [--force]
 """
 from __future__ import annotations
 
-from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+import argparse
+from pathlib import Path
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app import models
-from app.core.database import SessionLocal, init_db
+from app.core.database import Base
+from app.core.security import hash_password
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+# Force using dev.db for this script
+DB_PATH = Path("dev.db")
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 
 def main() -> None:
-    init_db()
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Seed the database with demo data.")
+    parser.add_argument("--force", action="store_true", help="Force recreation of demo data")
+    args = parser.parse_args()
+
+    print(f"Using database: {DATABASE_URL}")
+
+    # If force flag is set, delete the dev.db file if it exists
+    if args.force and DB_PATH.exists():
+        print(f"Removing existing database at {DB_PATH}")
+        DB_PATH.unlink()
+
+    # Initialize database connection
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+
+    # Create session
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     db: Session = SessionLocal()
 
-    # If data already seeded, skip
-    if db.query(models.User).first():
-        print("Demo data already exists. Skipping.")
+    # Check for existing data
+    user_count = db.query(models.User).count()
+
+    # If data already seeded and not forcing, skip
+    if not args.force and user_count > 0:
+        print("Demo data already exists. Skipping. (Use --force to recreate)")
         return
 
+    # Clean existing data if force is set
+    if args.force and user_count > 0:
+        print("Cleaning existing data...")
+        # Cascade deletions through FKs
+        db.query(models.Team).delete()
+        db.query(models.League).delete()
+        db.query(models.User).delete()
+        db.commit()
+
+    print("Creating demo data...")
     users = []
     for i in range(1, 5):
-        user = models.User(email=f"demo{i}@example.com", hashed_password=get_password_hash("password"))
+        email = f"demo{i}@example.com"
+        user = models.User(email=email, hashed_password=hash_password("password"))
         db.add(user)
         users.append(user)
     db.flush()  # assign IDs
@@ -51,6 +86,8 @@ def main() -> None:
         teams.append(team)
 
     db.commit()
+
+    print(f"Created {len(users)} users, 1 league, and {len(teams)} teams")
     print("Seeded demo data successfully.")
 
 

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models import League, Team, TeamScore
+from app.models import League, Team, TeamScore, User
 
 from .schemas import LeagueOut, Pagination, PlayerOut, ScoreOut, TeamOut
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
@@ -107,3 +108,14 @@ def current_scores(*, db: Session = Depends(_get_db)) -> List[ScoreOut]:  # noqa
     # Sort descending by season points
     result.sort(key=lambda s: s.season_points, reverse=True)
     return result
+
+
+@router.get("/me", response_model=dict)
+async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
+    """
+    Test endpoint to verify the current user authentication
+    """
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+    }

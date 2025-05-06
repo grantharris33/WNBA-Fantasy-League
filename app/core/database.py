@@ -20,6 +20,17 @@ SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocom
 Base = declarative_base()
 
 
+def get_db():
+    """
+    Get a database session for dependency injection
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def init_db() -> None:
     """Create database file (if SQLite) and tables for all models imported.
 

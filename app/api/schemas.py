@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Dict, Generic, List, TypeVar
+from datetime import datetime, date
+from typing import Dict, Generic, List, TypeVar, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from pydantic.generics import GenericModel
 
 T = TypeVar("T")
@@ -61,3 +61,23 @@ class ScoreOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# User schemas
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

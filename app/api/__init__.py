@@ -11,9 +11,17 @@ from app.jobs.ingest import ingest_stat_lines as _ingest_stat_lines
 from app.models import IngestLog
 from app.services.scoring import update_weekly_team_scores as _update_weekly_team_scores
 
+from .auth import router as auth_router
 from .endpoints_v1 import router as v1_router
+from .users import router as users_router
 
 router = APIRouter()
+
+# Auth endpoints
+router.include_router(auth_router, prefix="/api/v1")
+
+# Users endpoints
+router.include_router(users_router, prefix="/api/v1")
 
 # V1 public endpoints
 router.include_router(v1_router)
