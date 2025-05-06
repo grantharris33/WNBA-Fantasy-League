@@ -24,10 +24,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
 # Import engine & metadata after path is set
-from app.core.database import (  # noqa: E402  pylint: disable=wrong-import-position
-    DATABASE_URL,
-    Base,
-)
+from app.core.database import DATABASE_URL, Base  # noqa: E402  pylint: disable=wrong-import-position
 
 # ---------------------------------------------------------------------------
 # Alembic Config

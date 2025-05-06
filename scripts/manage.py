@@ -22,9 +22,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.append(str(_PROJECT_ROOT))
 
-from app.services.scoring import (  # noqa: E402  pylint: disable=wrong-import-position
-    update_weekly_team_scores,
-)
+from app.services.scoring import update_weekly_team_scores  # noqa: E402  pylint: disable=wrong-import-position
 
 
 def backfill_season(season: int):

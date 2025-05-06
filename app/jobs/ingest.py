@@ -8,12 +8,7 @@ from typing import Any, Dict, List
 import httpx
 
 try:
-    from tenacity import (  # type: ignore
-        RetryError,
-        retry,
-        stop_after_attempt,
-        wait_exponential,
-    )
+    from tenacity import RetryError, retry, stop_after_attempt, wait_exponential  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
     # Provide minimal no-op fallback so that code can run without tenacity in CI
     import functools

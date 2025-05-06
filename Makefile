@@ -7,7 +7,7 @@ test:
 	poetry run pytest
 
 lint:
-	poetry run ruff . && poetry run black --check . && poetry run isort --check-only .
+	poetry run ruff . && poetry run isort --check-only . && poetry run black --check .
 
 format:
-	poetry run ruff --fix . && poetry run black . && poetry run isort . 
+	poetry run ruff --fix . && poetry run isort . && poetry run black .
