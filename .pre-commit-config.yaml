@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "0.0.279"
+    hooks:
+      - id: ruff
+        args: [--fix]
+  - repo: https://github.com/psf/black
+    rev: "23.9.1"
+    hooks:
+      - id: black
+  - repo: https://github.com/PyCQA/isort
+    rev: "5.12.0"
+    hooks:
+      - id: isort
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "0.0.279"
+    hooks:
+      - id: ruff
+  - repo: local
+    hooks:
+      - id: pytest-short
+        name: pytest-short
+        entry: pytest --maxfail=1 --disable-warnings -q
+        language: system
+        pass_filenames: false
+        always_run: true 
