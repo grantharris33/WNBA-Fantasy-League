@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import datetime as dt
-import os
 from typing import Any, Dict, List
 
 # Optional dependency
 import httpx
 
 try:
-    from tenacity import RetryError, retry, stop_after_attempt, wait_exponential  # type: ignore
+    from tenacity import RetryError  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
     # Provide minimal no-op fallback so that code can run without tenacity in CI
     import functools
@@ -45,39 +44,23 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from app import models
 from app.core.database import SessionLocal
+from app.external_apis.rapidapi_client import RetryError, wnba_client
 from app.models import IngestLog
-
-BASE_URL = "https://wnba-api.p.rapidapi.com"
-# RapidAPI requires two headers.  **Header names are case-insensitive**, but
-# we use lower-case to match the official documentation for clarity.
-# (httpx will title-case them before sending.)
-
-HEADERS = {"x-rapidapi-host": "wnba-api.p.rapidapi.com"}
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
 # ---------------------------------------------------------------------------
 
-
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
-async def _get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None) -> Any:
-    """HTTP GET with retry/backoff. Raises on non-200."""
-    resp = await client.get(url, params=params)
-    resp.raise_for_status()
-    return resp.json()
-
-
-async def fetch_schedule(client: httpx.AsyncClient, date_iso: str) -> List[dict[str, Any]]:
+async def fetch_schedule(date_iso: str) -> List[dict[str, Any]]:
     date_obj = dt.datetime.strptime(date_iso, "%Y-%m-%d").date()
     params = {"year": date_obj.strftime("%Y"), "month": date_obj.strftime("%m"), "day": date_obj.strftime("%d")}
-    url = f"{BASE_URL}/wnbaschedule"
-    data = await _get_json(client, url, params=params)
+    data = await wnba_client._get_json("wnbaschedule", params=params)
     date_key = date_obj.strftime("%Y%m%d")
     return data.get(date_key, [])
 
 
-async def fetch_box_score(client: httpx.AsyncClient, game_id: str) -> dict[str, Any]:
-    return await _get_json(client, f"{BASE_URL}/wnbabox", params={"gameId": game_id})
+async def fetch_box_score(game_id: str) -> dict[str, Any]:
+    return await wnba_client._get_json("wnbabox", params={"gameId": game_id})
 
 
 # ---------------------------------------------------------------------------
@@ -123,33 +106,24 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
     date_iso = target_date.strftime("%Y-%m-%d")
     game_datetime = dt.datetime.combine(target_date, dt.time())
 
-    # The RapidAPI key can be supplied via either ``WNBA_API_KEY`` (preferred –
-    # documented in Story-4) **or** the more generic ``RAPIDAPI_KEY`` that some
-    # existing CI pipelines already expose.  We transparently support both to
-    # keep backward-compat.
+    try:
+        games = await fetch_schedule(date_iso)
+    except RetryError as exc:
+        _log_error(provider="rapidapi", msg=f"Failed to fetch schedule {date_iso}: {exc}")
+        return
 
-    rapid_api_key = os.getenv("WNBA_API_KEY") or os.getenv("RAPIDAPI_KEY")
-    if not rapid_api_key:
-        raise RuntimeError("WNBA_API_KEY (or RAPIDAPI_KEY) env var not set")
-
-    headers = {**HEADERS, "x-rapidapi-key": rapid_api_key}
-
-    async with httpx.AsyncClient(timeout=10, headers=headers) as client:
+    for game in games:
+        game_id = game["id"]
         try:
-            games = await fetch_schedule(client, date_iso)
+            box = await fetch_box_score(game_id)
         except RetryError as exc:
-            _log_error(provider="rapidapi", msg=f"Failed to fetch schedule {date_iso}: {exc}")
-            return
+            _log_error(provider="rapidapi", msg=f"Failed to fetch box {game_id}: {exc}")
+            continue
 
-        for game in games:
-            game_id = game["id"]
-            try:
-                box = await fetch_box_score(client, game_id)
-            except RetryError as exc:
-                _log_error(provider="rapidapi", msg=f"Failed to fetch box {game_id}: {exc}")
-                continue
+        await _process_box_score(box, game_datetime)
 
-            await _process_box_score(box, game_datetime)
+    # Close the client after we're done
+    await wnba_client.close()
 
 
 async def _process_box_score(box: dict[str, Any], game_date: dt.datetime) -> None:

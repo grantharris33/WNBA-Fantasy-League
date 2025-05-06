@@ -60,10 +60,10 @@ class _StubClient:
 
 
 @pytest.mark.asyncio
-async def test_fetch_helpers_retry(monkeypatch):
-    """fetch_schedule retries until success (simulate failure then success)."""
-
-    from app.jobs import ingest as ing
+async def test_rapidapi_client_retry(monkeypatch):
+    """Test that the RapidApiClient retries until success."""
+    import httpx
+    from app.external_apis.rapidapi_client import RapidApiClient
 
     class DummyResp:
         def __init__(self, ok: bool):
@@ -71,10 +71,10 @@ async def test_fetch_helpers_retry(monkeypatch):
 
         def raise_for_status(self):
             if not self._ok:
-                raise ing.httpx.HTTPError("oops")
+                raise httpx.HTTPError("oops")
 
         def json(self):
-            return {"20250101": []}
+            return {"data": "test"}
 
     class DummyClient:
         def __init__(self):
@@ -86,12 +86,16 @@ async def test_fetch_helpers_retry(monkeypatch):
                 return DummyResp(False)
             return DummyResp(True)
 
-    client = DummyClient()
+    # Create a RapidApiClient with our mock client
+    client = RapidApiClient(base_url="https://test.com", host="test.com")
+    client._client = DummyClient()
 
-    result = await ing._get_json(client, "http://test")
+    # Patch the retry to make tests faster
+    monkeypatch.setattr("app.external_apis.rapidapi_client.wait_exponential", lambda *args, **kwargs: None)
+
+    result = await client._get_json("test")
     assert isinstance(result, dict)
-    # ensure exactly 3 attempts made
-    assert client.calls == 3
+    assert client._client.calls == 3
 
 
 @pytest.mark.asyncio
@@ -107,9 +111,10 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
     db.init_db()
 
     from app.jobs import ingest as ing
+    from app.external_apis.rapidapi_client import wnba_client
 
     # Prepare stub schedule (one game) and box-score payload
-    schedule_payload = [{"id": "game1"}]
+    schedule_payload = {"20250101": [{"id": "game1"}]}
 
     box_payload = {
         "players": [
@@ -143,14 +148,20 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
         ]
     }
 
-    async def _mock_fetch_schedule(client, date_iso):  # noqa: D401
-        return schedule_payload
+    # Mock the RapidApiClient _get_json method
+    async def mock_get_json(endpoint, params=None):
+        if endpoint == "wnbaschedule":
+            return schedule_payload
+        elif endpoint == "wnbabox":
+            return box_payload
+        return {}
 
-    async def _mock_fetch_box(client, gid):  # noqa: D401
-        return box_payload
-
-    monkeypatch.setattr(ing, "fetch_schedule", _mock_fetch_schedule)
-    monkeypatch.setattr(ing, "fetch_box_score", _mock_fetch_box)
+    # Apply our mock
+    monkeypatch.setattr(wnba_client, "_get_json", mock_get_json)
+    # Also mock close to avoid issues in tests
+    async def mock_close():
+        pass
+    monkeypatch.setattr(wnba_client, "close", mock_close)
 
     target_date = dt.date(2025, 1, 1)
 
