@@ -1,9 +1,9 @@
 # WNBA Fantasy League
-[![CI](https://github.com/grantharris/WNBA-Fantasy-League/actions/workflows/ci.yml/badge.svg)](https://github.com/grantharris/WNBA-Fantasy-League/actions/workflows/ci.yml)
+[![CI](https://github.com/grantharris33/WNBA-Fantasy-League/actions/workflows/ci.yml/badge.svg)](https://github.com/grantharris33/WNBA-Fantasy-League/actions/workflows/ci.yml)
 
-*A lightweight fantasy women's basketball web app for 2–4 friends.*
+*A lightweight fantasy women's basketball web app.*
 
-WNBA Fantasy Leagure lets a small, private group draft WNBA (or NBA) players, track nightly box‑scores, and see real‑time standings in a clean React UI backed by a FastAPI service.
+WNBA Fantasy League lets a small, private group draft WNBA (or NBA) players, track nightly box‑scores, and see real‑time standings for a season-long fantasy competition in a clean React UI backed by a FastAPI service.
 
 ---
 
@@ -23,14 +23,18 @@ WNBA Fantasy Leagure lets a small, private group draft WNBA (or NBA) players, tr
 
 ## Tech Stack
 
-* **Backend:** FastAPI / Python 3.12, SQLModel ORM, SQLite
+* **Backend:** FastAPI / Python 3.10, SQLAlchemy ORM, SQLite
 * **Front‑end:** React + Vite, Tailwind CSS, shadcn/ui, Chart.js
 * **Dev Tooling:** Poetry, Ruff, Black, Isort, Pytest, Pre‑commit hooks
-* **CI/CD:** GitHub Actions → Fly.io (Docker‑based)
+* **CI/CD:** GitHub Actions
 
 ---
 
 ## Quick Start (Dev)
+
+### Prerequisites
+- macOS: `brew install poetry`
+- Linux / WSL: `curl -sSL https://install.python-poetry.org | python3 -`
 
 ```bash
 # clone & install

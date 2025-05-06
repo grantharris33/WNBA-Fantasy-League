@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Story Acceptance Criteria
 
 1. GitHub repository `WNBA-Fantasy-League` with `main` as default branch.

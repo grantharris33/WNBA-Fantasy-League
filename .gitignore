@@ -47,5 +47,6 @@ htmlcov/
 # Environment variables
 .env
 .venv
+
 # Poetry lockfile
-poetry.lock 
+# poetry.lock

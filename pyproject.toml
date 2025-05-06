@@ -1,18 +1,19 @@
 [tool.poetry]
 name = "wnba-fantasy-league"
 version = "0.1.0"
-description = "A lightweight fantasy women's basketball web app for 2-4 friends"
+description = "A lightweight fantasy women's basketball web app for a season-long fantasy competition"
 authors = ["Grant Harris <me@grantharris.tech>"]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 fastapi = "^0.101.0"
 uvicorn = {extras = ["standard"], version = "^0.23.0"}
 sqlmodel = "^0.0.8"
-apscheduler = "^3.11.1"
-balldontlie = "^0.2.2"
+apscheduler = "^3.11.0"
 passlib = "^1.7.4"
 python-dotenv = "^1.0.0"
+httpx = "^0.28.1"
+requests = "^2.32.3"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^23.9.1", allow-prereleases = false}
@@ -20,7 +21,11 @@ ruff = "^0.0.279"
 isort = "^5.12.0"
 pytest = "^7.4.0"
 pytest-asyncio = "^0.21.0"
-pre-commit = "^4.4.0"
+pre-commit = "^4.2.0"
+httpx = "^0.28.1"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core>=1.6.0"]
@@ -42,4 +47,4 @@ ignore = ["E203", "W503"]
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q"
-testpaths = ["tests"] 
+testpaths = ["tests"]

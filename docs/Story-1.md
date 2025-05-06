@@ -6,6 +6,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Context
 
 Small private league ⇒ low request volume (< 500 calls / day). We need:
