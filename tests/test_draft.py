@@ -5,33 +5,24 @@ from sqlalchemy.orm import Session
 from app.models import DraftPick, DraftState, League, Player, Team, User
 from app.services.draft import DraftService
 
+
 # Mock data for testing
 @pytest.fixture
 def setup_test_data(db: Session):
     # Create test user (commissioner)
-    commissioner = User(
-        email="commissioner@example.com",
-        hashed_password="$2b$12$test_hash"
-    )
+    commissioner = User(email="commissioner@example.com", hashed_password="$2b$12$test_hash")
     db.add(commissioner)
     db.flush()
 
     # Create test league
-    league = League(
-        name="Test League",
-        commissioner_id=commissioner.id
-    )
+    league = League(name="Test League", commissioner_id=commissioner.id)
     db.add(league)
     db.flush()
 
     # Create 4 teams in the league
     teams = []
     for i in range(4):
-        team = Team(
-            name=f"Team {i+1}",
-            owner_id=commissioner.id,
-            league_id=league.id
-        )
+        team = Team(name=f"Team {i+1}", owner_id=commissioner.id, league_id=league.id)
         db.add(team)
         teams.append(team)
     db.flush()
@@ -40,21 +31,14 @@ def setup_test_data(db: Session):
     players = []
     positions = ["G", "G", "F", "F", "C"]
     for i in range(20):
-        player = Player(
-            full_name=f"Player {i+1}",
-            position=positions[i % 5]
-        )
+        player = Player(full_name=f"Player {i+1}", position=positions[i % 5])
         db.add(player)
         players.append(player)
 
     db.commit()
 
-    return {
-        "commissioner": commissioner,
-        "league": league,
-        "teams": teams,
-        "players": players
-    }
+    return {"commissioner": commissioner, "league": league, "teams": teams, "players": players}
+
 
 def test_start_draft(db: Session, setup_test_data):
     """Test starting a draft for a league."""
@@ -83,6 +67,7 @@ def test_start_draft(db: Session, setup_test_data):
     expected_order = team_ids + team_ids[::-1]
     assert pick_order == expected_order
 
+
 def test_make_pick(db: Session, setup_test_data):
     """Test making picks in a draft."""
     league = setup_test_data["league"]
@@ -98,10 +83,7 @@ def test_make_pick(db: Session, setup_test_data):
     # Make first pick
     current_team_id = draft_state.current_team_id()
     pick, updated_draft = draft_service.make_pick(
-        draft_id=draft_state.id,
-        team_id=current_team_id,
-        player_id=players[0].id,
-        user_id=commissioner.id
+        draft_id=draft_state.id, team_id=current_team_id, player_id=players[0].id, user_id=commissioner.id
     )
 
     # Verify pick was made
@@ -118,10 +100,7 @@ def test_make_pick(db: Session, setup_test_data):
     # Make second pick
     current_team_id = updated_draft.current_team_id()
     pick2, updated_draft2 = draft_service.make_pick(
-        draft_id=draft_state.id,
-        team_id=current_team_id,
-        player_id=players[1].id,
-        user_id=commissioner.id
+        draft_id=draft_state.id, team_id=current_team_id, player_id=players[1].id, user_id=commissioner.id
     )
 
     # Verify second pick
@@ -129,6 +108,7 @@ def test_make_pick(db: Session, setup_test_data):
     assert pick2.player_id == players[1].id
     assert pick2.round == 1
     assert pick2.pick_number == 2
+
 
 def test_auto_pick(db: Session, setup_test_data):
     """Test auto-pick functionality."""
@@ -151,6 +131,7 @@ def test_auto_pick(db: Session, setup_test_data):
     assert pick.is_auto == 1  # SQLite stores booleans as integers
     assert updated_draft.current_pick_index == 1  # Moved to next pick
 
+
 def test_pause_resume(db: Session, setup_test_data):
     """Test pausing and resuming a draft."""
     league = setup_test_data["league"]
@@ -169,6 +150,7 @@ def test_pause_resume(db: Session, setup_test_data):
     # Resume draft
     resumed_draft = draft_service.resume_draft(draft_state.id, commissioner.id)
     assert resumed_draft.status == "active"
+
 
 @pytest.mark.slow
 def test_complete_draft(db: Session, setup_test_data):
@@ -211,10 +193,7 @@ def test_complete_draft(db: Session, setup_test_data):
         player_index = (player_index + 1) % len(players)
 
         pick, draft_state = draft_service.make_pick(
-            draft_id=draft_state.id,
-            team_id=current_team_id,
-            player_id=player_id,
-            user_id=commissioner.id
+            draft_id=draft_state.id, team_id=current_team_id, player_id=player_id, user_id=commissioner.id
         )
 
     # Verify draft made it through expected rounds

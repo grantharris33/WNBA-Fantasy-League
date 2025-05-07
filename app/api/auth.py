@@ -30,8 +30,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 @router.post("/token")
 async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[Session, Depends(get_db)]
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Annotated[Session, Depends(get_db)]
 ):
     """
     Get an access token for future requests
@@ -45,8 +44,6 @@ async def login_for_access_token(
         )
 
     access_token_expires = timedelta(seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS)
-    access_token = create_access_token(
-        subject=user.id, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(subject=user.id, expires_delta=access_token_expires)
 
     return {"access_token": access_token, "token_type": "bearer"}

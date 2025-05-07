@@ -18,13 +18,9 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_SECONDS: int = 30 * 24 * 60 * 60
 
     # Database
-    SQLALCHEMY_DATABASE_URI: Optional[str] = os.getenv(
-        "DATABASE_URL", "sqlite:///./prod.db"
-    )
+    SQLALCHEMY_DATABASE_URI: Optional[str] = os.getenv("DATABASE_URL", "sqlite:///./prod.db")
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
-        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(
-            "postgres://", "postgresql://"
-        )
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://")
 
 
 settings = Settings()

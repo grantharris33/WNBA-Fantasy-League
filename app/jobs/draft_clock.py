@@ -44,8 +44,7 @@ def check_draft_clocks():
                     if pick_result:
                         pick, updated_draft = pick_result
                         logger.info(
-                            f"Auto-picked player {pick.player_id} for team {pick.team_id} "
-                            f"in draft {draft.id}"
+                            f"Auto-picked player {pick.player_id} for team {pick.team_id} " f"in draft {draft.id}"
                         )
                     else:
                         logger.warning(f"Auto-pick not completed for draft {draft.id}")
@@ -78,10 +77,9 @@ def pause_stale_drafts():
     try:
         # Get active drafts with no updates in the last hour
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-        stale_drafts = db.query(DraftState).filter(
-            DraftState.status == "active",
-            DraftState.updated_at < one_hour_ago
-        ).all()
+        stale_drafts = (
+            db.query(DraftState).filter(DraftState.status == "active", DraftState.updated_at < one_hour_ago).all()
+        )
 
         for draft in stale_drafts:
             logger.info(f"Pausing stale draft {draft.id}")

@@ -37,10 +37,7 @@ def test_password_hashing():
 def test_token_endpoint(client: TestClient, test_user):
     """Test token generation endpoint"""
     # Login with correct credentials
-    response = client.post(
-        "/api/v1/token",
-        data={"username": "test@example.com", "password": "testpassword"},
-    )
+    response = client.post("/api/v1/token", data={"username": "test@example.com", "password": "testpassword"})
 
     # Check response
     assert response.status_code == 200
@@ -49,10 +46,7 @@ def test_token_endpoint(client: TestClient, test_user):
     assert token_data["token_type"] == "bearer"
 
     # Login with incorrect password
-    response = client.post(
-        "/api/v1/token",
-        data={"username": "test@example.com", "password": "wrongpassword"},
-    )
+    response = client.post("/api/v1/token", data={"username": "test@example.com", "password": "wrongpassword"})
 
     # Should fail with 401
     assert response.status_code == 401
@@ -61,18 +55,12 @@ def test_token_endpoint(client: TestClient, test_user):
 def test_protected_endpoint(client: TestClient, test_user):
     """Test protected endpoint access"""
     # First get a token
-    response = client.post(
-        "/api/v1/token",
-        data={"username": "test@example.com", "password": "testpassword"},
-    )
+    response = client.post("/api/v1/token", data={"username": "test@example.com", "password": "testpassword"})
 
     token = response.json()["access_token"]
 
     # Access protected endpoint with token
-    response = client.get(
-        "/api/v1/me",
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    response = client.get("/api/v1/me", headers={"Authorization": f"Bearer {token}"})
 
     # Should succeed
     assert response.status_code == 200
@@ -86,10 +74,7 @@ def test_protected_endpoint(client: TestClient, test_user):
     assert response.status_code == 401
 
     # Access with invalid token
-    response = client.get(
-        "/api/v1/me",
-        headers={"Authorization": "Bearer invalidtoken"}
-    )
+    response = client.get("/api/v1/me", headers={"Authorization": "Bearer invalidtoken"})
 
     # Should fail with 401
     assert response.status_code == 401

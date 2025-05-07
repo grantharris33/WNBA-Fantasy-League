@@ -1,9 +1,10 @@
-import pytest
 from datetime import datetime
+
+import pytest
 from freezegun import freeze_time
 from sqlalchemy.orm import Session
 
-from app.models import Player, RosterSlot, Team, User, League
+from app.models import League, Player, RosterSlot, Team, User
 from app.services.roster import RosterService
 
 
@@ -55,12 +56,7 @@ def setup_roster_test(db: Session):
     db.add_all(roster_slots)
     db.commit()
 
-    return {
-        "league": league,
-        "user": user1,
-        "team": team1,
-        "players": players,
-    }
+    return {"league": league, "user": user1, "team": team1, "players": players}
 
 
 def test_get_free_agents(db: Session, setup_roster_test):
@@ -91,7 +87,7 @@ def test_add_player_to_team(db: Session, setup_roster_test):
     assert roster_slot is not None
     assert roster_slot.team_id == team.id
     assert roster_slot.player_id == free_agent.id
-    assert roster_slot.is_starter == False
+    assert roster_slot.is_starter == 0
 
     # Verify player is now on the roster
     team_players = db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all()
@@ -113,7 +109,7 @@ def test_add_player_as_starter_increments_move_counter(db: Session, setup_roster
     roster_slot = service.add_player_to_team(team.id, free_agent.id, set_as_starter=True)
 
     # Assert
-    assert roster_slot.is_starter == True
+    assert roster_slot.is_starter == 1
 
     # The move counter should increment since the player is set as a starter
     team_db = db.query(Team).filter_by(id=team.id).first()
@@ -135,10 +131,9 @@ def test_drop_player_from_team(db: Session, setup_roster_test):
     team_players = db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all()
     assert len(team_players) == 6  # 7 original - 1 dropped
 
-    roster_slot = db.query(RosterSlot).filter(
-        RosterSlot.team_id == team.id,
-        RosterSlot.player_id == player_to_drop.id
-    ).first()
+    roster_slot = (
+        db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.player_id == player_to_drop.id).first()
+    )
     assert roster_slot is None
 
 
@@ -180,16 +175,15 @@ def test_set_starters_invalid_positions(db: Session, setup_roster_test):
     # First add all these players to the team to make sure they're on the roster
     for player_id in [players[2].id, players[3].id, players[5].id]:
         # Make sure this player is on the team's roster if not already
-        if not db.query(RosterSlot).filter(
-            RosterSlot.team_id == team.id,
-            RosterSlot.player_id == player_id
-        ).first():
-            db.add(RosterSlot(
-                team_id=team.id,
-                player_id=player_id,
-                position=next(p.position for p in players if p.id == player_id),
-                is_starter=False
-            ))
+        if not db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.player_id == player_id).first():
+            db.add(
+                RosterSlot(
+                    team_id=team.id,
+                    player_id=player_id,
+                    position=next(p.position for p in players if p.id == player_id),
+                    is_starter=False,
+                )
+            )
     db.commit()
 
     # Invalid lineup - only 1 guard

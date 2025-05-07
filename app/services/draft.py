@@ -74,7 +74,9 @@ class DraftService:
 
         return draft_state
 
-    def make_pick(self, draft_id: int, team_id: int, player_id: int, user_id: int, is_auto: bool = False) -> Tuple[DraftPick, DraftState]:
+    def make_pick(
+        self, draft_id: int, team_id: int, player_id: int, user_id: int, is_auto: bool = False
+    ) -> Tuple[DraftPick, DraftState]:
         """
         Make a draft pick.
 
@@ -105,9 +107,11 @@ class DraftService:
             raise ValueError(f"It's not team {team_id}'s turn to pick")
 
         # Check if player already drafted
-        existing_pick = self.db.query(DraftPick).filter(
-            and_(DraftPick.draft_id == draft_id, DraftPick.player_id == player_id)
-        ).first()
+        existing_pick = (
+            self.db.query(DraftPick)
+            .filter(and_(DraftPick.draft_id == draft_id, DraftPick.player_id == player_id))
+            .first()
+        )
         if existing_pick:
             raise ValueError(f"Player {player_id} has already been drafted")
 
@@ -133,15 +137,11 @@ class DraftService:
             player_id=player_id,
             round=draft.current_round,
             pick_number=pick_number,
-            is_auto=is_auto
+            is_auto=is_auto,
         )
 
         # Add player to team's roster
-        roster_slot = RosterSlot(
-            team_id=team_id,
-            player_id=player_id,
-            position=player.position
-        )
+        roster_slot = RosterSlot(team_id=team_id, player_id=player_id, position=player.position)
 
         # Update draft state (advance to next pick)
         draft.advance_pick()
@@ -259,24 +259,23 @@ class DraftService:
             player = self.db.query(Player).filter(Player.id == pick.player_id).first()
             team = self.db.query(Team).filter(Team.id == pick.team_id).first()
 
-            formatted_picks.append({
-                "id": pick.id,
-                "round": pick.round,
-                "pick_number": pick.pick_number,
-                "team_id": pick.team_id,
-                "team_name": team.name if team else "Unknown",
-                "player_id": pick.player_id,
-                "player_name": player.full_name if player else "Unknown",
-                "player_position": player.position if player else "Unknown",
-                "timestamp": pick.timestamp.isoformat(),
-                "is_auto": pick.is_auto,
-            })
+            formatted_picks.append(
+                {
+                    "id": pick.id,
+                    "round": pick.round,
+                    "pick_number": pick.pick_number,
+                    "team_id": pick.team_id,
+                    "team_name": team.name if team else "Unknown",
+                    "player_id": pick.player_id,
+                    "player_name": player.full_name if player else "Unknown",
+                    "player_position": player.position if player else "Unknown",
+                    "timestamp": pick.timestamp.isoformat(),
+                    "is_auto": pick.is_auto,
+                }
+            )
 
         # Build response
-        response = {
-            **draft.as_dict(),
-            "picks": formatted_picks,
-        }
+        response = {**draft.as_dict(), "picks": formatted_picks}
 
         return response
 
@@ -299,13 +298,10 @@ class DraftService:
         # Get best available player (this would ideally use ADP rankings)
         # For now, we'll just pick the first undrafted player
         drafted_player_ids = [
-            pick.player_id for pick in
-            self.db.query(DraftPick).filter(DraftPick.draft_id == draft_id).all()
+            pick.player_id for pick in self.db.query(DraftPick).filter(DraftPick.draft_id == draft_id).all()
         ]
 
-        best_player = self.db.query(Player).filter(
-            ~Player.id.in_(drafted_player_ids)
-        ).first()
+        best_player = self.db.query(Player).filter(~Player.id.in_(drafted_player_ids)).first()
 
         if not best_player:
             return None
@@ -316,11 +312,7 @@ class DraftService:
 
         # Make the pick
         return self.make_pick(
-            draft_id=draft_id,
-            team_id=current_team_id,
-            player_id=best_player.id,
-            user_id=system_user_id,
-            is_auto=True
+            draft_id=draft_id, team_id=current_team_id, player_id=best_player.id, user_id=system_user_id, is_auto=True
         )
 
     def _validate_positional_requirements(self, team_id: int, new_player: Player) -> bool:

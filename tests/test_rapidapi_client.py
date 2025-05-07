@@ -49,11 +49,7 @@ class TestRapidApiClient:
             client._create_client()
 
             mock_async_client.assert_called_once_with(
-                timeout=10,
-                headers={
-                    "x-rapidapi-host": "test.com",
-                    "x-rapidapi-key": "test_key",
-                }
+                timeout=10, headers={"x-rapidapi-host": "test.com", "x-rapidapi-key": "test_key"}
             )
 
     @pytest.mark.asyncio
@@ -65,15 +61,13 @@ class TestRapidApiClient:
 
         result = await client._get_json("test_endpoint", {"param": "value"})
 
-        client._client.get.assert_called_once_with(
-            "https://test.com/test_endpoint",
-            params={"param": "value"}
-        )
+        client._client.get.assert_called_once_with("https://test.com/test_endpoint", params={"param": "value"})
         assert result == {"data": "test_data"}
 
     @pytest.mark.asyncio
     async def test_get_json_retry(self, mock_env_vars):
         """Test retry logic failure leads to RetryError."""
+
         # Create a failing function that always raises an error
         async def failing_get(url, params=None):
             raise httpx.HTTPStatusError("Error", request=MagicMock(), response=MagicMock())

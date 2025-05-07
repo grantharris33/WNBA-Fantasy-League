@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, date
-from typing import Dict, Generic, List, TypeVar, Optional
+from datetime import date, datetime
+from typing import Dict, Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from pydantic.generics import GenericModel
 
 T = TypeVar("T")

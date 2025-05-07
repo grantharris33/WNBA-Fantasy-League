@@ -44,12 +44,13 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from app import models
 from app.core.database import SessionLocal
-from app.external_apis.rapidapi_client import RetryError, wnba_client
+from app.external_apis.rapidapi_client import wnba_client
 from app.models import IngestLog
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
 # ---------------------------------------------------------------------------
+
 
 async def fetch_schedule(date_iso: str) -> List[dict[str, Any]]:
     date_obj = dt.datetime.strptime(date_iso, "%Y-%m-%d").date()

@@ -1,6 +1,6 @@
 import os
-import httpx
 
+import httpx
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,10 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import router as api_router
 from app.core.database import init_db
 from app.core.scheduler import list_jobs, scheduler, shutdown_scheduler, start_scheduler
-from app.jobs.ingest import ingest_stat_lines
-from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks
-from app.jobs.reset_weekly_moves import reset_weekly_moves
 from app.jobs.bonus_calc import calc_weekly_bonuses
+from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks
+from app.jobs.ingest import ingest_stat_lines
+from app.jobs.reset_weekly_moves import reset_weekly_moves
 
 init_db()
 
@@ -99,8 +99,9 @@ async def _startup() -> None:
     if not scheduler.get_job("reset_weekly_moves"):
         reset_hour = int(os.getenv("WEEKLY_RESET_HOUR_UTC", "5"))
 
-        from app.core.database import get_db
         from functools import partial
+
+        from app.core.database import get_db
 
         # Create a job with a database session
         db = next(get_db())
@@ -139,22 +140,12 @@ async def _startup() -> None:
     draft_timer_seconds = int(os.getenv("DRAFT_TIMER_SECONDS", "1"))
     if not scheduler.get_job("draft_clock_check"):
         scheduler.add_job(
-            check_draft_clocks,
-            "interval",
-            seconds=draft_timer_seconds,
-            id="draft_clock_check",
-            replace_existing=True,
+            check_draft_clocks, "interval", seconds=draft_timer_seconds, id="draft_clock_check", replace_existing=True
         )
 
     # Check for stale drafts hourly
     if not scheduler.get_job("pause_stale_drafts"):
-        scheduler.add_job(
-            pause_stale_drafts,
-            "interval",
-            hours=1,
-            id="pause_stale_drafts",
-            replace_existing=True,
-        )
+        scheduler.add_job(pause_stale_drafts, "interval", hours=1, id="pause_stale_drafts", replace_existing=True)
 
 
 @app.on_event("shutdown")
@@ -202,8 +193,9 @@ def _schedule_nightly() -> None:
     if not scheduler.get_job("reset_weekly_moves"):
         reset_hour = int(os.getenv("WEEKLY_RESET_HOUR_UTC", "5"))
 
-        from app.core.database import get_db
         from functools import partial
+
+        from app.core.database import get_db
 
         # Create a job with a database session
         db = next(get_db())
@@ -237,21 +229,11 @@ def _schedule_nightly() -> None:
     draft_timer_seconds = int(os.getenv("DRAFT_TIMER_SECONDS", "1"))
     if not scheduler.get_job("draft_clock_check"):
         scheduler.add_job(
-            check_draft_clocks,
-            "interval",
-            seconds=draft_timer_seconds,
-            id="draft_clock_check",
-            replace_existing=True,
+            check_draft_clocks, "interval", seconds=draft_timer_seconds, id="draft_clock_check", replace_existing=True
         )
 
     if not scheduler.get_job("pause_stale_drafts"):
-        scheduler.add_job(
-            pause_stale_drafts,
-            "interval",
-            hours=1,
-            id="pause_stale_drafts",
-            replace_existing=True,
-        )
+        scheduler.add_job(pause_stale_drafts, "interval", hours=1, id="pause_stale_drafts", replace_existing=True)
 
 
 # Schedule immediately so that tests without lifespan still see job

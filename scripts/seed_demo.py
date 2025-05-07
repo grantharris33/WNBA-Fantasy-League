@@ -12,18 +12,14 @@ Run with:
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
 from app import models
-from app.core.database import Base
+from app.core.database import DB_PATH, SessionLocal, init_db
 from app.core.security import hash_password
 
-# Force using dev.db for this script
-DB_PATH = Path("dev.db")
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+# Force and database path are managed by app.core.database via DB_FILENAME env var
 
 
 def main() -> None:
@@ -32,22 +28,18 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="Force recreation of demo data")
     args = parser.parse_args()
 
-    print(f"Using database: {DATABASE_URL}")
+    print(f"Using database: sqlite:///{DB_PATH}")
 
-    # If force flag is set, delete the dev.db file if it exists
+    # If force flag is set, delete the database file if it exists
     if args.force and DB_PATH.exists():
         print(f"Removing existing database at {DB_PATH}")
         DB_PATH.unlink()
 
-    # Initialize database connection
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-
-    # Create tables
-    Base.metadata.create_all(bind=engine)
+    # Initialize database schema
+    init_db()
 
     # Create session
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    db: Session = SessionLocal()
+    db = SessionLocal()
 
     # Check for existing data
     user_count = db.query(models.User).count()

@@ -7,13 +7,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Add the project root to the Python path so pytest can find the app module
-project_root = str(Path(__file__).parent)
-sys.path.insert(0, project_root)
-
 from app.core.database import Base, get_db
 from app.main import app
 
+# Add the project root to the Python path so pytest can find the app module
+project_root = str(Path(__file__).parent)
+sys.path.insert(0, project_root)
 
 # Use a separate test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -23,17 +22,13 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 # Add command-line option to skip slow tests
 def pytest_addoption(parser):
-    parser.addoption(
-        "--skip-slow", action="store_true", default=False, help="Skip slow tests"
-    )
+    parser.addoption("--skip-slow", action="store_true", default=False, help="Skip slow tests")
 
 
 def pytest_configure(config):
     """Register slow marker and configure it to be skipped when --skip-slow is used."""
     # Register the 'slow' marker
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow (skipped with --skip-slow)"
-    )
+    config.addinivalue_line("markers", "slow: marks tests as slow (skipped with --skip-slow)")
 
     # Skip slow tests if the --skip-slow flag is provided
     if config.getoption("--skip-slow"):
@@ -77,6 +72,7 @@ def db(db_engine):
 @pytest.fixture
 def client(db):
     """Get a FastAPI test client"""
+
     # Override the get_db dependency to use the test database
     def override_get_db():
         try:

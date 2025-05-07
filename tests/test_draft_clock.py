@@ -1,11 +1,11 @@
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts
-from app.models import DraftState, League, User, Team, Player, DraftPick
+from app.models import DraftPick, DraftState, League, Player, Team, User
 from app.services.draft import DraftService
 
 
@@ -13,29 +13,19 @@ from app.services.draft import DraftService
 def setup_active_draft(db: Session):
     """Set up an active draft for testing."""
     # Create test user
-    user = User(
-        email="commissioner@example.com",
-        hashed_password="$2b$12$test_hash"
-    )
+    user = User(email="commissioner@example.com", hashed_password="$2b$12$test_hash")
     db.add(user)
     db.flush()
 
     # Create test league
-    league = League(
-        name="Test League",
-        commissioner_id=user.id
-    )
+    league = League(name="Test League", commissioner_id=user.id)
     db.add(league)
     db.flush()
 
     # Create 4 teams
     teams = []
     for i in range(4):
-        team = Team(
-            name=f"Team {i+1}",
-            owner_id=user.id,
-            league_id=league.id
-        )
+        team = Team(name=f"Team {i+1}", owner_id=user.id, league_id=league.id)
         db.add(team)
         teams.append(team)
     db.flush()
@@ -43,10 +33,7 @@ def setup_active_draft(db: Session):
     # Create 10 test players
     players = []
     for i in range(10):
-        player = Player(
-            full_name=f"Player {i+1}",
-            position="G" if i % 2 == 0 else "F"
-        )
+        player = Player(full_name=f"Player {i+1}", position="G" if i % 2 == 0 else "F")
         db.add(player)
         players.append(player)
     db.flush()
@@ -63,18 +50,12 @@ def setup_active_draft(db: Session):
         current_pick_index=0,
         seconds_remaining=10,  # Set to 10 seconds for testing
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     )
     db.add(draft_state)
     db.commit()
 
-    return {
-        "user": user,
-        "league": league,
-        "teams": teams,
-        "players": players,
-        "draft": draft_state
-    }
+    return {"user": user, "league": league, "teams": teams, "players": players, "draft": draft_state}
 
 
 def test_draft_timer_decrement(db: Session, setup_active_draft):

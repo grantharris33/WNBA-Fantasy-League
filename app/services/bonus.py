@@ -16,9 +16,9 @@ Ties are handled by awarding the bonus to all tied players.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Tuple, Any
+from typing import Any, Dict, List, Tuple
 
-from sqlalchemy import func, literal_column, select, and_, text
+from sqlalchemy import and_, func, literal_column, select, text
 from sqlalchemy.orm import Session, joinedload
 
 from app import models
@@ -38,6 +38,7 @@ BONUS_POINTS = {
 # Categories we consider for double / triple-double detection
 _CATEGORIES = ("points", "rebounds", "assists", "steals", "blocks")
 
+
 def _week_bounds(target: date) -> tuple[datetime, datetime, int]:
     """Return UTC datetimes for Monday 00:00 – Sunday 23:59 **and** week-id.
 
@@ -54,18 +55,17 @@ def _week_bounds(target: date) -> tuple[datetime, datetime, int]:
     end = start + timedelta(days=7)  # exclusive upper bound (next Monday)
     return start, end, week_id
 
+
 def _get_team_id_for_player(player_id: int, session: Session) -> int:
     """Get the team_id for a player from their current roster slot."""
     roster_slot = session.query(models.RosterSlot).filter_by(player_id=player_id).first()
     return roster_slot.team_id if roster_slot else None
 
+
 def _find_top_scorers(start_dt: datetime, end_dt: datetime, session: Session) -> List[Tuple[int, float]]:
     """Find players with highest cumulative points in the given week."""
     query = (
-        session.query(
-            models.StatLine.player_id,
-            func.sum(models.StatLine.points).label("total_points")
-        )
+        session.query(models.StatLine.player_id, func.sum(models.StatLine.points).label("total_points"))
         .filter(models.StatLine.game_date >= start_dt)
         .filter(models.StatLine.game_date < end_dt)
         .group_by(models.StatLine.player_id)
@@ -82,13 +82,11 @@ def _find_top_scorers(start_dt: datetime, end_dt: datetime, session: Session) ->
     # Return all players tied for top score
     return [(player_id, top_score) for player_id, score in results if score == top_score]
 
+
 def _find_top_rebounders(start_dt: datetime, end_dt: datetime, session: Session) -> List[Tuple[int, float]]:
     """Find players with highest cumulative rebounds in the given week."""
     query = (
-        session.query(
-            models.StatLine.player_id,
-            func.sum(models.StatLine.rebounds).label("total_rebounds")
-        )
+        session.query(models.StatLine.player_id, func.sum(models.StatLine.rebounds).label("total_rebounds"))
         .filter(models.StatLine.game_date >= start_dt)
         .filter(models.StatLine.game_date < end_dt)
         .group_by(models.StatLine.player_id)
@@ -105,13 +103,11 @@ def _find_top_rebounders(start_dt: datetime, end_dt: datetime, session: Session)
     # Return all players tied for top count
     return [(player_id, top_count) for player_id, count in results if count == top_count]
 
+
 def _find_top_playmakers(start_dt: datetime, end_dt: datetime, session: Session) -> List[Tuple[int, float]]:
     """Find players with highest cumulative assists in the given week."""
     query = (
-        session.query(
-            models.StatLine.player_id,
-            func.sum(models.StatLine.assists).label("total_assists")
-        )
+        session.query(models.StatLine.player_id, func.sum(models.StatLine.assists).label("total_assists"))
         .filter(models.StatLine.game_date >= start_dt)
         .filter(models.StatLine.game_date < end_dt)
         .group_by(models.StatLine.player_id)
@@ -128,12 +124,13 @@ def _find_top_playmakers(start_dt: datetime, end_dt: datetime, session: Session)
     # Return all players tied for top count
     return [(player_id, top_count) for player_id, count in results if count == top_count]
 
+
 def _find_defensive_beasts(start_dt: datetime, end_dt: datetime, session: Session) -> List[Tuple[int, float]]:
     """Find players with highest cumulative (steals + blocks) in the given week."""
     query = (
         session.query(
             models.StatLine.player_id,
-            (func.sum(models.StatLine.steals) + func.sum(models.StatLine.blocks)).label("defensive_total")
+            (func.sum(models.StatLine.steals) + func.sum(models.StatLine.blocks)).label("defensive_total"),
         )
         .filter(models.StatLine.game_date >= start_dt)
         .filter(models.StatLine.game_date < end_dt)
@@ -150,6 +147,7 @@ def _find_defensive_beasts(start_dt: datetime, end_dt: datetime, session: Sessio
 
     # Return all players tied for top total
     return [(player_id, top_total) for player_id, total in results if total == top_total]
+
 
 def _find_double_double_streaks(start_dt: datetime, end_dt: datetime, session: Session) -> List[Tuple[int, int]]:
     """Find players with 2 or more double-doubles in the given week."""
@@ -176,8 +174,7 @@ def _find_double_double_streaks(start_dt: datetime, end_dt: datetime, session: S
         for stat in stats:
             # Count categories with 10+ stats
             categories_10_plus = sum(
-                getattr(stat, attr) >= 10
-                for attr in ['points', 'rebounds', 'assists', 'steals', 'blocks']
+                getattr(stat, attr) >= 10 for attr in ['points', 'rebounds', 'assists', 'steals', 'blocks']
             )
             if categories_10_plus >= 2:  # Double-double condition
                 double_double_count += 1
@@ -186,6 +183,7 @@ def _find_double_double_streaks(start_dt: datetime, end_dt: datetime, session: S
             player_double_doubles[player_id] = double_double_count
 
     return [(player_id, count) for player_id, count in player_double_doubles.items()]
+
 
 def _find_triple_doubles(start_dt: datetime, end_dt: datetime, session: Session) -> List[Tuple[int, int]]:
     """Find players with triple-doubles in the given week and count each instance."""
@@ -202,8 +200,7 @@ def _find_triple_doubles(start_dt: datetime, end_dt: datetime, session: Session)
     for line in stat_lines:
         # Count categories with 10+ stats
         categories_10_plus = sum(
-            getattr(line, attr) >= 10
-            for attr in ['points', 'rebounds', 'assists', 'steals', 'blocks']
+            getattr(line, attr) >= 10 for attr in ['points', 'rebounds', 'assists', 'steals', 'blocks']
         )
 
         if categories_10_plus >= 3:  # Triple-double condition
@@ -211,7 +208,8 @@ def _find_triple_doubles(start_dt: datetime, end_dt: datetime, session: Session)
 
     return [(player_id, count) for player_id, count in player_triple_doubles.items()]
 
-def calculate_weekly_bonuses(target_date: date = None, session: Session = None) -> None:
+
+def calculate_weekly_bonuses(target_date: date = None, session: Session = None) -> None:  # noqa: C901
     """Calculate weekly bonuses for the ISO week containing *target_date*.
 
     This function computes all bonus categories for the specified week and inserts
@@ -243,7 +241,7 @@ def calculate_weekly_bonuses(target_date: date = None, session: Session = None) 
                         player_id=player_id,
                         team_id=team_id,
                         category="top_scorer",
-                        points=BONUS_POINTS["top_scorer"]
+                        points=BONUS_POINTS["top_scorer"],
                     )
                 )
 
@@ -257,7 +255,7 @@ def calculate_weekly_bonuses(target_date: date = None, session: Session = None) 
                         player_id=player_id,
                         team_id=team_id,
                         category="top_rebounder",
-                        points=BONUS_POINTS["top_rebounder"]
+                        points=BONUS_POINTS["top_rebounder"],
                     )
                 )
 
@@ -271,7 +269,7 @@ def calculate_weekly_bonuses(target_date: date = None, session: Session = None) 
                         player_id=player_id,
                         team_id=team_id,
                         category="top_playmaker",
-                        points=BONUS_POINTS["top_playmaker"]
+                        points=BONUS_POINTS["top_playmaker"],
                     )
                 )
 
@@ -285,7 +283,7 @@ def calculate_weekly_bonuses(target_date: date = None, session: Session = None) 
                         player_id=player_id,
                         team_id=team_id,
                         category="defensive_beast",
-                        points=BONUS_POINTS["defensive_beast"]
+                        points=BONUS_POINTS["defensive_beast"],
                     )
                 )
 
@@ -299,7 +297,7 @@ def calculate_weekly_bonuses(target_date: date = None, session: Session = None) 
                         player_id=player_id,
                         team_id=team_id,
                         category="double_double_streak",
-                        points=BONUS_POINTS["double_double_streak"]
+                        points=BONUS_POINTS["double_double_streak"],
                     )
                 )
 
@@ -314,7 +312,7 @@ def calculate_weekly_bonuses(target_date: date = None, session: Session = None) 
                         player_id=player_id,
                         team_id=team_id,
                         category="triple_double",
-                        points=BONUS_POINTS["triple_double"] * count  # Multiply by count of triple-doubles
+                        points=BONUS_POINTS["triple_double"] * count,  # Multiply by count of triple-doubles
                     )
                 )
 

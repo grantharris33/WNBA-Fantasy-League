@@ -5,9 +5,9 @@ Revises:
 Create Date: 2023-07-04 12:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'b6b22f877e2a'
@@ -18,7 +18,8 @@ depends_on = None
 
 def upgrade():
     # DraftState table
-    op.create_table('draft_state',
+    op.create_table(
+        'draft_state',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('league_id', sa.Integer(), nullable=False),
         sa.Column('current_round', sa.Integer(), nullable=False, default=1),
@@ -28,13 +29,14 @@ def upgrade():
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.Column('seconds_remaining', sa.Integer(), nullable=False, default=60),
         sa.Column('pick_order', sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(['league_id'], ['league.id'], ),
+        sa.ForeignKeyConstraint(['league_id'], ['league.id']),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('league_id')
+        sa.UniqueConstraint('league_id'),
     )
 
     # DraftPick table
-    op.create_table('draft_pick',
+    op.create_table(
+        'draft_pick',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('draft_id', sa.Integer(), nullable=False),
         sa.Column('team_id', sa.Integer(), nullable=False),
@@ -43,12 +45,12 @@ def upgrade():
         sa.Column('pick_number', sa.Integer(), nullable=False),
         sa.Column('timestamp', sa.DateTime(), nullable=False),
         sa.Column('is_auto', sa.Integer(), nullable=False, default=False),
-        sa.ForeignKeyConstraint(['draft_id'], ['draft_state.id'], ),
-        sa.ForeignKeyConstraint(['player_id'], ['player.id'], ),
-        sa.ForeignKeyConstraint(['team_id'], ['team.id'], ),
+        sa.ForeignKeyConstraint(['draft_id'], ['draft_state.id']),
+        sa.ForeignKeyConstraint(['player_id'], ['player.id']),
+        sa.ForeignKeyConstraint(['team_id'], ['team.id']),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('draft_id', 'player_id', name='uq_draft_player'),
-        sa.UniqueConstraint('draft_id', 'round', 'pick_number', name='uq_draft_round_pick')
+        sa.UniqueConstraint('draft_id', 'round', 'pick_number', name='uq_draft_round_pick'),
     )
 
 

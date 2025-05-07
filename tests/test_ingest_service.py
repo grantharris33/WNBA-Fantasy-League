@@ -63,6 +63,7 @@ class _StubClient:
 async def test_rapidapi_client_retry(monkeypatch):
     """Test that the RapidApiClient retries until success."""
     import httpx
+
     from app.external_apis.rapidapi_client import RapidApiClient
 
     class DummyResp:
@@ -110,8 +111,8 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
 
     db.init_db()
 
-    from app.jobs import ingest as ing
     from app.external_apis.rapidapi_client import wnba_client
+    from app.jobs import ingest as ing
 
     # Prepare stub schedule (one game) and box-score payload
     schedule_payload = {"20250101": [{"id": "game1"}]}
@@ -158,9 +159,11 @@ async def test_ingest_idempotent(monkeypatch, tmp_path: Path):
 
     # Apply our mock
     monkeypatch.setattr(wnba_client, "_get_json", mock_get_json)
+
     # Also mock close to avoid issues in tests
     async def mock_close():
         pass
+
     monkeypatch.setattr(wnba_client, "close", mock_close)
 
     target_date = dt.date(2025, 1, 1)

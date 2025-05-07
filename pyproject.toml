@@ -56,10 +56,23 @@ multi_line_output = 3
 
 [tool.ruff]
 line-length = 120
+target-version = "py310"
 # Only select error, fixable, and warning codes (skip docstring checks)
 select = ["E", "F", "W", "C90"]
 # Ignore whitespace, no-newline, line-length, and unused import warnings
 ignore = ["E203", "W292", "E501", "F401"]
+
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.per-file-ignores]
+"app/services/roster.py" = ["C901"]
+"app/services/bonus.py" = ["C901"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

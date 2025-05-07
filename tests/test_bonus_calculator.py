@@ -23,11 +23,7 @@ def test_data(db: Session) -> None:
     - StatLines for a specific week with known values
     """
     # Create teams
-    teams = [
-        Team(id=1, name="Team A"),
-        Team(id=2, name="Team B"),
-        Team(id=3, name="Team C"),
-    ]
+    teams = [Team(id=1, name="Team A"), Team(id=2, name="Team B"), Team(id=3, name="Team C")]
     db.add_all(teams)
 
     # Create players
@@ -107,7 +103,7 @@ def test_data(db: Session) -> None:
             assists=10.0,
             steals=3.0,
             blocks=2.0,
-        ),
+        )
     ]
 
     # Player 4: Average performance
@@ -120,7 +116,7 @@ def test_data(db: Session) -> None:
             assists=8.0,
             steals=1.0,
             blocks=0.0,
-        ),
+        )
     ]
 
     # Player 5: Defensive beast (tied with Player 3)
@@ -133,7 +129,7 @@ def test_data(db: Session) -> None:
             assists=5.0,
             steals=3.0,
             blocks=2.0,
-        ),
+        )
     ]
 
     all_stats = p1_stats + p2_stats + p3_stats + p4_stats + p5_stats

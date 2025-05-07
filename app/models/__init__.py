@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -97,7 +97,7 @@ class RosterSlot(Base):
     team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)
     player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)
     position: str | None = Column(String, nullable=True)
-    is_starter: bool = Column(Integer, default=False, nullable=False)
+    is_starter: bool = Column(Boolean, default=False, nullable=False)
 
     team = relationship("Team", back_populates="roster_slots")
     player = relationship("Player", back_populates="roster_slots")

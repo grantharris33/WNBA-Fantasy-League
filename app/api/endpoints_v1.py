@@ -1,17 +1,27 @@
 from __future__ import annotations
 
-from typing import List, Annotated, Any
+from typing import Annotated, Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal
-from app.models import League, Team, TeamScore, User, WeeklyBonus, Player
-
-from .schemas import LeagueOut, Pagination, PlayerOut, ScoreOut, TeamOut, AddPlayerRequest, DropPlayerRequest, SetStartersRequest, BonusOut
 from app.api.deps import get_current_user, get_db
+from app.core.database import SessionLocal
+from app.models import League, Player, Team, TeamScore, User, WeeklyBonus
 from app.services.roster import RosterService
+
+from .schemas import (
+    AddPlayerRequest,
+    BonusOut,
+    DropPlayerRequest,
+    LeagueOut,
+    Pagination,
+    PlayerOut,
+    ScoreOut,
+    SetStartersRequest,
+    TeamOut,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
@@ -113,13 +123,7 @@ def current_scores(*, db: Session = Depends(_get_db)) -> List[ScoreOut]:  # noqa
             )
 
             for bonus, player_name in bonuses:
-                weekly_bonuses.append(
-                    BonusOut(
-                        category=bonus.category,
-                        points=bonus.points,
-                        player_name=player_name
-                    )
-                )
+                weekly_bonuses.append(BonusOut(category=bonus.category, points=bonus.points, player_name=player_name))
                 weekly_bonus_total += bonus.points
 
         result.append(
@@ -143,10 +147,8 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
     """
     Test endpoint to verify the current user authentication
     """
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-    }
+    return {"id": current_user.id, "email": current_user.email}
+
 
 @router_roster.get("/leagues/{league_id}/free-agents", response_model=Pagination[PlayerOut])
 def list_free_agents(
@@ -171,12 +173,8 @@ def list_free_agents(
     # Calculate total for pagination
     total = len(service.get_free_agents(league_id, 1, 10000))  # Approximate count of all free agents
 
-    return Pagination[PlayerOut](
-        total=total,
-        limit=limit,
-        offset=(page - 1) * limit,
-        items=players,
-    )
+    return Pagination[PlayerOut](total=total, limit=limit, offset=(page - 1) * limit, items=players)
+
 
 @router_roster.post("/teams/{team_id}/roster/add", response_model=TeamOut)
 def add_player(
@@ -198,16 +196,14 @@ def add_player(
     service = RosterService(db)
     try:
         service.add_player_to_team(
-            team_id=team_id,
-            player_id=data.player_id,
-            set_as_starter=data.set_as_starter,
-            user_id=current_user.id
+            team_id=team_id, player_id=data.player_id, set_as_starter=data.set_as_starter, user_id=current_user.id
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     # Return the updated team details
     return team_detail(team_id=team_id, db=db)
+
 
 @router_roster.post("/teams/{team_id}/roster/drop", response_model=TeamOut)
 def drop_player(
@@ -228,16 +224,13 @@ def drop_player(
     # Drop the player
     service = RosterService(db)
     try:
-        service.drop_player_from_team(
-            team_id=team_id,
-            player_id=data.player_id,
-            user_id=current_user.id
-        )
+        service.drop_player_from_team(team_id=team_id, player_id=data.player_id, user_id=current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     # Return the updated team details
     return team_detail(team_id=team_id, db=db)
+
 
 @router_roster.put("/teams/{team_id}/roster/starters", response_model=TeamOut)
 def set_starters(
@@ -258,16 +251,13 @@ def set_starters(
     # Set the starters
     service = RosterService(db)
     try:
-        service.set_starters(
-            team_id=team_id,
-            starter_player_ids=data.starter_player_ids,
-            user_id=current_user.id
-        )
+        service.set_starters(team_id=team_id, starter_player_ids=data.starter_player_ids, user_id=current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     # Return the updated team details
     return team_detail(team_id=team_id, db=db)
+
 
 # Add the router to the API
 router.include_router(router_roster, prefix="")

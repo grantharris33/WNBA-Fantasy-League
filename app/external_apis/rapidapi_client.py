@@ -63,10 +63,7 @@ class RapidApiClient:
         if not api_key:
             raise RuntimeError("WNBA_API_KEY (or RAPIDAPI_KEY) env var not set")
 
-        headers = {
-            "x-rapidapi-host": self.host,
-            "x-rapidapi-key": api_key,
-        }
+        headers = {"x-rapidapi-host": self.host, "x-rapidapi-key": api_key}
 
         return httpx.AsyncClient(timeout=self.timeout, headers=headers)
 
@@ -98,7 +95,4 @@ class RapidApiClient:
 
 
 # Singleton instance for WNBA API
-wnba_client = RapidApiClient(
-    base_url="https://wnba-api.p.rapidapi.com",
-    host="wnba-api.p.rapidapi.com",
-)
+wnba_client = RapidApiClient(base_url="https://wnba-api.p.rapidapi.com", host="wnba-api.p.rapidapi.com")

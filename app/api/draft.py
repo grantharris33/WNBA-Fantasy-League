@@ -1,23 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Path, Query
 from typing import Dict, List
 
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.schemas import DraftPickRequest, DraftStateResponse
 from app.core.ws_manager import manager
-from app.models import User, DraftState
+from app.models import DraftState, User
 from app.services.draft import DraftService
 
 router = APIRouter(prefix="/draft", tags=["draft"])
 
 
 @router.post("/leagues/{league_id}/start", status_code=201)
-async def start_draft(
-    league_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+async def start_draft(league_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Start a draft for a league.
     Only the commissioner can start the draft.
@@ -27,13 +23,7 @@ async def start_draft(
         draft_state = draft_service.start_draft(league_id, current_user.id)
 
         # Broadcast draft start event
-        await manager.broadcast_to_league(
-            league_id,
-            {
-                "event": "draft_started",
-                "data": draft_state.as_dict(),
-            },
-        )
+        await manager.broadcast_to_league(league_id, {"event": "draft_started", "data": draft_state.as_dict()})
 
         return {"message": "Draft started successfully", "draft_id": draft_state.id}
     except ValueError as e:
@@ -60,33 +50,21 @@ async def make_pick(
             raise HTTPException(status_code=404, detail="Draft not found")
 
         # Get the user's teams in this league
-        user_teams = [
-            team for team in current_user.teams
-            if team.league_id == draft_state.league_id
-        ]
+        user_teams = [team for team in current_user.teams if team.league_id == draft_state.league_id]
 
         if not user_teams:
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have a team in this league"
-            )
+            raise HTTPException(status_code=403, detail="You don't have a team in this league")
 
         # Check if it's one of the user's teams' turn
         current_team_id = draft_state.current_team_id()
         user_team_ids = [team.id for team in user_teams]
 
         if current_team_id not in user_team_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="It's not your team's turn to pick"
-            )
+            raise HTTPException(status_code=403, detail="It's not your team's turn to pick")
 
         # Make the pick
         pick, updated_draft = draft_service.make_pick(
-            draft_id=draft_id,
-            team_id=current_team_id,
-            player_id=pick_request.player_id,
-            user_id=current_user.id,
+            draft_id=draft_id, team_id=current_team_id, player_id=pick_request.player_id, user_id=current_user.id
         )
 
         # Get full draft state for response and broadcast
@@ -118,11 +96,7 @@ async def make_pick(
 
 
 @router.post("/{draft_id}/pause")
-async def pause_draft(
-    draft_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+async def pause_draft(draft_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Pause an active draft.
     Only the commissioner can pause the draft.
@@ -133,11 +107,7 @@ async def pause_draft(
 
         # Broadcast pause event
         await manager.broadcast_to_league(
-            updated_draft.league_id,
-            {
-                "event": "draft_paused",
-                "data": updated_draft.as_dict(),
-            },
+            updated_draft.league_id, {"event": "draft_paused", "data": updated_draft.as_dict()}
         )
 
         return {"message": "Draft paused successfully"}
@@ -147,11 +117,7 @@ async def pause_draft(
 
 
 @router.post("/{draft_id}/resume")
-async def resume_draft(
-    draft_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+async def resume_draft(draft_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Resume a paused draft.
     Only the commissioner can resume the draft.
@@ -162,11 +128,7 @@ async def resume_draft(
 
         # Broadcast resume event
         await manager.broadcast_to_league(
-            updated_draft.league_id,
-            {
-                "event": "draft_resumed",
-                "data": updated_draft.as_dict(),
-            },
+            updated_draft.league_id, {"event": "draft_resumed", "data": updated_draft.as_dict()}
         )
 
         return {"message": "Draft resumed successfully"}
@@ -176,11 +138,7 @@ async def resume_draft(
 
 
 @router.get("/{draft_id}/state", response_model=DraftStateResponse)
-async def get_draft_state(
-    draft_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+async def get_draft_state(draft_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Get the current state of a draft.
     Returns current round, pick index, clock seconds left, drafted players list.
@@ -194,11 +152,7 @@ async def get_draft_state(
 
 
 @router.websocket("/ws/{league_id}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    league_id: int = Path(...),
-    token: str = Query(...),
-):
+async def websocket_endpoint(websocket: WebSocket, league_id: int = Path(...), token: str = Query(...)):
     """
     WebSocket endpoint for real-time draft updates.
     Requires a valid token for authentication.

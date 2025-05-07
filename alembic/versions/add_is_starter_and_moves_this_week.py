@@ -5,9 +5,9 @@ Revises: b6b22f877e2a
 Create Date: 2023-07-01 12:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'c9a22f877e2b'
@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     # Add is_starter column to roster_slot table
-    op.add_column('roster_slot', sa.Column('is_starter', sa.Integer(), nullable=False, server_default='0'))
+    op.add_column('roster_slot', sa.Column('is_starter', sa.Boolean(), nullable=False, server_default='0'))
 
     # Add moves_this_week column to team table
     op.add_column('team', sa.Column('moves_this_week', sa.Integer(), nullable=False, server_default='0'))

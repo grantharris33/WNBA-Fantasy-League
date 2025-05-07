@@ -1,44 +1,35 @@
 import asyncio
 import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from unittest.mock import patch, AsyncMock
 
+from app.api.deps import get_current_user, get_db
+from app.core.security import create_access_token
 from app.main import app
 from app.models import DraftState, League, Player, Team, User
 from app.services.draft import DraftService
-from app.core.security import create_access_token
-from app.api.deps import get_current_user, get_db
 
 
 @pytest.fixture
 def setup_draft_data(db: Session):
     """Set up test data for draft integration test."""
     # Create test user (commissioner)
-    commissioner = User(
-        email="commissioner@example.com",
-        hashed_password="$2b$12$test_hash"
-    )
+    commissioner = User(email="commissioner@example.com", hashed_password="$2b$12$test_hash")
     db.add(commissioner)
     db.flush()
 
     # Create test league
-    league = League(
-        name="Test League",
-        commissioner_id=commissioner.id
-    )
+    league = League(name="Test League", commissioner_id=commissioner.id)
     db.add(league)
     db.flush()
 
     # Create 4 teams in the league
     teams = []
     for i in range(4):
-        team = Team(
-            name=f"Team {i+1}",
-            owner_id=commissioner.id,
-            league_id=league.id
-        )
+        team = Team(name=f"Team {i+1}", owner_id=commissioner.id, league_id=league.id)
         db.add(team)
         teams.append(team)
     db.flush()
@@ -47,10 +38,7 @@ def setup_draft_data(db: Session):
     players = []
     positions = ["G", "G", "F", "F", "C"]
     for i in range(50):  # Create 50 players
-        player = Player(
-            full_name=f"Player {i+1}",
-            position=positions[i % 5]
-        )
+        player = Player(full_name=f"Player {i+1}", position=positions[i % 5])
         db.add(player)
         players.append(player)
 
@@ -65,7 +53,7 @@ def setup_draft_data(db: Session):
         "league": league,
         "teams": teams,
         "players": players,
-        "draft_state": draft_state
+        "draft_state": draft_state,
     }
 
 
@@ -75,8 +63,6 @@ async def test_draft_api_endpoints(db: Session, setup_draft_data):
     # Get data from fixture
     draft_data = setup_draft_data
     commissioner = draft_data["commissioner"]
-    league = draft_data["league"]
-    teams = draft_data["teams"]
     players = draft_data["players"]
     draft_state = draft_data["draft_state"]
 
@@ -104,14 +90,9 @@ async def test_draft_api_endpoints(db: Session, setup_draft_data):
         assert state_data["status"] == "active"
 
         # Test making a pick
-        current_team_id = draft_state.current_team_id()
         pick_data = {"player_id": players[0].id}
 
-        response = client.post(
-            f"/api/v1/draft/{draft_state.id}/pick",
-            json=pick_data,
-            headers=headers
-        )
+        response = client.post(f"/api/v1/draft/{draft_state.id}/pick", json=pick_data, headers=headers)
         assert response.status_code == 200
 
         # Test pause and resume
@@ -145,7 +126,6 @@ async def test_websocket_draft_updates(db: Session, setup_draft_data):
     # Get data from fixture
     draft_data = setup_draft_data
     commissioner = draft_data["commissioner"]
-    league = draft_data["league"]
     draft_state = draft_data["draft_state"]
 
     # Instead of trying to connect to the WebSocket, which is difficult to test,
