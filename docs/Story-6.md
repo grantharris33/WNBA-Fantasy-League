@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Context
 
 Private league of 2–4 friends, but we still want hashed passwords and token‑based auth for later mobile clients. FastAPI’s built‑in OAuth2PasswordBearer + pyjwt fits our needs.

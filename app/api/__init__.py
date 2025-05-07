@@ -14,6 +14,7 @@ from app.services.scoring import update_weekly_team_scores as _update_weekly_tea
 from .auth import router as auth_router
 from .draft import router as draft_router
 from .endpoints_v1 import router as v1_router
+from .logs import router as logs_router
 from .users import router as users_router
 
 router = APIRouter()
@@ -26,6 +27,9 @@ router.include_router(users_router, prefix="/api/v1")
 
 # Draft endpoints
 router.include_router(draft_router, prefix="/api/v1")
+
+# Logs endpoints
+router.include_router(logs_router)
 
 # V1 public endpoints
 router.include_router(v1_router)

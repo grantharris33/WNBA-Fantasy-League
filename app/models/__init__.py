@@ -19,6 +19,7 @@ class User(Base):
     email: str = Column(String, unique=True, index=True, nullable=False)
     hashed_password: str = Column(String, nullable=False)
     created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    is_admin: bool = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     teams = relationship("Team", back_populates="owner", cascade="all, delete-orphan")
@@ -154,6 +155,9 @@ class TransactionLog(Base):
     user_id: int | None = Column(Integer, ForeignKey("user.id"))
     action: str = Column(String, nullable=False)
     timestamp: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    path: str | None = Column(String, nullable=True)  # Request path
+    method: str | None = Column(String, nullable=True)  # HTTP method
+    patch: str | None = Column(String, nullable=True)  # JSONPatch for diff
 
     user = relationship("User", back_populates="transactions")
 

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as api_router
 from app.core.database import init_db
+from app.core.middleware import ChangeLogMiddleware
 from app.core.scheduler import list_jobs, scheduler, shutdown_scheduler, start_scheduler
 from app.jobs.bonus_calc import calc_weekly_bonuses
 from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks
@@ -25,6 +26,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Change Log middleware
+app.add_middleware(ChangeLogMiddleware)
 
 # ---------------------------------------------------------------------------
 # Compatibility patch: Starlette<=0.27 passes unsupported 'app' kw to httpx>=0.25

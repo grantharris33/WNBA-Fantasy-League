@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Bonus Rules Recap
 
 | Category             | Stat Logic                              | Points |

@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Business Rules
 
 | Rule                | Detail                                                                      |

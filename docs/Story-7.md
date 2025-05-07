@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Skipped for MVP
+
 ## 1  Context
 
 While JWTs cover API access, some browsers/extensions handle cookies more smoothly. We’ll support both strategies behind an environment variable toggle so devs can switch without code changes.

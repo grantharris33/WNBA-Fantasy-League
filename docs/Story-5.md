@@ -4,6 +4,8 @@
 
 ---
 
+**Status:** Complete
+
 ## 1  Context
 
 Front‑end needs simple, versioned endpoints to load initial data sets. All endpoints are **GET**, publicly accessible once authenticated, and documented by OpenAPI.
