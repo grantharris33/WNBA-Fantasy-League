@@ -10,6 +10,8 @@ from app.api.deps import get_current_user, get_db
 from app.core.database import SessionLocal
 from app.models import League, Player, Team, TeamScore, User, WeeklyBonus
 from app.services.roster import RosterService
+from app.services.team import TeamService, map_team_to_out
+from app.api.schemas import TeamCreate, TeamUpdate
 
 from .schemas import (
     AddPlayerRequest,
@@ -257,6 +259,89 @@ def set_starters(
 
     # Return the updated team details
     return team_detail(team_id=team_id, db=db)
+
+
+# ---------------------------------------------------------------------------
+# 24-C Create Team – POST /api/v1/leagues/{league_id}/teams
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/leagues/{league_id}/teams",
+    response_model=TeamOut,
+    status_code=201,
+)
+def create_team(
+    *,
+    league_id: int = Path(..., description="League ID"),
+    data: TeamCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new team in a league for the authenticated user."""
+    try:
+        team = TeamService.create_team_in_league(
+            db=db, name=data.name, league_id=league_id, owner_id=current_user.id
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 404 if "League not found" in detail else 409
+        raise HTTPException(status_code=status_code, detail=detail)
+
+    return map_team_to_out(team)
+
+
+# ---------------------------------------------------------------------------
+# 24-D Get User's Teams – GET /api/v1/users/me/teams
+# ---------------------------------------------------------------------------
+
+
+@router.get("/users/me/teams", response_model=List[TeamOut])
+def list_my_teams(*, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    teams = TeamService.get_teams_by_owner_id(db, owner_id=current_user.id)
+    return [map_team_to_out(team) for team in teams]
+
+
+# ---------------------------------------------------------------------------
+# 24-E Get League's Teams – GET /api/v1/leagues/{league_id}/teams
+# ---------------------------------------------------------------------------
+
+
+@router.get("/leagues/{league_id}/teams", response_model=List[TeamOut])
+def list_league_teams(*, league_id: int, db: Session = Depends(get_db)):
+    # Validate league exists
+    league_exists = db.query(League.id).filter(League.id == league_id).scalar() is not None
+    if not league_exists:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    teams = TeamService.get_teams_by_league_id(db, league_id=league_id)
+    return [map_team_to_out(team) for team in teams]
+
+
+# ---------------------------------------------------------------------------
+# 24-F Update Team – PUT /api/v1/teams/{team_id}
+# ---------------------------------------------------------------------------
+
+
+@router.put("/teams/{team_id}", response_model=TeamOut)
+def update_team(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    data: TeamUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        team = TeamService.update_team_details(db=db, team_id=team_id, owner_id=current_user.id, data=data)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    return map_team_to_out(team)
 
 
 # Add the router to the API

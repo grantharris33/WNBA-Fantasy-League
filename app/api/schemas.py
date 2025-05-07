@@ -144,3 +144,15 @@ class DropPlayerRequest(BaseModel):
 
 class SetStartersRequest(BaseModel):
     starter_player_ids: List[int]
+
+
+class TeamCreate(BaseModel):
+    """Schema for creating a new team."""
+
+    name: str
+
+
+class TeamUpdate(BaseModel):
+    """Schema for updating an existing team."""
+
+    name: Optional[str] = None

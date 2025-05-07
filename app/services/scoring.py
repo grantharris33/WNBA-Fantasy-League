@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Mapping, MutableMapping
 
 from sqlalchemy.orm import Session
@@ -13,13 +13,13 @@ from app.core.database import SessionLocal
 This module implements the rules engine defined in docs/Story-4.md.
 It contains two main public helpers:
 
-* ``compute_fantasy_points`` – pure function that converts a ``StatLine``
+* ``compute_fantasy_points`` - pure function that converts a ``StatLine``
   (or compatible mapping) into a single fantasy-points float.
-* ``update_weekly_team_scores`` – aggregates all ``StatLine`` rows in a given
+* ``update_weekly_team_scores`` - aggregates all ``StatLine`` rows in a given
   ISO week into a single ``TeamScore`` record per team.
 
 Both helpers are synchronous and safe to call inside a scheduler job or CLI
-script – they manage their own database session unless an explicit one is
+script. They manage their own database session unless an explicit one is
 supplied.
 """
 
@@ -54,16 +54,18 @@ def compute_fantasy_points(stat: "models.StatLine | Mapping[str, object]") -> fl
 
     The formula follows a fairly standard basketball fantasy scoring system:
 
-    * 1.0 × points
-    * 1.2 × rebounds
-    * 1.5 × assists
-    * 3.0 × steals
-    * 3.0 × blocks
+    * 1.0 x points
+    * 1.2 x rebounds
+    * 1.5 x assists
+    * 3.0 x steals
+    * 3.0 x blocks
     * +10 bonus for a *triple-double* (≥ 10 in **three** separate categories)
 
     Turnovers are not currently stored in the ``stat_line`` table, so they
     are **not** part of the formula. When the schema adds a ``turnovers``
     column we can subtract points here accordingly.
+
+    TODO: Add turnovers to the formula.
     """
 
     # Normalise to mapping interface first to simplify code.
@@ -100,7 +102,7 @@ def compute_fantasy_points(stat: "models.StatLine | Mapping[str, object]") -> fl
 
 
 def _week_bounds(target: date) -> tuple[datetime, datetime, int]:
-    """Return UTC datetimes for Monday 00:00 – Sunday 23:59 **and** week-id.
+    """Return UTC datetimes for Monday 00:00 - Sunday 23:59 **and** week-id.
 
     Week-id is encoded as ``year * 100 + iso_week`` so that 2025-W02 ⇒ 202502.
     This keeps it sortable and unique across seasons while staying in a single
@@ -129,7 +131,7 @@ def update_weekly_team_scores(target_date: date | None = None, *, session: Sessi
         session = SessionLocal()
         owned_session = True
 
-    target_date = target_date or (datetime.utcnow() - timedelta(days=1)).date()
+    target_date = target_date or (datetime.now(timezone.utc) - timedelta(days=1)).date()
     start_dt, end_dt, week_id = _week_bounds(target_date)
 
     try:

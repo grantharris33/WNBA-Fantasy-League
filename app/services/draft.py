@@ -322,13 +322,31 @@ class DraftService:
         Returns:
             True if requirements can be satisfied, False otherwise
         """
-        # In a real implementation, this would check:
-        # 1. Current roster composition
-        # 2. New player position
-        # 3. Whether it's still possible to get ≥2 G and ≥1 F/F-C by the end of draft
+        # Get current roster for this team
+        current_roster = self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id).all()
 
-        # For this implementation, we'll assume all picks are valid
-        return True
+        # Count current guards and forwards/centers
+        current_guards = sum(1 for slot in current_roster if slot.position.startswith('G'))
+        current_forwards = sum(1 for slot in current_roster if 'F' in slot.position or 'C' in slot.position)
+
+        # Check if new player is a guard or forward/centers
+        is_guard = new_player.position.startswith('G')
+        is_forward = 'F' in new_player.position or 'C' in new_player.position
+
+        # Calculate remaining picks in draft
+        draft_id = self.db.query(Team).filter(Team.id == team_id).first().league_id
+        draft = self.db.query(DraftState).filter(DraftState.league_id == draft_id).first()
+
+        total_rounds = 10  # Standard draft length
+        current_round = draft.current_round
+        remaining_picks = total_rounds - current_round + (1 if draft.current_team_id() == team_id else 0)
+
+        # We need at least 2 guards and 1 forward/center
+        guards_needed = max(0, 2 - current_guards - (1 if is_guard else 0))
+        forwards_needed = max(0, 1 - current_forwards - (1 if is_forward else 0))
+
+        # Check if we can satisfy requirements with remaining picks
+        return remaining_picks >= (guards_needed + forwards_needed)
 
     def _log_transaction(self, user_id: int, action: str) -> None:
         """Log a transaction to the transaction_log table."""

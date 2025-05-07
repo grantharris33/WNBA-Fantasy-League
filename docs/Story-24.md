@@ -1,8 +1,3 @@
-Okay, here's a new story document for "User Team Creation and League Association".
-
----
-Filename: `docs/Story-24.md`
----
 # FANTASY‑24 — User Team Creation and League Association
 
 > **Goal:** Allow authenticated users to create a fantasy team, associate it with an existing league, and manage basic team details through backend API endpoints.

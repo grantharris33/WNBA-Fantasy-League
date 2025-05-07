@@ -60,9 +60,14 @@ def main() -> None:
 
     print("Creating demo data...")
     users = []
-    for i in range(1, 5):
+    for i in range(1, 2):
         email = f"demo{i}@example.com"
-        user = models.User(email=email, hashed_password=hash_password("password"))
+        user = models.User(email=email, hashed_password=hash_password("password"), is_admin=True)
+        db.add(user)
+        users.append(user)
+    for i in range(3, 5):
+        email = f"demo{i}@example.com"
+        user = models.User(email=email, hashed_password=hash_password("password"), is_admin=False)
         db.add(user)
         users.append(user)
     db.flush()  # assign IDs
