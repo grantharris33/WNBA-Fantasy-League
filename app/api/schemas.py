@@ -39,11 +39,24 @@ class PlayerOut(BaseModel):
         orm_mode = True
 
 
+class RosterSlotOut(BaseModel):
+    player_id: int
+    position: str | None = None
+    is_starter: bool = False
+
+    # Include nested player details
+    player: Optional[PlayerOut] = None
+
+    class Config:
+        orm_mode = True
+
+
 class TeamOut(BaseModel):
     id: int
     name: str
     league_id: int | None = None
     owner_id: int | None = None
+    moves_this_week: int = 0
 
     roster: List[PlayerOut] = Field(..., description="Current roster players")
     season_points: float = Field(..., description="Aggregated season points so far")
@@ -81,3 +94,46 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+# Draft schemas
+class DraftPickRequest(BaseModel):
+    player_id: int
+
+
+class DraftPickResponse(BaseModel):
+    id: int
+    round: int
+    pick_number: int
+    team_id: int
+    team_name: str
+    player_id: int
+    player_name: str
+    player_position: Optional[str]
+    timestamp: str
+    is_auto: bool
+
+
+class DraftStateResponse(BaseModel):
+    id: int
+    league_id: int
+    current_round: int
+    current_pick_index: int
+    status: str
+    seconds_remaining: int
+    current_team_id: int
+    picks: List[DraftPickResponse]
+
+
+# Roster Management schemas
+class AddPlayerRequest(BaseModel):
+    player_id: int
+    set_as_starter: bool = False
+
+
+class DropPlayerRequest(BaseModel):
+    player_id: int
+
+
+class SetStartersRequest(BaseModel):
+    starter_player_ids: List[int]

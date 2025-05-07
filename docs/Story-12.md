@@ -1,19 +1,48 @@
-# FANTASY‑12 — React + Vite Front‑End Scaffold
+# FANTASY‑12 — React + Vite Frontend: Foundation & Core Services
 
-> **Goal:** Spin up a modern, minimal React codebase with Tailwind styling and a tiny API helper so UI stories can begin immediately.
-
----
-
-## 1  Context
-
-The front‑end will live in `frontend/` to keep Python and Node worlds separate. We’ll use Vite for blaze‑fast dev server, Tailwind for utility CSS, and a slim `api.ts` wrapper to talk to FastAPI with JWT handling.
+> **Goal:** Establish a modern, robust React frontend foundation using Vite, TypeScript, and TailwindCSS. This includes setting up core services like an API client, authentication context, basic routing, and placeholder pages for login and a protected dashboard. This will serve as the launchpad for all subsequent UI feature development.
 
 ---
 
-## 2  Sub‑Tasks
+## 1. Context & Strategy
 
-| Key                      | Title                                                                                                                                          | What / Why                                                                                                                                               | Acceptance Criteria |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| **12‑A Create Vite App** | Run `npm create vite@latest fantasy-app -- --template react-ts` inside `frontend/`                                                             | `npm run dev` serves app at `http://localhost:5173` with default Vite splash.                                                                            |                     |
-| **12‑B Tailwind Setup**  | Install Tailwind + postcss + autoprefixer; generate `tailwind.config.js`; add `@tailwind base; components; utilities;` to `index.css`          | `<button className="bg-blue-500 text-white p-2 rounded">Click</button>` renders styled button; inspected styles show Tailwind classes. citeturn0link1 |                     |
-| **12‑C API Client**      | Create `src/lib/api.ts` with `fetchJSON(url, opts)` that attaches JWT from `localStorage` and retries once on 401 (calls refresh endpoint TBD) | Unit test with msw (Mock Service Worker) verifies Authorization header present and refresh retry path.                                                   |                     |
+The frontend, residing in the `frontend/` directory, will be a Single Page Application (SPA) built with React and TypeScript, powered by Vite for a fast development experience. Styling will primarily use TailwindCSS for utility-first CSS. This story focuses on creating not just a scaffold, but a minimally interactive application with:
+
+*   **Tooling & Build Setup:** Vite, TypeScript, Tailwind.
+*   **API Interaction:** A centralized client to communicate with the FastAPI backend.
+*   **Authentication:** Client-side JWT handling and global authentication state.
+*   **Navigation:** Basic routing structure.
+*   **Initial UI Shell:** Login page and a simple protected dashboard.
+
+This foundational work directly supports and integrates requirements from:
+*   **Story-6 (User Auth JWT):** Specifically task 6-D (Login UI Hook and token management).
+*   It will prepare the ground for **Story-9-H (Frontend Draft Room)**, **Story-10-H (Frontend Pick-up UI)**, **Story-13 (Scoreboard UI)**, and **Story-14 (Draft Room UI)**.
+
+---
+
+## 2. Sub‑Tasks
+
+| Key                        | Title                                                                               | Description & Deliverables                                                                                                                                                                                                                                                                                          | Acceptance Criteria                                                                                                                                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **12-A: Initialize Vite + React + TypeScript Project** | Run `npm create vite@latest frontend -- --template react-ts` and basic cleanup.     | Setup the project within the `frontend/` directory. Remove default Vite boilerplate content. Configure basic ESLint rules for React/TypeScript.                                                                                                                                        | `npm run dev` serves a clean React app at `http://localhost:5173`. `npm run lint` passes.                                                                                                                   |
+| **12-B: Integrate TailwindCSS** | Install and configure TailwindCSS, PostCSS, and Autoprefixer.                   | Generate `tailwind.config.js` and `postcss.config.js`. Add Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;`) to `src/index.css` (or a dedicated global CSS file).                                                                                                          | A sample `<button className="bg-blue-500 text-white p-2 rounded">Test Button</button>` renders correctly styled. Inspected styles show Tailwind utility classes applied.                               |
+| **12-C: Develop Core API Client (`src/lib/api.ts`)** | Create a reusable wrapper for `fetch` to interact with the FastAPI backend.     | Client should: <br/> - Offer a base function like `fetchJSON(endpoint: string, options?: RequestInit)`. <br/> - Automatically set `Content-Type: application/json` for relevant methods (POST, PUT). <br/> - Retrieve JWT from `localStorage` and include it in the `Authorization: Bearer <token>` header for all requests. <br/> - Handle JSON parsing of responses. <br/> - Implement basic error handling (e.g., throw custom error for non-2xx HTTP status codes, potentially including response data). | `api.ts` is created. Unit tests (using `msw` - Mock Service Worker) verify: <br/> - `Authorization` header is correctly attached. <br/> - Request bodies are stringified. <br/> - JSON responses are parsed. <br/> - Errors are thrown appropriately. |
+| **12-D: Implement Authentication Context & Hooks (`src/contexts/AuthContext.tsx`)** | Create a global React Context for managing authentication state and logic.        | Context provides: <br/> - State: `isAuthenticated: boolean`, `user: UserOut | null`, `token: string | null`, `isLoading: boolean`, `error: string | null`. <br/> - Functions: `login(credentials: UserCreate)`, `logout()`, `initializeAuth()`. <br/> - `login`: Calls `/api/v1/token` via the API client, stores token in `localStorage`, fetches user data (`/api/v1/users/me`), updates context state. <br/> - `logout`: Clears token from `localStorage`, resets context state. <br/> - `initializeAuth`: Checks `localStorage` for a token on app load, validates it by fetching user data, and sets initial auth state. <br/> - Create `useAuth()` hook for easy access. | `AuthContext.tsx` and `useAuth` hook implemented. The main `App.tsx` is wrapped with `AuthProvider`. State changes correctly reflect login/logout actions. Initial auth check on page load.               |
+| **12-E: Setup Basic Routing (`react-router-dom`)** | Implement client-side routing for navigation.                                   | Install `react-router-dom`. <br/> - Define routes for: <br/>   - `/login` (public) <br/>   - `/` (protected, dashboard/home) <br/>   - `/draft/:leagueId` (protected, placeholder) <br/>   - `/team/:teamId` (protected, placeholder) <br/> - Create a `ProtectedRoute` HOC/wrapper component that checks `useAuth().isAuthenticated` and redirects to `/login` if not authenticated. | User can navigate between defined routes. Protected routes redirect unauthenticated users to `/login`. `App.tsx` contains router setup.                                                                  |
+| **12-F: Establish Frontend Directory Structure** | Organize frontend code into a scalable and maintainable structure.                | Create standard directories: <br/> `src/assets/` <br/> `src/components/` (for reusable UI elements like `Button`, `Input`, `Modal`) <br/>   `src/components/common/` <br/> `src/contexts/` (e.g., `AuthContext.tsx`) <br/> `src/hooks/` (e.g., `useAuth.ts`, `useApi.ts`) <br/> `src/lib/` (e.g., `api.ts`, utility functions) <br/> `src/pages/` (for top-level route components) <br/> `src/services/` (for more complex API interactions or business logic if needed) <br/> `src/styles/` <br/> `src/types/` (shared TypeScript interfaces, e.g., mirroring Pydantic schemas like `UserOut`, `LeagueOut`) | Directories are created as specified. At least one sample type definition (e.g., `UserOut.ts`) is added to `src/types/`.                                                                             |
+| **12-G: Create Basic Login Page (`src/pages/LoginPage.tsx`)** | Implement a functional login form.                                                | A React component with: <br/> - Email and password input fields. <br/> - A submit button. <br/> - Uses `useAuth().login` on form submission. <br/> - Redirects to `/` (dashboard) on successful login. <br/> - Displays basic error messages from login attempts (from `AuthContext`).                                        | User can enter credentials. On successful login, token is stored in `localStorage`, user is redirected to dashboard. Invalid login shows an error message.                                                |
+| **12-H: Create Placeholder Dashboard Page (`src/pages/DashboardPage.tsx`)** | A simple protected page to demonstrate authentication and API calls.            | A React component accessible only when authenticated: <br/> - Displays "Welcome, {user.email}" using data from `useAuth()`. <br/> - Includes a "Logout" button that calls `useAuth().logout()`. <br/> - Attempts to fetch and display a list of leagues (e.g., names) from `/api/v1/leagues` using the API client on component mount. Displays a loading state and any errors. | Page is accessible only after login. User email is displayed. Logout button works and redirects to login. List of leagues (or loading/error state) is shown.                                          |
+
+---
+
+## 3. Acceptance Criteria Summary for Story-12
+
+*   A new Vite-based React+TypeScript project is created in `frontend/`.
+*   TailwindCSS is integrated and usable.
+*   A core API client (`api.ts`) can make authenticated requests to the backend, handling JWTs.
+*   A global authentication context (`AuthContext`) manages user session state.
+*   Basic client-side routing is set up with public and protected routes.
+*   A functional Login page allows users to authenticate.
+*   A placeholder Dashboard page demonstrates a protected route, displays user info, fetches basic data (leagues), and allows logout.
+*   The frontend has a logical directory structure.
+*   All new code is linted and type-checked.

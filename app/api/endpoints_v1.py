@@ -1,18 +1,22 @@
 from __future__ import annotations
 
-from typing import List, Annotated
+from typing import List, Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models import League, Team, TeamScore, User
 
-from .schemas import LeagueOut, Pagination, PlayerOut, ScoreOut, TeamOut
-from app.api.deps import get_current_user
+from .schemas import LeagueOut, Pagination, PlayerOut, ScoreOut, TeamOut, AddPlayerRequest, DropPlayerRequest, SetStartersRequest
+from app.api.deps import get_current_user, get_db
+from app.services.roster import RosterService
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
+
+# Create Roster Management router
+router_roster = APIRouter(tags=["roster"])
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +70,7 @@ def team_detail(*, team_id: int, db: Session = Depends(_get_db)):  # noqa: D401
         name=team.name,
         league_id=team.league_id,
         owner_id=team.owner_id,
+        moves_this_week=team.moves_this_week,
         roster=roster_players,
         season_points=round(season_points, 2),
     )
@@ -119,3 +124,127 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
         "id": current_user.id,
         "email": current_user.email,
     }
+
+@router_roster.get("/leagues/{league_id}/free-agents", response_model=Pagination[PlayerOut])
+def list_free_agents(
+    league_id: int = Path(..., description="League ID"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(100, ge=1, le=1000, description="Items per page"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    List players not currently on any team in the specified league.
+    """
+    # Verify league exists
+    league = db.query(League).filter(League.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    # Get free agents
+    service = RosterService(db)
+    players = service.get_free_agents(league_id, page, limit)
+
+    # Calculate total for pagination
+    total = len(service.get_free_agents(league_id, 1, 10000))  # Approximate count of all free agents
+
+    return Pagination[PlayerOut](
+        total=total,
+        limit=limit,
+        offset=(page - 1) * limit,
+        items=players,
+    )
+
+@router_roster.post("/teams/{team_id}/roster/add", response_model=TeamOut)
+def add_player(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    data: AddPlayerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Add a free agent to a team's roster.
+    """
+    # Verify the team exists and belongs to the current user
+    team = db.query(Team).filter(Team.id == team_id, Team.owner_id == current_user.id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found or access denied")
+
+    # Add the player
+    service = RosterService(db)
+    try:
+        service.add_player_to_team(
+            team_id=team_id,
+            player_id=data.player_id,
+            set_as_starter=data.set_as_starter,
+            user_id=current_user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Return the updated team details
+    return team_detail(team_id=team_id, db=db)
+
+@router_roster.post("/teams/{team_id}/roster/drop", response_model=TeamOut)
+def drop_player(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    data: DropPlayerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Remove a player from a team's roster.
+    """
+    # Verify the team exists and belongs to the current user
+    team = db.query(Team).filter(Team.id == team_id, Team.owner_id == current_user.id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found or access denied")
+
+    # Drop the player
+    service = RosterService(db)
+    try:
+        service.drop_player_from_team(
+            team_id=team_id,
+            player_id=data.player_id,
+            user_id=current_user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Return the updated team details
+    return team_detail(team_id=team_id, db=db)
+
+@router_roster.put("/teams/{team_id}/roster/starters", response_model=TeamOut)
+def set_starters(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    data: SetStartersRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Set the starting lineup for a team.
+    """
+    # Verify the team exists and belongs to the current user
+    team = db.query(Team).filter(Team.id == team_id, Team.owner_id == current_user.id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found or access denied")
+
+    # Set the starters
+    service = RosterService(db)
+    try:
+        service.set_starters(
+            team_id=team_id,
+            starter_player_ids=data.starter_player_ids,
+            user_id=current_user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Return the updated team details
+    return team_detail(team_id=team_id, db=db)
+
+# Add the router to the API
+router.include_router(router_roster, prefix="")
