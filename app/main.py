@@ -11,6 +11,7 @@ from app.core.scheduler import list_jobs, scheduler, shutdown_scheduler, start_s
 from app.jobs.ingest import ingest_stat_lines
 from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks
 from app.jobs.reset_weekly_moves import reset_weekly_moves
+from app.jobs.bonus_calc import calc_weekly_bonuses
 
 init_db()
 
@@ -115,6 +116,20 @@ async def _startup() -> None:
             misfire_grace_time=3600,
         )
 
+    # Schedule weekly bonus calculator for Sundays at 23:59 local (05:59 UTC Monday)
+    if not scheduler.get_job("weekly_bonus_calc"):
+        # Monday 05:59 UTC is equivalent to Sunday 23:59 in most US time zones
+        scheduler.add_job(
+            calc_weekly_bonuses,
+            "cron",
+            day_of_week="mon",
+            hour=5,
+            minute=59,
+            id="weekly_bonus_calc",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
     # Draft clock jobs
 
     # Restore any active draft clocks on startup
@@ -200,6 +215,20 @@ def _schedule_nightly() -> None:
             day_of_week="mon",
             hour=reset_hour,
             id="reset_weekly_moves",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+    # Schedule weekly bonus calculator for Sundays at 23:59 local (05:59 UTC Monday)
+    if not scheduler.get_job("weekly_bonus_calc"):
+        # Monday 05:59 UTC is equivalent to Sunday 23:59 in most US time zones
+        scheduler.add_job(
+            calc_weekly_bonuses,
+            "cron",
+            day_of_week="mon",
+            hour=5,
+            minute=59,
+            id="weekly_bonus_calc",
             replace_existing=True,
             misfire_grace_time=3600,
         )

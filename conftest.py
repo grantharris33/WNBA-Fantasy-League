@@ -21,6 +21,31 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+# Add command-line option to skip slow tests
+def pytest_addoption(parser):
+    parser.addoption(
+        "--skip-slow", action="store_true", default=False, help="Skip slow tests"
+    )
+
+
+def pytest_configure(config):
+    """Register slow marker and configure it to be skipped when --skip-slow is used."""
+    # Register the 'slow' marker
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (skipped with --skip-slow)"
+    )
+
+    # Skip slow tests if the --skip-slow flag is provided
+    if config.getoption("--skip-slow"):
+        # Add 'not slow' to the existing markexpr or set it if none exists
+        markexpr = config.getoption("markexpr") or ""
+        if markexpr:
+            markexpr = f"{markexpr} and not slow"
+        else:
+            markexpr = "not slow"
+        config.option.markexpr = markexpr
+
+
 @pytest.fixture(scope="session")
 def db_engine():
     """Create a clean test database before tests and drop it after"""

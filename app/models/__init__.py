@@ -270,3 +270,24 @@ class DraftPick(Base):
         UniqueConstraint("draft_id", "player_id", name="uq_draft_player"),
         UniqueConstraint("draft_id", "round", "pick_number", name="uq_draft_round_pick"),
     )
+
+
+# ---------------------------------------------------------------------------
+# WeeklyBonus (weekly leader bonuses)
+# ---------------------------------------------------------------------------
+
+
+class WeeklyBonus(Base):
+    __tablename__ = "weekly_bonus"
+    __table_args__ = (UniqueConstraint("week_id", "player_id", "category", name="uq_bonus_week_player_category"),)
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    week_id: int = Column(Integer, nullable=False, index=True)
+    player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)
+    team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)
+    category: str = Column(String, nullable=False)  # top_scorer, top_rebounder, etc.
+    points: float = Column(Float, default=0.0, nullable=False)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    player = relationship("Player", backref="weekly_bonuses")
+    team = relationship("Team", backref="weekly_bonuses")

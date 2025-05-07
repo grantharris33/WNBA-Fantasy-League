@@ -65,12 +65,19 @@ class TeamOut(BaseModel):
         orm_mode = True
 
 
+class BonusOut(BaseModel):
+    category: str
+    points: float
+    player_name: str
+
+
 class ScoreOut(BaseModel):
     team_id: int
     team_name: str
     season_points: float
     weekly_delta: float
-    bonuses: Dict[str, float] = Field(default_factory=dict)
+    weekly_bonus_points: float = Field(default=0.0, description="Sum of weekly leader bonuses")
+    bonuses: List[BonusOut] = Field(default_factory=list, description="Weekly leader bonuses")
 
     class Config:
         orm_mode = True

@@ -7,9 +7,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models import League, Team, TeamScore, User
+from app.models import League, Team, TeamScore, User, WeeklyBonus, Player
 
-from .schemas import LeagueOut, Pagination, PlayerOut, ScoreOut, TeamOut, AddPlayerRequest, DropPlayerRequest, SetStartersRequest
+from .schemas import LeagueOut, Pagination, PlayerOut, ScoreOut, TeamOut, AddPlayerRequest, DropPlayerRequest, SetStartersRequest, BonusOut
 from app.api.deps import get_current_user, get_db
 from app.services.roster import RosterService
 
@@ -100,13 +100,36 @@ def current_scores(*, db: Session = Depends(_get_db)) -> List[ScoreOut]:  # noqa
                     latest_week_score = score.score
                     break
 
+        # Get weekly bonuses for this team
+        weekly_bonuses = []
+        weekly_bonus_total = 0.0
+        if latest_week is not None:
+            # Query all bonuses for this team in the latest week
+            bonuses = (
+                db.query(WeeklyBonus, Player.full_name)
+                .join(Player, WeeklyBonus.player_id == Player.id)
+                .filter(WeeklyBonus.team_id == team.id, WeeklyBonus.week_id == latest_week)
+                .all()
+            )
+
+            for bonus, player_name in bonuses:
+                weekly_bonuses.append(
+                    BonusOut(
+                        category=bonus.category,
+                        points=bonus.points,
+                        player_name=player_name
+                    )
+                )
+                weekly_bonus_total += bonus.points
+
         result.append(
             ScoreOut(
                 team_id=team.id,
                 team_name=team.name,
                 season_points=round(season_points, 2),
                 weekly_delta=round(latest_week_score, 2),
-                bonuses={},  # Placeholder – future extension
+                weekly_bonus_points=round(weekly_bonus_total, 2),
+                bonuses=weekly_bonuses,
             )
         )
 

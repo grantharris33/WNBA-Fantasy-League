@@ -38,6 +38,7 @@ pytest-httpx = "^0.35.0"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
+freezegun = "^1.5.1"
 
 [build-system]
 requires = ["poetry-core>=1.6.0"]
@@ -64,3 +65,6 @@ ignore = ["E203", "W292", "E501", "F401"]
 minversion = "7.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
+markers = [
+    "slow: tests that take a long time to run and can be skipped with --skip-slow"
+]
