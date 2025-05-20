@@ -156,3 +156,53 @@ class TeamUpdate(BaseModel):
     """Schema for updating an existing team."""
 
     name: Optional[str] = None
+
+
+class GameSummaryPlayerStatsOut(BaseModel):
+    """Player statistics for a game summary."""
+
+    player_id: str
+    player_name: str
+    points: int
+    rebounds: int
+    assists: int
+
+
+class GameSummaryBoxScoreTeamOut(BaseModel):
+    """Box score data for a single team."""
+
+    team_id: str
+    team_abbr: Optional[str] = None
+    score: int
+    players: List[GameSummaryPlayerStatsOut] = Field(default_factory=list)
+
+
+class GameInfoOut(BaseModel):
+    """Basic information about a game."""
+
+    game_id: str
+    venue: Optional[str] = None
+    status: Optional[str] = None
+
+
+class GameSummaryOut(BaseModel):
+    """Combined game summary with box scores."""
+
+    game: GameInfoOut
+    teams: List[GameSummaryBoxScoreTeamOut]
+
+
+class PlayByPlayEventOut(BaseModel):
+    """Single play in the play-by-play log."""
+
+    clock: Optional[str] = None
+    description: str
+    team_id: Optional[str] = None
+    period: Optional[int] = None
+
+
+class GamePlayByPlayOut(BaseModel):
+    """Play-by-play data for a game."""
+
+    game_id: str
+    events: List[PlayByPlayEventOut]

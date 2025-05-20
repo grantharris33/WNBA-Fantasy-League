@@ -87,6 +87,16 @@ class RapidApiClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def fetch_game_summary(self, game_id: str) -> Any:
+        """Fetch game summary data for a specific game."""
+
+        return await self._get_json("wnbasummary", params={"gameId": game_id})
+
+    async def fetch_game_playbyplay(self, game_id: str) -> Any:
+        """Fetch play-by-play data for a specific game."""
+
+        return await self._get_json("wnbaplay", params={"gameId": game_id})
+
     async def close(self) -> None:
         """Close the client session."""
         if self._client is not None:

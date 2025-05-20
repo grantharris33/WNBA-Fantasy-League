@@ -14,6 +14,7 @@ from app.services.scoring import update_weekly_team_scores as _update_weekly_tea
 from .auth import router as auth_router
 from .draft import router as draft_router
 from .endpoints_v1 import router as v1_router
+from .game_router import router as game_router
 from .logs import router as logs_router
 from .users import router as users_router
 
@@ -33,6 +34,7 @@ router.include_router(logs_router)
 
 # V1 public endpoints
 router.include_router(v1_router)
+router.include_router(game_router, prefix="/api/v1")
 
 
 @router.get("/health")

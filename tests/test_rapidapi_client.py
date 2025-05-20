@@ -91,3 +91,19 @@ class TestRapidApiClient:
 
         mock_client.aclose.assert_called_once()
         assert client._client is None
+
+    @pytest.mark.asyncio
+    async def test_fetch_game_summary(self, mock_env_vars):
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        with patch.object(client, "_get_json", AsyncMock(return_value={"ok": True})) as mock_get:
+            result = await client.fetch_game_summary("123")
+            mock_get.assert_called_once_with("wnbasummary", params={"gameId": "123"})
+            assert result == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_fetch_game_playbyplay(self, mock_env_vars):
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        with patch.object(client, "_get_json", AsyncMock(return_value={"ok": True})) as mock_get:
+            result = await client.fetch_game_playbyplay("999")
+            mock_get.assert_called_once_with("wnbaplay", params={"gameId": "999"})
+            assert result == {"ok": True}
