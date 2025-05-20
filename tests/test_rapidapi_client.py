@@ -107,3 +107,27 @@ class TestRapidApiClient:
             result = await client.fetch_game_playbyplay("999")
             mock_get.assert_called_once_with("wnbaplay", params={"gameId": "999"})
             assert result == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_fetch_schedule(self, mock_env_vars):
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        with patch.object(client, "_get_json", AsyncMock(return_value={"20250101": ["a"]})) as mock_get:
+            result = await client.fetch_schedule("2025", "01", "01")
+            mock_get.assert_called_once_with("wnbaschedule", params={"year": "2025", "month": "01", "day": "01"})
+            assert result == ["a"]
+
+    @pytest.mark.asyncio
+    async def test_fetch_wnba_news(self, mock_env_vars):
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        with patch.object(client, "_get_json", AsyncMock(return_value={"articles": []})) as mock_get:
+            result = await client.fetch_wnba_news(5)
+            mock_get.assert_called_once_with("wnba-news", params={"limit": "5"})
+            assert result == {"articles": []}
+
+    @pytest.mark.asyncio
+    async def test_fetch_league_injuries(self, mock_env_vars):
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        with patch.object(client, "_get_json", AsyncMock(return_value={"teams": []})) as mock_get:
+            result = await client.fetch_league_injuries()
+            mock_get.assert_called_once_with("injuries")
+            assert result == {"teams": []}

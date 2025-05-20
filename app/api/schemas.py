@@ -206,3 +206,64 @@ class GamePlayByPlayOut(BaseModel):
 
     game_id: str
     events: List[PlayByPlayEventOut]
+
+
+class ScheduledGameCompetitorOut(BaseModel):
+    """Team information within a scheduled game."""
+
+    team_id: str
+    abbrev: Optional[str] = None
+    display_name: Optional[str] = None
+    score: Optional[int] = None
+    is_home: Optional[bool] = None
+    winner: Optional[bool] = None
+
+
+class ScheduledGameOut(BaseModel):
+    """Basic scheduled game info."""
+
+    game_id: str
+    start_time: Optional[str] = None
+    venue: Optional[str] = None
+    completed: Optional[bool] = None
+    competitors: List[ScheduledGameCompetitorOut] = Field(default_factory=list)
+
+
+class ScheduleDayOut(BaseModel):
+    """List of games for a given day."""
+
+    date: str
+    games: List[ScheduledGameOut] = Field(default_factory=list)
+
+
+class NewsArticleOut(BaseModel):
+    """Representation of a news article."""
+
+    headline: Optional[str] = None
+    link: Optional[str] = None
+    source: Optional[str] = None
+    published: Optional[str] = None
+
+
+class PlayerInjuryDetailOut(BaseModel):
+    """Details about a player's injury status."""
+
+    player_id: Optional[str] = None
+    player_name: Optional[str] = None
+    position: Optional[str] = None
+    status: Optional[str] = None
+    comment: Optional[str] = None
+
+
+class TeamInjuryListOut(BaseModel):
+    """Injury list for a team."""
+
+    team_id: str
+    team_name: Optional[str] = None
+    players: List[PlayerInjuryDetailOut] = Field(default_factory=list)
+
+
+class LeagueInjuryReportOut(BaseModel):
+    """Aggregated league-wide injuries."""
+
+    teams: List[TeamInjuryListOut] = Field(default_factory=list)

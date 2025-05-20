@@ -97,6 +97,26 @@ class RapidApiClient:
 
         return await self._get_json("wnbaplay", params={"gameId": game_id})
 
+    async def fetch_schedule(self, year: str, month: str, day: str) -> Any:
+        """Fetch the schedule for a given date."""
+
+        data = await self._get_json(
+            "wnbaschedule",
+            params={"year": year, "month": month, "day": day},
+        )
+        key = f"{year}{month}{day}"
+        return data.get(key, [])
+
+    async def fetch_wnba_news(self, limit: int = 20) -> Any:
+        """Fetch recent WNBA news articles."""
+
+        return await self._get_json("wnba-news", params={"limit": str(limit)})
+
+    async def fetch_league_injuries(self) -> Any:
+        """Fetch league-wide injury information."""
+
+        return await self._get_json("injuries")
+
     async def close(self) -> None:
         """Close the client session."""
         if self._client is not None:
