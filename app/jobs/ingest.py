@@ -44,7 +44,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from app import models
 from app.core.database import SessionLocal
-from app.external_apis.rapidapi_client import wnba_client
+from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RateLimitError, ApiKeyError, RetryableError
 from app.models import IngestLog
 
 # ---------------------------------------------------------------------------
@@ -53,15 +53,38 @@ from app.models import IngestLog
 
 
 async def fetch_schedule(date_iso: str) -> List[dict[str, Any]]:
+    """Fetch schedule for a given date using the RapidAPI client."""
     date_obj = dt.datetime.strptime(date_iso, "%Y-%m-%d").date()
-    params = {"year": date_obj.strftime("%Y"), "month": date_obj.strftime("%m"), "day": date_obj.strftime("%d")}
-    data = await wnba_client._get_json("wnbaschedule", params=params)
-    date_key = date_obj.strftime("%Y%m%d")
-    return data.get(date_key, [])
+    year = date_obj.strftime("%Y")
+    month = date_obj.strftime("%m")
+    day = date_obj.strftime("%d")
+
+    try:
+        return await wnba_client.fetch_schedule(year, month, day)
+    except RateLimitError as e:
+        _log_error(provider="rapidapi", msg=f"Rate limit exceeded fetching schedule for {date_iso}: {e}")
+        raise
+    except ApiKeyError as e:
+        _log_error(provider="rapidapi", msg=f"API key error fetching schedule for {date_iso}: {e}")
+        raise
+    except RapidApiError as e:
+        _log_error(provider="rapidapi", msg=f"API error fetching schedule for {date_iso}: {e}")
+        raise
 
 
 async def fetch_box_score(game_id: str) -> dict[str, Any]:
-    return await wnba_client._get_json("wnbabox", params={"gameId": game_id})
+    """Fetch box score for a specific game using the RapidAPI client."""
+    try:
+        return await wnba_client.fetch_box_score(game_id)
+    except RateLimitError as e:
+        _log_error(provider="rapidapi", msg=f"Rate limit exceeded fetching box score for game {game_id}: {e}")
+        raise
+    except ApiKeyError as e:
+        _log_error(provider="rapidapi", msg=f"API key error fetching box score for game {game_id}: {e}")
+        raise
+    except RapidApiError as e:
+        _log_error(provider="rapidapi", msg=f"API error fetching box score for game {game_id}: {e}")
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -70,11 +93,14 @@ async def fetch_box_score(game_id: str) -> dict[str, Any]:
 
 
 def _upsert_player(session, athlete: dict[str, Any]) -> models.Player:
+    """Create or update a player record."""
     player_id = int(athlete["id"])
     player = session.get(models.Player, player_id)
     if player is None:
         player = models.Player(
-            id=player_id, full_name=athlete["displayName"], position=athlete.get("position", {}).get("abbreviation")
+            id=player_id,
+            full_name=athlete["displayName"],
+            position=athlete.get("position", {}).get("abbreviation")
         )
         session.add(player)
     else:
@@ -85,19 +111,38 @@ def _upsert_player(session, athlete: dict[str, Any]) -> models.Player:
 
 
 def _parse_stat_line(stats: List[str]) -> dict[str, float]:
-    # stats array order (see sample): MIN, FG, 3PT, FT, OREB, DREB, REB, AST, STL, BLK, TO, PF, +/- , PTS
+    """
+    Parse stats array from WNBA API response.
+
+    Based on actual API response structure:
+    stats array format: [MIN, FG, 3PT, FT, OREB, DREB, REB, AST, STL, BLK, TO, PF, +/-, PTS]
+    Indices:             [0,   1,  2,   3,  4,    5,    6,   7,   8,   9,   10, 11, 12,  13]
+    """
     def _to_float(val: str) -> float:
         try:
+            # Handle cases like "2-7" for field goals by extracting the made shots
+            if "-" in val:
+                val = val.split("-")[0]
             return float(val)
         except (ValueError, TypeError):
             return 0.0
 
+    if len(stats) < 14:
+        # If stats array is incomplete, return zeros for safety
+        return {
+            "points": 0.0,
+            "rebounds": 0.0,
+            "assists": 0.0,
+            "steals": 0.0,
+            "blocks": 0.0,
+        }
+
     return {
-        "points": _to_float(stats[-1]),
-        "rebounds": _to_float(stats[6]),
-        "assists": _to_float(stats[7]),
-        "steals": _to_float(stats[8]),
-        "blocks": _to_float(stats[9]),
+        "points": _to_float(stats[13]),      # PTS - last element
+        "rebounds": _to_float(stats[6]),     # REB - total rebounds
+        "assists": _to_float(stats[7]),      # AST
+        "steals": _to_float(stats[8]),       # STL
+        "blocks": _to_float(stats[9]),       # BLK
     }
 
 
@@ -109,65 +154,136 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
 
     try:
         games = await fetch_schedule(date_iso)
-    except RetryError as exc:
+    except (RetryError, RapidApiError) as exc:
         _log_error(provider="rapidapi", msg=f"Failed to fetch schedule {date_iso}: {exc}")
         return
 
+    if not games:
+        _log_error(provider="rapidapi", msg=f"No games found for {date_iso}")
+        return
+
+    processed_games = 0
+    failed_games = 0
+
     for game in games:
-        game_id = game["id"]
-        try:
-            box = await fetch_box_score(game_id)
-        except RetryError as exc:
-            _log_error(provider="rapidapi", msg=f"Failed to fetch box {game_id}: {exc}")
+        game_id = game.get("id")
+        if not game_id:
+            _log_error(provider="rapidapi", msg=f"Game missing ID in schedule response: {game}")
+            failed_games += 1
             continue
 
-        await _process_box_score(box, game_datetime)
+        try:
+            box = await fetch_box_score(str(game_id))
+            await _process_box_score(box, game_datetime, game_id)
+            processed_games += 1
+        except (RetryError, RapidApiError) as exc:
+            _log_error(provider="rapidapi", msg=f"Failed to fetch box score for game {game_id}: {exc}")
+            failed_games += 1
+            continue
+        except Exception as exc:
+            _log_error(provider="rapidapi", msg=f"Unexpected error processing game {game_id}: {exc}")
+            failed_games += 1
+            continue
+
+    # Log summary
+    _log_info(provider="rapidapi", msg=f"Ingest complete for {date_iso}: {processed_games} games processed, {failed_games} failed")
 
     # Close the client after we're done
     await wnba_client.close()
 
 
-async def _process_box_score(box: dict[str, Any], game_date: dt.datetime) -> None:
+async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_id: str) -> None:
+    """Process a single box score and upsert player stats."""
     session = SessionLocal()
     try:
         players_blocks = box.get("players", [])
+        if not players_blocks:
+            _log_error(provider="rapidapi", msg=f"No players data in box score for game {game_id}")
+            return
+
+        stats_processed = 0
         for team_block in players_blocks:
-            for stat_block in team_block.get("statistics", []):
-                for athlete_block in stat_block.get("athletes", []):
-                    athlete = athlete_block["athlete"]
+            statistics = team_block.get("statistics", [])
+            if not statistics:
+                continue
+
+            for stat_block in statistics:
+                athletes = stat_block.get("athletes", [])
+                if not athletes:
+                    continue
+
+                for athlete_block in athletes:
+                    athlete = athlete_block.get("athlete")
+                    if not athlete:
+                        continue
+
+                    # Skip players who didn't play
+                    if athlete_block.get("didNotPlay", False):
+                        continue
+
                     stats_arr = athlete_block.get("stats", [])
                     if not stats_arr:
                         continue
 
-                    player = _upsert_player(session, athlete)
+                    try:
+                        player = _upsert_player(session, athlete)
+                        stat_vals = _parse_stat_line(stats_arr)
 
-                    stat_vals = _parse_stat_line(stats_arr)
+                        # Upsert StatLine
+                        existing = (
+                            session.query(models.StatLine)
+                            .filter_by(player_id=player.id, game_date=game_date)
+                            .one_or_none()
+                        )
 
-                    # Upsert StatLine
-                    existing = (
-                        session.query(models.StatLine).filter_by(player_id=player.id, game_date=game_date).one_or_none()
-                    )
+                        if existing:
+                            for k, v in stat_vals.items():
+                                setattr(existing, k, v)
+                        else:
+                            session.add(models.StatLine(player_id=player.id, game_date=game_date, **stat_vals))
 
-                    if existing:
-                        for k, v in stat_vals.items():
-                            setattr(existing, k, v)
-                    else:
-                        session.add(models.StatLine(player_id=player.id, game_date=game_date, **stat_vals))
+                        stats_processed += 1
+                    except Exception as exc:
+                        _log_error(provider="rapidapi", msg=f"Error processing player {athlete.get('id', 'unknown')} in game {game_id}: {exc}")
+                        continue
+
         session.commit()
+        _log_info(provider="rapidapi", msg=f"Processed {stats_processed} stat lines for game {game_id}")
+
     except Exception as exc:
         # Guard idempotency: ignore unique constraint duplicate inserts
         if "UNIQUE constraint failed" in str(exc):
             session.rollback()
+            _log_info(provider="rapidapi", msg=f"Duplicate stats found for game {game_id}, skipping")
         else:
             session.rollback()
+            _log_error(provider="rapidapi", msg=f"Database error processing game {game_id}: {exc}")
             raise
     finally:
         session.close()
 
 
 def _log_error(provider: str, msg: str) -> None:
+    """Log an error message to the database."""
     session = SessionLocal()
-    ingest_log = IngestLog(provider=provider, message=msg)
-    session.add(ingest_log)
-    session.commit()
-    session.close()
+    try:
+        ingest_log = IngestLog(provider=provider, message=f"ERROR: {msg}")
+        session.add(ingest_log)
+        session.commit()
+    except Exception:
+        session.rollback()
+    finally:
+        session.close()
+
+
+def _log_info(provider: str, msg: str) -> None:
+    """Log an info message to the database."""
+    session = SessionLocal()
+    try:
+        ingest_log = IngestLog(provider=provider, message=f"INFO: {msg}")
+        session.add(ingest_log)
+        session.commit()
+    except Exception:
+        session.rollback()
+    finally:
+        session.close()

@@ -5,7 +5,7 @@ import httpx
 import pytest
 from tenacity import RetryError
 
-from app.external_apis.rapidapi_client import RapidApiClient
+from app.external_apis.rapidapi_client import RapidApiClient, RapidApiError, RateLimitError, ApiKeyError, RetryableError
 
 
 @pytest.fixture
@@ -65,12 +65,83 @@ class TestRapidApiClient:
         assert result == {"data": "test_data"}
 
     @pytest.mark.asyncio
+    async def test_get_json_rate_limit_error(self, mock_env_vars):
+        """Test rate limit error handling - should not retry."""
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        client._client = AsyncMock()
+
+        # Mock 429 response
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        error = httpx.HTTPStatusError("Rate limited", request=MagicMock(), response=mock_response)
+        client._client.get.side_effect = error
+
+        with pytest.raises(RateLimitError, match="API rate limit exceeded"):
+            await client._get_json("test_endpoint")
+
+        # Should only call once (no retries)
+        assert client._client.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_get_json_api_key_error(self, mock_env_vars):
+        """Test API key error handling - should not retry."""
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        client._client = AsyncMock()
+
+        # Mock 401 response
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        error = httpx.HTTPStatusError("Unauthorized", request=MagicMock(), response=mock_response)
+        client._client.get.side_effect = error
+
+        with pytest.raises(ApiKeyError, match="Invalid API key"):
+            await client._get_json("test_endpoint")
+
+        # Should only call once (no retries)
+        assert client._client.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_get_json_general_http_error(self, mock_env_vars):
+        """Test general HTTP error handling - should retry."""
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        client._client = AsyncMock()
+
+        # Mock 500 response
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        error = httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
+        client._client.get.side_effect = error
+
+        with pytest.raises(RetryError):
+            await client._get_json("test_endpoint")
+
+        # Should retry 3 times
+        assert client._client.get.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_get_json_request_error(self, mock_env_vars):
+        """Test request error handling - should retry."""
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        client._client = AsyncMock()
+
+        error = httpx.RequestError("Connection failed")
+        client._client.get.side_effect = error
+
+        with pytest.raises(RetryError):
+            await client._get_json("test_endpoint")
+
+        # Should retry 3 times
+        assert client._client.get.call_count == 3
+
+    @pytest.mark.asyncio
     async def test_get_json_retry(self, mock_env_vars):
         """Test retry logic failure leads to RetryError."""
 
-        # Create a failing function that always raises an error
+        # Create a failing function that always raises a retryable error
         async def failing_get(url, params=None):
-            raise httpx.HTTPStatusError("Error", request=MagicMock(), response=MagicMock())
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+            raise httpx.HTTPStatusError("Error", request=MagicMock(), response=mock_response)
 
         client = RapidApiClient(base_url="https://test.com", host="test.com")
         client._client = AsyncMock()
@@ -107,6 +178,15 @@ class TestRapidApiClient:
             result = await client.fetch_game_playbyplay("999")
             mock_get.assert_called_once_with("wnbaplay", params={"gameId": "999"})
             assert result == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_fetch_box_score(self, mock_env_vars):
+        """Test the fetch_box_score method."""
+        client = RapidApiClient(base_url="https://test.com", host="test.com")
+        with patch.object(client, "_get_json", AsyncMock(return_value={"players": []})) as mock_get:
+            result = await client.fetch_box_score("456")
+            mock_get.assert_called_once_with("wnbabox", params={"gameId": "456"})
+            assert result == {"players": []}
 
     @pytest.mark.asyncio
     async def test_fetch_schedule(self, mock_env_vars):

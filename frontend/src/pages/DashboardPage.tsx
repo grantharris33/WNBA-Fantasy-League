@@ -1,104 +1,122 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/api';
-import type { LeagueOut } from '../types';
+import React, { useEffect, useState, useCallback } from 'react';
+import api from '../lib/api';
+import type { UserTeam, LeagueOut, TeamScoreData, CurrentScores, DraftState } from '../types';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorMessage from '../components/common/ErrorMessage';
+import LeagueTeamCard from '../components/dashboard/LeagueTeamCard';
+import StandingsTable from '../components/dashboard/StandingsTable';
+// Placeholder imports for components to be created
+// import LeagueTeamCard from '../components/dashboard/LeagueTeamCard';
+// import StandingsTable from '../components/dashboard/StandingsTable';
 
-const DashboardPage = () => {
-  const { user, logout } = useAuth();
-  const [leagues, setLeagues] = useState<LeagueOut[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface LeagueDraftStatus {
+  leagueId: number;
+  status: DraftState['status'] | 'loading' | 'error';
+  error?: string;
+}
 
-  useEffect(() => {
-    // Fetch leagues when component mounts
-    const fetchLeagues = async () => {
-      setIsLoading(true);
-      try {
-        const data = await api.leagues.getAll();
-        setLeagues(data as LeagueOut[]);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load leagues');
-        setLeagues([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+const DashboardPage: React.FC = () => {
+  const [userTeams, setUserTeams] = useState<UserTeam[]>([]);
+  const [userTeamsLoading, setUserTeamsLoading] = useState<boolean>(true);
+  const [userTeamsError, setUserTeamsError] = useState<string | null>(null);
 
-    fetchLeagues();
+  const [currentScoresData, setCurrentScoresData] = useState<CurrentScores | null>(null);
+  const [scoresLoading, setScoresLoading] = useState<boolean>(true);
+  const [scoresError, setScoresError] = useState<string | null>(null);
+
+  const [draftStatuses, setDraftStatuses] = useState<Record<number, LeagueDraftStatus>>({});
+
+  const fetchUserTeams = useCallback(async () => {
+    setUserTeamsLoading(true);
+    setUserTeamsError(null);
+    try {
+      const teams = await api.users.getMyTeams() as UserTeam[];
+      setUserTeams(teams);
+    } catch (error) {
+      setUserTeamsError(error instanceof Error ? error.message : 'Failed to fetch user teams.');
+      setUserTeams([]);
+    }
+    setUserTeamsLoading(false);
   }, []);
 
+  const fetchCurrentScores = useCallback(async () => {
+    setScoresLoading(true);
+    setScoresError(null);
+    try {
+      const scores = await api.scores.getCurrent() as CurrentScores;
+      setCurrentScoresData(scores);
+    } catch (error) {
+      setScoresError(error instanceof Error ? error.message : 'Failed to fetch current scores.');
+    }
+    setScoresLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchUserTeams();
+    fetchCurrentScores();
+  }, [fetchUserTeams, fetchCurrentScores]);
+
+  useEffect(() => {
+    if (userTeams.length > 0) {
+      userTeams.forEach(team => {
+        if (!draftStatuses[team.league_id] || draftStatuses[team.league_id].status === 'error') {
+          setDraftStatuses(prev => ({ ...prev, [team.league_id]: { leagueId: team.league_id, status: 'loading' } }));
+          api.leagues.getDraftState(team.league_id)
+            .then(data => {
+              setDraftStatuses(prev => ({ ...prev, [team.league_id]: { leagueId: team.league_id, status: data.status } }));
+            })
+            .catch(err => {
+              setDraftStatuses(prev => ({
+                ...prev,
+                [team.league_id]: {
+                  leagueId: team.league_id,
+                  status: 'error',
+                  error: err instanceof Error ? err.message : 'Failed to load draft status'
+                }
+              }));
+            });
+        }
+      });
+    }
+  }, [userTeams, draftStatuses]);
+
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">WNBA Fantasy League</h1>
+    <div>
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
-        <div className="flex items-center gap-4">
-          <div className="text-gray-600">
-            Welcome, <span className="font-semibold">{user?.email}</span>
-          </div>
-          <button
-            onClick={logout}
-            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Your Leagues</h2>
-
-        {isLoading && (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
+      <section className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4">My Leagues & Teams</h2>
+        {userTeamsLoading && <LoadingSpinner />}
+        {userTeamsError && <ErrorMessage message={userTeamsError} />}
+        {!userTeamsLoading && !userTeamsError && (
+          userTeams.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {userTeams.map(team => (
+                <LeagueTeamCard
+                  key={team.id}
+                  team={team}
+                  draftStatusInfo={draftStatuses[team.league_id]}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-600">You haven't joined any leagues yet. Why not create or join one?</p>
+          )
         )}
+      </section>
 
-        {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-md">
-            {error}
-          </div>
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">Current Standings</h2>
+        {scoresLoading && <LoadingSpinner />}
+        {scoresError && <ErrorMessage message={scoresError} />}
+        {!scoresLoading && !scoresError && currentScoresData && currentScoresData.scores && (
+          <StandingsTable scores={currentScoresData.scores} />
         )}
-
-        {!isLoading && !error && leagues.length === 0 && (
-          <div className="text-gray-500 text-center py-4">
-            You don't have any leagues yet.
-          </div>
+        {!scoresLoading && !scoresError &&
+         (!currentScoresData || !currentScoresData.scores || currentScoresData.scores.length === 0) && (
+            <p className="text-gray-600">No scores available at the moment, or standings are empty.</p>
         )}
-
-        {leagues.length > 0 && (
-          <div className="divide-y">
-            {leagues.map((league) => (
-              <div key={league.id} className="py-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">{league.name}</h3>
-                    {league.description && (
-                      <p className="text-gray-600 text-sm">{league.description}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <span className={`inline-block px-2 py-1 text-xs rounded
-                      ${league.draft_status === 'scheduled' ? 'bg-yellow-100 text-yellow-800' :
-                        league.draft_status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        league.draft_status === 'completed' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'}`}>
-                      {league.draft_status.replace('_', ' ')}
-                    </span>
-                    <a
-                      href={`/draft/${league.id}`}
-                      className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                    >
-                      View
-                    </a>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      </section>
     </div>
   );
 };

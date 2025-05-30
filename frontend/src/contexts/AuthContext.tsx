@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { api } from '../lib/api';
 import type { UserOut, TokenResponse } from '../types';
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
   user: UserOut | null;
   token: string | null;

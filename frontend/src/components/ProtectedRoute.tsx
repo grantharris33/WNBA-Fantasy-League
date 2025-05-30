@@ -1,5 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import NavBar from './layout/NavBar';
+import React from 'react';
 
 export const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -19,7 +21,14 @@ export const ProtectedRoute = () => {
   }
 
   // Render children routes if authenticated
-  return <Outlet />;
+  return (
+    <>
+      <NavBar />
+      <div className="container mx-auto mt-4 p-4">
+        <Outlet />
+      </div>
+    </>
+  );
 };
 
 export default ProtectedRoute;

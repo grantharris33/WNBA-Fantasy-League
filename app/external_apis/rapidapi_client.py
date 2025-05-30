@@ -6,7 +6,7 @@ from typing import Any, Dict
 import httpx
 
 try:
-    from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+    from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 except ModuleNotFoundError:  # pragma: no cover
     # Provide minimal no-op fallback so that code can run without tenacity in CI
     import functools
@@ -37,8 +37,31 @@ except ModuleNotFoundError:  # pragma: no cover
     def wait_exponential(*args, **kwargs):  # type: ignore
         return None
 
+    def retry_if_exception_type(*args, **kwargs):  # type: ignore
+        return None
+
     class RetryError(Exception):
         pass
+
+
+class RapidApiError(Exception):
+    """Base exception for RapidAPI errors."""
+    pass
+
+
+class RateLimitError(RapidApiError):
+    """Exception raised when API rate limit is exceeded."""
+    pass
+
+
+class ApiKeyError(RapidApiError):
+    """Exception raised when API key is invalid or missing."""
+    pass
+
+
+class RetryableError(RapidApiError):
+    """Exception for errors that should be retried."""
+    pass
 
 
 class RapidApiClient:
@@ -67,7 +90,11 @@ class RapidApiClient:
 
         return httpx.AsyncClient(timeout=self.timeout, headers=headers)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(RetryableError)
+    )
     async def _get_json(self, endpoint: str, params: Dict[str, Any] | None = None) -> Any:
         """
         Make a GET request to the API with retry logic.
@@ -80,26 +107,43 @@ class RapidApiClient:
             Parsed JSON response
 
         Raises:
+            RateLimitError: If API rate limit is exceeded
+            ApiKeyError: If API key is invalid or missing
             RetryError: If all retry attempts fail
         """
         url = f"{self.base_url}/{endpoint}"
-        resp = await self.client.get(url, params=params)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await self.client.get(url, params=params)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                # Don't retry rate limit errors - raise immediately
+                raise RateLimitError(f"API rate limit exceeded for {endpoint}") from e
+            elif e.response.status_code in (401, 403):
+                # Don't retry auth errors - raise immediately
+                raise ApiKeyError(f"Invalid API key or unauthorized access to {endpoint}") from e
+            else:
+                # Retry other HTTP errors
+                raise RetryableError(f"HTTP {e.response.status_code} error for {endpoint}: {e}") from e
+        except httpx.RequestError as e:
+            # Retry network/connection errors
+            raise RetryableError(f"Request failed for {endpoint}: {e}") from e
 
     async def fetch_game_summary(self, game_id: str) -> Any:
         """Fetch game summary data for a specific game."""
-
         return await self._get_json("wnbasummary", params={"gameId": game_id})
 
     async def fetch_game_playbyplay(self, game_id: str) -> Any:
         """Fetch play-by-play data for a specific game."""
-
         return await self._get_json("wnbaplay", params={"gameId": game_id})
+
+    async def fetch_box_score(self, game_id: str) -> Any:
+        """Fetch box score data for a specific game."""
+        return await self._get_json("wnbabox", params={"gameId": game_id})
 
     async def fetch_schedule(self, year: str, month: str, day: str) -> Any:
         """Fetch the schedule for a given date."""
-
         data = await self._get_json(
             "wnbaschedule",
             params={"year": year, "month": month, "day": day},
@@ -109,12 +153,10 @@ class RapidApiClient:
 
     async def fetch_wnba_news(self, limit: int = 20) -> Any:
         """Fetch recent WNBA news articles."""
-
         return await self._get_json("wnba-news", params={"limit": str(limit)})
 
     async def fetch_league_injuries(self) -> Any:
         """Fetch league-wide injury information."""
-
         return await self._get_json("injuries")
 
     async def close(self) -> None:
