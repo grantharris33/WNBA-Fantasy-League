@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDraftWebSocket } from '../hooks/useDraftWebSocket';
-import type { DraftState, Player, UserTeam, League, DraftPick } from '../types/draft';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../lib/api';
+import type { DraftState, Player, UserTeam, League } from '../types/draft';
 import DraftStatusBanner from '../components/draft/DraftStatusBanner';
 import DraftTimer from '../components/draft/DraftTimer';
 import AvailablePlayersPanel from '../components/draft/AvailablePlayersPanel';
@@ -11,16 +13,6 @@ import DraftLogPanel from '../components/draft/DraftLogPanel';
 import PlayerQueuePanel from '../components/draft/PlayerQueuePanel';
 import MyTeamPanel from '../components/draft/MyTeamPanel';
 import CommissionerControls from '../components/draft/CommissionerControls';
-// import { useAuth } from '../contexts/AuthContext'; // Assuming AuthContext exists
-
-// Placeholder for AuthContext hook until its actual implementation is known
-const useAuth = () => {
-  // Replace with actual AuthContext logic
-  // For now, returning a mock token and user for development
-  const mockToken = localStorage.getItem('authToken'); // Or some other mock
-  const mockUser = { id: 1, email: 'user@example.com' }; // Mock user with id
-  return { token: mockToken, user: mockUser, isAuthenticated: !!mockToken };
-};
 
 // Define a basic League type for now, assuming it has commissioner_id
 // This should align with backend's LeagueOut schema eventually
@@ -115,84 +107,26 @@ const DraftPage: React.FC = () => {
       setPickError(null); // Reset pick error on full fetch
       try {
         // Fetch League Details (for commissioner_id)
-        const leagueDetailsResponse = await fetch(`${API_BASE_URL}/leagues/${leagueId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!leagueDetailsResponse.ok) {
-          toast.error(`Failed to fetch league details: ${leagueDetailsResponse.statusText}`);
-          throw new Error(`Failed to fetch league details (LID: ${leagueId}): ${leagueDetailsResponse.statusText}`);
-        }
-        const leagueData: LeagueDetails = await leagueDetailsResponse.json();
+        const leagueData: LeagueDetails = await api.leagues.getById(parseInt(leagueId));
         setLeagueDetails(leagueData);
-        // TODO: The backend LeagueOut schema needs to include commissioner_id
-        // if (!leagueData.commissioner_id) console.warn('Commissioner ID not found in league details!');
 
         // 1. Fetch initial draft state for the league
-        // Assuming an endpoint like /leagues/{leagueId}/draft/state or similar
-        // Story-14 indicates GET /api/v1/draft/{draft_id}/state.
-        // We need to resolve leagueId to draft_id first, or the backend API needs adjustment.
-        // For now, let's assume a direct fetch of draft state using leagueId as a proxy, which might need adjustment.
-        // A more robust solution would be an endpoint GET /leagues/{leagueId}/draft-details returning the active draft_id.
-        // Let's try to fetch using an assumed endpoint that gives draft state by leagueId.
-        // Or, if the backend has a convention, like draft_id is numerically same as league_id for single draft per league.
-
-        // Tentative: Assuming the draft ID needs to be fetched or is known. Let's use leagueId as a placeholder for draftId for now
-        // for the initial fetch, or adjust if a specific endpoint is confirmed.
-        // The WebSocket connects with leagueId, but API calls for state/pick use draft_id.
-        // This part is tricky without backend clarification from Story-9.
-        // Let's assume we first get league details which may contain the active draft_id.
-
-        // Step 1: Fetch league details to get draft_id (hypothetical)
-        // For now, we directly call /draft/{draft_id}/state assuming draft_id = leagueId, this is likely wrong.
-        // A more realistic approach would be: GET /leagues/{leagueId} -> get active_draft_id
-        // then GET /draft/{active_draft_id}/state
-
-        // For now, let's proceed with a placeholder that GET /draft/{leagueId}/state works
-        // This will likely need to be changed based on actual backend API for getting initial draft state via league_id
-
-        const fetchedDraftId = leagueId; // Placeholder assumption, effectively using leagueId as draftId for the initial fetch URL
-
-        if (fetchedDraftId) {
-          const draftStateResponse = await fetch(`${API_BASE_URL}/draft/${fetchedDraftId}/state`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!draftStateResponse.ok) {
-            toast.error(`Failed to fetch draft state: ${draftStateResponse.statusText}`);
-            throw new Error(`Failed to fetch draft state (LID: ${leagueId}): ${draftStateResponse.statusText} (status: ${draftStateResponse.status})`);
-          }
-          const draftStateData: DraftState = await draftStateResponse.json();
-          setInitialDraftState(draftStateData);
-        } else {
-          throw new Error('Could not determine draft ID for the league.');
-        }
+        const draftStateData: DraftState = await api.leagues.getDraftState(parseInt(leagueId));
+        setInitialDraftState(draftStateData);
 
         // 2. Fetch available players
-        const playersResponse = await fetch(`${API_BASE_URL}/leagues/${leagueId}/free-agents`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!playersResponse.ok) {
-          toast.error('Failed to fetch available players.');
-          throw new Error('Failed to fetch available players');
-        }
-        const playersData = await playersResponse.json(); // Assuming it returns Player[] or { items: Player[] }
+        const playersData = await api.roster.getFreeAgents(parseInt(leagueId));
         setAvailablePlayers(playersData.items || playersData); // Adjust based on actual API response structure
 
         // 3. Fetch user's teams in this league
-        const userTeamsResponse = await fetch(`${API_BASE_URL}/users/me/teams`, { // This endpoint might need ?league_id=leagueId filter
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!userTeamsResponse.ok) {
-          toast.error('Failed to fetch user teams.');
-          throw new Error('Failed to fetch user teams');
-        }
-        const allUserTeams: UserTeam[] = await userTeamsResponse.json();
+        const allUserTeams: UserTeam[] = await api.users.getMyTeams();
         setUserTeams(allUserTeams.filter(team => team.league_id.toString() === leagueId));
 
       } catch (err) {
         console.error('Error fetching draft page data:', err);
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         setError(errorMessage);
-        // toast.error(`Data fetch error: ${errorMessage}`); // Already handled by general error display
+        toast.error(`Data fetch error: ${errorMessage}`);
       } finally {
         setIsLoading(false);
       }

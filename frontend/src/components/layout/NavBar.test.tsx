@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AuthContext, { type AuthContextType } from '../../contexts/AuthContext';
@@ -50,9 +49,6 @@ describe('NavBar Component', () => {
   const testUser: UserOut = {
     id: 1,
     email: 'test@example.com',
-    full_name: 'Test User',
-    is_active: true,
-    is_superuser: false,
     created_at: '2023-01-01T00:00:00Z'
   };
 

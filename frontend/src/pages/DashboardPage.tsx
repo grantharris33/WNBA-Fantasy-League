@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import api from '../lib/api';
-import type { UserTeam, LeagueOut, TeamScoreData, CurrentScores, DraftState } from '../types';
+import type { UserTeam, CurrentScores, DraftState } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
 import LeagueTeamCard from '../components/dashboard/LeagueTeamCard';

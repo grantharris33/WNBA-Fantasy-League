@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.database import SessionLocal
-from app.models import League, Player, Team, TeamScore, User, WeeklyBonus
+from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState
 from app.services.roster import RosterService
 from app.services.team import TeamService, map_team_to_out
+from app.services.draft import DraftService
 from app.api.schemas import TeamCreate, TeamUpdate
 
 from .schemas import (
@@ -23,6 +24,7 @@ from .schemas import (
     ScoreOut,
     SetStartersRequest,
     TeamOut,
+    DraftStateResponse,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
@@ -342,6 +344,43 @@ def update_team(
         raise HTTPException(status_code=404, detail="Team not found")
 
     return map_team_to_out(team)
+
+
+@router.get("/leagues/{league_id}", response_model=LeagueOut)
+def get_league(*, league_id: int, db: Session = Depends(_get_db)):
+    """
+    Get a specific league by ID.
+    """
+    league = db.query(League).filter(League.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    return LeagueOut.from_orm(league)
+
+
+@router.get("/leagues/{league_id}/draft/state", response_model=DraftStateResponse)
+def get_league_draft_state(
+    *,
+    league_id: int,
+    db: Session = Depends(_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the current draft state for a league.
+    """
+    # Verify league exists
+    league = db.query(League).filter(League.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    # Get draft state for this league
+    draft_state = db.query(DraftState).filter(DraftState.league_id == league_id).first()
+    if not draft_state:
+        raise HTTPException(status_code=404, detail="No draft found for this league")
+
+    # Use DraftService to get formatted response
+    draft_service = DraftService(db)
+    return draft_service.get_draft_state(draft_state.id)
 
 
 # Add the router to the API

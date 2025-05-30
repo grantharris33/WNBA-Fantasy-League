@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, JSON
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -37,7 +37,12 @@ class League(Base):
 
     id: int = Column(Integer, primary_key=True, index=True)
     name: str = Column(String, nullable=False)
+    invite_code: str = Column(String, unique=True, nullable=False)
+    max_teams: int = Column(Integer, default=12, nullable=False)
+    draft_date: datetime | None = Column(DateTime, nullable=True)
+    settings: dict = Column(JSON, default={}, nullable=True)
     created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    is_active: bool = Column(Boolean, default=True, nullable=False)
 
     commissioner_id: int | None = Column(Integer, ForeignKey("user.id"))
     commissioner = relationship("User", back_populates="leagues_owned")

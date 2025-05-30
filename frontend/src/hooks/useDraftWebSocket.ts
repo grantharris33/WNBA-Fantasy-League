@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-// import type { DraftState, DraftWebSocketMessage } from '../types/draft';
-// Linter fix: Use type-only imports
-import type { DraftState, DraftWebSocketMessage } from '../types/draft';
+import type { DraftState } from '../types/draft';
 
 const WS_URL_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/api/v1/draft/ws';
 
@@ -44,17 +42,18 @@ export const useDraftWebSocket = ({
 
     ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data as string) as DraftWebSocketMessage;
+        const message = JSON.parse(event.data as string);
         console.log('WebSocket message received:', message);
 
+        // Backend sends messages with "event" field, not "type"
         // Initial full state often comes with 'draft_started' or similar
         // Subsequent messages update parts of it or are specific events
-        if (message.type === 'draft_started' || message.type === 'draft_resumed' || message.type === 'draft_paused') {
+        if (message.event === 'draft_started' || message.event === 'draft_resumed' || message.event === 'draft_paused') {
           setDraftState(message.data);
-        } else if (message.type === 'pick_made') {
-          setDraftState(message.data.updated_draft);
+        } else if (message.event === 'pick_made') {
+          setDraftState(message.data.draft_state);
           // Potentially also emit the pick itself for toast notifications, etc.
-        } else if (message.type === 'draft_completed') {
+        } else if (message.event === 'draft_completed') {
           if (draftState) {
             setDraftState({ ...draftState, status: 'completed' });
           }

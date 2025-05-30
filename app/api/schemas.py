@@ -23,6 +23,7 @@ class LeagueOut(BaseModel):
 
     id: int
     name: str
+    commissioner_id: int | None = None
     created_at: datetime | None = None
 
     class Config:

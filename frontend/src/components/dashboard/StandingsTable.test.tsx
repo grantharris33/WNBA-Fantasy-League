@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import StandingsTable from './StandingsTable';
 import type { TeamScoreData } from '../../types';
