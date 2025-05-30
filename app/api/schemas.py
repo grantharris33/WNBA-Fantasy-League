@@ -25,9 +25,52 @@ class LeagueOut(BaseModel):
     name: str
     commissioner_id: int | None = None
     created_at: datetime | None = None
+    invite_code: str | None = None  # Only included if user is commissioner
+    max_teams: int = 12
+    draft_date: datetime | None = None
+    settings: dict = Field(default_factory=dict)
+    is_active: bool = True
 
     class Config:
         orm_mode = True
+
+
+class LeagueCreate(BaseModel):
+    """Schema for creating a new league."""
+
+    name: str = Field(..., min_length=1, max_length=100, description="League name")
+    max_teams: int = Field(12, ge=2, le=12, description="Maximum number of teams (2-12)")
+    draft_date: Optional[datetime] = Field(None, description="Scheduled draft date")
+    settings: Optional[dict] = Field(default_factory=dict, description="League settings")
+
+
+class LeagueUpdate(BaseModel):
+    """Schema for updating league settings."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="League name")
+    max_teams: Optional[int] = Field(None, ge=2, le=12, description="Maximum number of teams (2-12)")
+    draft_date: Optional[datetime] = Field(None, description="Scheduled draft date")
+    settings: Optional[dict] = Field(None, description="League settings")
+
+
+class JoinLeagueRequest(BaseModel):
+    """Schema for joining a league."""
+
+    invite_code: str = Field(..., description="League invite code")
+    team_name: str = Field(..., min_length=1, max_length=50, description="Team name")
+
+
+class LeagueWithRole(BaseModel):
+    """League with user's role in the league."""
+
+    league: LeagueOut
+    role: str = Field(..., description="User's role: 'commissioner' or 'member'")
+
+
+class InviteCodeResponse(BaseModel):
+    """Response for invite code generation."""
+
+    invite_code: str = Field(..., description="New invite code")
 
 
 class PlayerOut(BaseModel):

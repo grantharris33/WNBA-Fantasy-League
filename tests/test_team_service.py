@@ -17,9 +17,9 @@ def setup_team_test(db: Session):
     db.add_all([user1, user2])
     db.flush()
 
-    # Create test leagues
-    league1 = League(name="Test League 1")
-    league2 = League(name="Test League 2")
+    # Create test leagues with invite codes
+    league1 = League(name="Test League 1", invite_code="LEAGUE-TEST-0001")
+    league2 = League(name="Test League 2", invite_code="LEAGUE-TEST-0002")
     db.add_all([league1, league2])
     db.flush()
 

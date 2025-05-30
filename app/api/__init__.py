@@ -16,6 +16,7 @@ from .draft import router as draft_router
 from .endpoints_v1 import router as v1_router
 from .game_router import router as game_router
 from .league_router import router as league_router
+from .league_management import router as league_management_router
 from .logs import router as logs_router
 from .users import router as users_router
 
@@ -29,6 +30,9 @@ router.include_router(users_router, prefix="/api/v1")
 
 # Draft endpoints
 router.include_router(draft_router, prefix="/api/v1")
+
+# League management endpoints
+router.include_router(league_management_router)
 
 # Logs endpoints
 router.include_router(logs_router)

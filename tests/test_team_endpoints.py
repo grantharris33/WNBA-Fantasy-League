@@ -45,9 +45,9 @@ def setup_team_test_data(db: Session):
     db.add_all([user1, user2])
     db.flush()
 
-    # Create test leagues
-    league1 = League(name="Test League 1")
-    league2 = League(name="Test League 2")
+    # Create test leagues with invite codes
+    league1 = League(name="Test League 1", invite_code="LEAGUE-TEST-0001")
+    league2 = League(name="Test League 2", invite_code="LEAGUE-TEST-0002")
     db.add_all([league1, league2])
     db.flush()
 
@@ -68,7 +68,7 @@ def setup_team_test_data(db: Session):
 def test_create_team_success(auth_client, setup_team_test_data, db: Session):
     """Test successfully creating a team."""
     # User1 (our authenticated user) doesn't have a team in a new league yet
-    new_league = League(name="New Test League")
+    new_league = League(name="New Test League", invite_code="LEAGUE-TEST-0003")
     db.add(new_league)
     db.commit()
 
