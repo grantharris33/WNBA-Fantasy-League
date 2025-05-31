@@ -7,6 +7,8 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DraftPage from './pages/DraftPage';
 import TeamPage from './pages/TeamPage';
+import JoinLeaguePage from './pages/JoinLeaguePage';
+import LeagueManagementPage from './pages/LeagueManagementPage';
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/join" element={<JoinLeaguePage />} />
+            <Route path="/league/:leagueId/manage" element={<LeagueManagementPage />} />
             <Route path="/draft/:leagueId" element={<DraftPage />} />
             <Route path="/team/:teamId" element={<TeamPage />} />
           </Route>

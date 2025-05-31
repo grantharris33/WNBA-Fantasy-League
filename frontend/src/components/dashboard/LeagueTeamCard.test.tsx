@@ -16,6 +16,10 @@ describe('LeagueTeamCard Component', () => {
     id: 101,
     name: 'My Awesome Team',
     league_id: 1,
+    owner_id: 1,
+    moves_this_week: 0,
+    roster: [],
+    season_points: 0,
     league: { id: 1, name: 'Global Super League' },
   };
 

@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDraftWebSocket } from '../hooks/useDraftWebSocket';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../lib/api';
-import type { DraftState, Player, UserTeam, League } from '../types/draft';
+import api from '../lib/api';
+import type { DraftState, Player } from '../types/draft';
+import type { UserTeam, LeagueOut } from '../types';
 import DraftStatusBanner from '../components/draft/DraftStatusBanner';
 import DraftTimer from '../components/draft/DraftTimer';
 import AvailablePlayersPanel from '../components/draft/AvailablePlayersPanel';
@@ -14,13 +15,10 @@ import PlayerQueuePanel from '../components/draft/PlayerQueuePanel';
 import MyTeamPanel from '../components/draft/MyTeamPanel';
 import CommissionerControls from '../components/draft/CommissionerControls';
 
-// Define a basic League type for now, assuming it has commissioner_id
-// This should align with backend's LeagueOut schema eventually
-interface LeagueDetails extends League {
-    commissioner_id?: number; // Assuming this will be added to backend LeagueOut
-}
+// Use LeagueOut directly instead of custom LeagueDetails
+type LeagueDetails = LeagueOut;
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = 'http://localhost:8000/api/v1';
 const LOCAL_STORAGE_QUEUE_KEY_PREFIX = 'wnbaFantasyPlayerQueue_';
 
 const DraftPage: React.FC = () => {
@@ -120,7 +118,7 @@ const DraftPage: React.FC = () => {
 
         // 3. Fetch user's teams in this league
         const allUserTeams: UserTeam[] = await api.users.getMyTeams();
-        setUserTeams(allUserTeams.filter(team => team.league_id.toString() === leagueId));
+        setUserTeams(allUserTeams.filter(team => team.league_id?.toString() === leagueId));
 
       } catch (err) {
         console.error('Error fetching draft page data:', err);
