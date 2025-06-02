@@ -21,9 +21,11 @@ from .schemas import (
     LeagueOut,
     Pagination,
     PlayerOut,
+    RosterSlotOut,
     ScoreOut,
     SetStartersRequest,
     TeamOut,
+    TeamWithRosterSlotsOut,
     DraftStateResponse,
 )
 
@@ -67,25 +69,34 @@ def list_leagues(  # noqa: D401
 # ---------------------------------------------------------------------------
 
 
-@router.get("/teams/{team_id}", response_model=TeamOut)
+@router.get("/teams/{team_id}", response_model=TeamWithRosterSlotsOut)
 def team_detail(*, team_id: int, db: Session = Depends(_get_db)):  # noqa: D401
     team = db.query(Team).filter_by(id=team_id).one_or_none()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    # Roster list
-    roster_players: List[PlayerOut] = [PlayerOut.from_orm(rs.player) for rs in team.roster_slots]
+    # Build roster slots with player details and starter info
+    roster_slots: List[RosterSlotOut] = []
+    for rs in team.roster_slots:
+        player_out = PlayerOut.from_orm(rs.player)
+        roster_slot = RosterSlotOut(
+            player_id=rs.player_id,
+            position=rs.position,
+            is_starter=rs.is_starter,
+            player=player_out
+        )
+        roster_slots.append(roster_slot)
 
     # Season points = sum of all weekly scores
     season_points = sum(score.score for score in team.scores)
 
-    return TeamOut(
+    return TeamWithRosterSlotsOut(
         id=team.id,
         name=team.name,
         league_id=team.league_id,
         owner_id=team.owner_id,
         moves_this_week=team.moves_this_week,
-        roster=roster_players,
+        roster_slots=roster_slots,
         season_points=round(season_points, 2),
     )
 
@@ -180,7 +191,7 @@ def list_free_agents(
     return Pagination[PlayerOut](total=total, limit=limit, offset=(page - 1) * limit, items=players)
 
 
-@router_roster.post("/teams/{team_id}/roster/add", response_model=TeamOut)
+@router_roster.post("/teams/{team_id}/roster/add", response_model=TeamWithRosterSlotsOut)
 def add_player(
     *,
     team_id: int = Path(..., description="Team ID"),
@@ -209,7 +220,7 @@ def add_player(
     return team_detail(team_id=team_id, db=db)
 
 
-@router_roster.post("/teams/{team_id}/roster/drop", response_model=TeamOut)
+@router_roster.post("/teams/{team_id}/roster/drop", response_model=TeamWithRosterSlotsOut)
 def drop_player(
     *,
     team_id: int = Path(..., description="Team ID"),
@@ -236,7 +247,7 @@ def drop_player(
     return team_detail(team_id=team_id, db=db)
 
 
-@router_roster.put("/teams/{team_id}/roster/starters", response_model=TeamOut)
+@router_roster.put("/teams/{team_id}/roster/starters", response_model=TeamWithRosterSlotsOut)
 def set_starters(
     *,
     team_id: int = Path(..., description="Team ID"),
@@ -261,6 +272,12 @@ def set_starters(
 
     # Return the updated team details
     return team_detail(team_id=team_id, db=db)
+
+
+@router.options("/teams/{team_id}")
+async def options_team(team_id: int):
+    """Handle OPTIONS requests for team endpoints."""
+    return {"allow": "PUT,OPTIONS"}
 
 
 # ---------------------------------------------------------------------------
@@ -344,18 +361,6 @@ def update_team(
         raise HTTPException(status_code=404, detail="Team not found")
 
     return map_team_to_out(team)
-
-
-@router.get("/leagues/{league_id}", response_model=LeagueOut)
-def get_league(*, league_id: int, db: Session = Depends(_get_db)):
-    """
-    Get a specific league by ID.
-    """
-    league = db.query(League).filter(League.id == league_id).first()
-    if not league:
-        raise HTTPException(status_code=404, detail="League not found")
-
-    return LeagueOut.from_orm(league)
 
 
 @router.get("/leagues/{league_id}/draft/state", response_model=DraftStateResponse)

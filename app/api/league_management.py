@@ -36,6 +36,18 @@ def log_transaction(db: Session, user: User, action: str, path: str, method: str
     db.commit()
 
 
+@router.options("/{league_id}")
+async def options_league(league_id: int):
+    """Handle OPTIONS requests for league endpoints."""
+    return {"allow": "GET,PUT,DELETE,OPTIONS"}
+
+
+@router.options("/{league_id}/teams/{team_id}")
+async def options_league_team(league_id: int, team_id: int):
+    """Handle OPTIONS requests for team removal endpoints."""
+    return {"allow": "DELETE,OPTIONS"}
+
+
 @router.post("", response_model=LeagueOut, status_code=status.HTTP_201_CREATED)
 def create_league(
     *,

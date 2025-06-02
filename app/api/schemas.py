@@ -109,6 +109,21 @@ class TeamOut(BaseModel):
         orm_mode = True
 
 
+class TeamWithRosterSlotsOut(BaseModel):
+    """Team with detailed roster slot information including starter status."""
+    id: int
+    name: str
+    league_id: int | None = None
+    owner_id: int | None = None
+    moves_this_week: int = 0
+
+    roster_slots: List[RosterSlotOut] = Field(..., description="Detailed roster slots with starter info")
+    season_points: float = Field(..., description="Aggregated season points so far")
+
+    class Config:
+        orm_mode = True
+
+
 class BonusOut(BaseModel):
     category: str
     points: float
