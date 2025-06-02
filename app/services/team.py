@@ -24,12 +24,32 @@ class TeamService:
     @staticmethod
     def get_teams_by_owner_id(db: Session, owner_id: int) -> List[Team]:
         """Return all teams for a given owner (user)."""
-        return list(db.query(Team).filter(Team.owner_id == owner_id).all())
+        from sqlalchemy.orm import joinedload
+        from app.models import RosterSlot
+        return list(
+            db.query(Team)
+            .options(
+                joinedload(Team.roster_slots).joinedload(RosterSlot.player),
+                joinedload(Team.scores)
+            )
+            .filter(Team.owner_id == owner_id)
+            .all()
+        )
 
     @staticmethod
     def get_teams_by_league_id(db: Session, league_id: int) -> List[Team]:
         """Return all teams in a league."""
-        return list(db.query(Team).filter(Team.league_id == league_id).all())
+        from sqlalchemy.orm import joinedload
+        from app.models import RosterSlot
+        return list(
+            db.query(Team)
+            .options(
+                joinedload(Team.roster_slots).joinedload(RosterSlot.player),
+                joinedload(Team.scores)
+            )
+            .filter(Team.league_id == league_id)
+            .all()
+        )
 
     # ------------------------------------------------------------------
     # Mutations
@@ -132,10 +152,22 @@ from app.api.schemas import PlayerOut, TeamOut  # noqa: E402 – avoid circular 
 
 def map_team_to_out(team: Team) -> TeamOut:  # noqa: D401
     """Populate a TeamOut DTO from ORM *team* instance, including roster and season points."""
-    # Build roster list
-    roster_players = [PlayerOut.from_orm(rs.player) for rs in team.roster_slots]
+    # Build roster list - handle case where session might be closed
+    roster_players = []
+    try:
+        roster_players = [PlayerOut.from_orm(rs.player) for rs in team.roster_slots]
+    except Exception as e:
+        # If session is closed or relationships can't be loaded, return empty roster
+        print(f"Warning: Could not load roster for team {team.id}: {e}")
+        roster_players = []
 
-    season_points = sum(score.score for score in team.scores)
+    # Calculate season points - handle case where session might be closed
+    season_points = 0.0
+    try:
+        season_points = sum(score.score for score in team.scores)
+    except Exception as e:
+        print(f"Warning: Could not load scores for team {team.id}: {e}")
+        season_points = 0.0
 
     return TeamOut(
         id=team.id,

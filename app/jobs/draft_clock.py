@@ -1,13 +1,18 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.ws_manager import manager
 from app.models import DraftState, League
 from app.services.draft import DraftService
 
 logger = logging.getLogger(__name__)
+
+# Global counter to track when to broadcast timer updates
+_broadcast_counter = 0
 
 
 def check_draft_clocks():
@@ -17,7 +22,11 @@ def check_draft_clocks():
     This job runs every second to:
     1. Decrement the seconds_remaining for all active drafts
     2. Trigger auto-picks for any drafts with seconds_remaining <= 0
+    3. Broadcast timer updates every 5 seconds to keep clients in sync
     """
+    global _broadcast_counter
+    _broadcast_counter += 1
+
     logger.info("Running draft clock check")
 
     # Get DB session
@@ -46,6 +55,36 @@ def check_draft_clocks():
                         logger.info(
                             f"Auto-picked player {pick.player_id} for team {pick.team_id} " f"in draft {draft.id}"
                         )
+
+                        # Broadcast the auto-pick event via WebSocket
+                        # This includes the updated draft state with the reset timer
+                        try:
+                            try:
+                                loop = asyncio.get_event_loop()
+                            except RuntimeError:
+                                loop = asyncio.new_event_loop()
+                                asyncio.set_event_loop(loop)
+
+                            loop.run_until_complete(manager.broadcast_to_league(
+                                updated_draft.league_id,
+                                {
+                                    "event": "pick_made",
+                                    "data": {
+                                        "draft_id": draft.id,
+                                        "pick": {
+                                            "id": pick.id,
+                                            "team_id": pick.team_id,
+                                            "player_id": pick.player_id,
+                                            "round": pick.round,
+                                            "pick_number": pick.pick_number,
+                                            "is_auto": True,
+                                        },
+                                        "draft_state": updated_draft.as_dict(),
+                                    },
+                                },
+                            ))
+                        except Exception as ws_error:
+                            logger.error(f"Error broadcasting auto-pick WebSocket event: {ws_error}")
                     else:
                         logger.warning(f"Auto-pick not completed for draft {draft.id}")
 
@@ -54,6 +93,31 @@ def check_draft_clocks():
 
             # Save draft state (even if no auto-pick)
             db.add(draft)
+
+        # Broadcast timer updates every 5 seconds to keep clients in sync
+        if _broadcast_counter % 5 == 0:
+            for draft in active_drafts:
+                try:
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    loop.run_until_complete(manager.broadcast_to_league(
+                        draft.league_id,
+                        {
+                            "event": "timer_sync",
+                            "data": {
+                                "draft_id": draft.id,
+                                "seconds_remaining": draft.seconds_remaining,
+                                "current_team_id": draft.current_team_id(),
+                                "status": draft.status
+                            }
+                        }
+                    ))
+                except Exception as ws_error:
+                    logger.error(f"Error broadcasting timer sync for draft {draft.id}: {ws_error}")
 
         db.commit()
 
@@ -132,12 +196,15 @@ def start_scheduled_drafts():
     try:
         # Get leagues with draft_date that has passed and no draft started
         now = datetime.utcnow()
+
+        # Get leagues that have draft dates but no draft state yet
+        leagues_with_drafts = db.query(DraftState.league_id).subquery()
         leagues_to_start = (
             db.query(League)
             .filter(
                 League.draft_date <= now,
                 League.draft_date.isnot(None),
-                League.draft_state.is_(None)  # No draft state exists
+                ~League.id.in_(leagues_with_drafts)  # No draft state exists
             )
             .all()
         )

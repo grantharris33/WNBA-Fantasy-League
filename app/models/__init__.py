@@ -230,7 +230,7 @@ class DraftState(Base):
         else:  # Even round (backward)
             return pick_order[total_picks_per_round - 1 - self.current_pick_index]
 
-    def advance_pick(self) -> None:
+    def advance_pick(self, timer_seconds: int = 60) -> None:
         """Advance to the next pick in the draft."""
         pick_order = self.get_pick_order()
         total_picks_per_round = len(pick_order) // 2
@@ -244,10 +244,36 @@ class DraftState(Base):
             self.current_pick_index = 0
 
         # Reset timer for new pick
-        self.seconds_remaining = 60  # Or get from config
+        self.seconds_remaining = timer_seconds
 
     def as_dict(self) -> dict:
         """Return the draft state as a dictionary for API responses."""
+        # Get formatted picks for this draft
+        from sqlalchemy.orm import object_session
+        session = object_session(self)
+
+        formatted_picks = []
+        if session:
+            # Import here to avoid circular imports
+            from app.models import Player, Team
+
+            for pick in self.picks:
+                player = session.query(Player).filter(Player.id == pick.player_id).first()
+                team = session.query(Team).filter(Team.id == pick.team_id).first()
+
+                formatted_picks.append({
+                    "id": pick.id,
+                    "round": pick.round,
+                    "pick_number": pick.pick_number,
+                    "team_id": pick.team_id,
+                    "team_name": team.name if team else "Unknown",
+                    "player_id": pick.player_id,
+                    "player_name": player.full_name if player else "Unknown",
+                    "player_position": player.position if player else "Unknown",
+                    "timestamp": pick.timestamp.isoformat(),
+                    "is_auto": pick.is_auto,
+                })
+
         return {
             "id": self.id,
             "league_id": self.league_id,
@@ -256,6 +282,7 @@ class DraftState(Base):
             "status": self.status,
             "seconds_remaining": self.seconds_remaining,
             "current_team_id": self.current_team_id(),
+            "picks": formatted_picks,
         }
 
 

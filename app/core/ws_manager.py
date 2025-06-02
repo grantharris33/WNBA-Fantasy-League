@@ -23,6 +23,7 @@ class ConnectionManager:
             self.active_connections[league_id] = set()
 
         self.active_connections[league_id].add(websocket)
+        print(f"[WebSocketManager] Connected to league {league_id}. Total connections: {len(self.active_connections[league_id])}")
 
     def disconnect(self, websocket: WebSocket, league_id: int):
         """
@@ -40,6 +41,9 @@ class ConnectionManager:
             # Clean up empty league entries
             if not self.active_connections[league_id]:
                 del self.active_connections[league_id]
+                print(f"[WebSocketManager] Disconnected from league {league_id}. No connections remaining.")
+            else:
+                print(f"[WebSocketManager] Disconnected from league {league_id}. Remaining connections: {len(self.active_connections[league_id])}")
 
     async def broadcast_to_league(self, league_id: int, message: dict):
         """
@@ -50,15 +54,22 @@ class ConnectionManager:
             message: The message to broadcast (will be JSON-serialized)
         """
         if league_id not in self.active_connections:
+            print(f"[WebSocketManager] No connections for league {league_id} to broadcast to")
             return
+
+        connection_count = len(self.active_connections[league_id])
+        print(f"[WebSocketManager] Broadcasting {message.get('event', 'unknown')} to {connection_count} connections in league {league_id}")
 
         # Track failed connections to clean up
         disconnected = set()
+        successful_broadcasts = 0
 
         for connection in self.active_connections[league_id]:
             try:
                 await connection.send_json(message)
-            except Exception:
+                successful_broadcasts += 1
+            except Exception as e:
+                print(f"[WebSocketManager] Failed to send to connection: {e}")
                 # If sending fails, mark for disconnection
                 disconnected.add(connection)
 
@@ -69,6 +80,8 @@ class ConnectionManager:
         # Clean up empty league entries
         if not self.active_connections[league_id]:
             del self.active_connections[league_id]
+
+        print(f"[WebSocketManager] Broadcast complete. Successful: {successful_broadcasts}, Failed: {len(disconnected)}")
 
 
 # Global connection manager instance

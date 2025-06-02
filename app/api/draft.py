@@ -5,11 +5,17 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.schemas import DraftPickRequest, DraftStateResponse
+from pydantic import BaseModel
 from app.core.ws_manager import manager
-from app.models import DraftState, User
+from app.models import DraftState, User, League
 from app.services.draft import DraftService
+import asyncio
 
 router = APIRouter(prefix="/draft", tags=["draft"])
+
+
+class TimerUpdateRequest(BaseModel):
+    seconds: int
 
 
 @router.post("/leagues/{league_id}/start", status_code=201)
@@ -151,6 +157,73 @@ async def get_draft_state(draft_id: int, db: Session = Depends(get_db), current_
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.put("/{draft_id}/timer")
+async def update_draft_timer(
+    draft_id: int,
+    timer_request: TimerUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update the draft timer for future picks.
+    Only the commissioner can update the timer.
+    """
+    try:
+        # Get draft state
+        draft_state = db.query(DraftState).filter(DraftState.id == draft_id).first()
+        if not draft_state:
+            raise HTTPException(status_code=404, detail="Draft not found")
+
+        # Get league to check commissioner
+        league = db.query(League).filter(League.id == draft_state.league_id).first()
+        if not league:
+            raise HTTPException(status_code=404, detail="League not found")
+
+        if league.commissioner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Only the commissioner can update draft timer")
+
+        # Validate timer value
+        if timer_request.seconds < 10 or timer_request.seconds > 300:
+            raise HTTPException(status_code=400, detail="Timer must be between 10 and 300 seconds")
+
+        # Update league settings (ensure proper JSON serialization)
+        if league.settings is None:
+            league.settings = {}
+        league.settings = {**league.settings, 'draft_timer_seconds': timer_request.seconds}
+
+        # Force SQLAlchemy to detect the change
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(league, "settings")
+
+        db.add(league)
+
+        # Update current draft timer if active
+        if draft_state.status == 'active':
+            draft_state.seconds_remaining = timer_request.seconds
+
+        db.add(draft_state)
+        db.commit()
+        db.refresh(draft_state)
+        db.refresh(league)
+
+        # Broadcast timer update event
+        await manager.broadcast_to_league(
+            draft_state.league_id,
+            {
+                "event": "timer_updated",
+                "data": {
+                    "draft_state": draft_state.as_dict(),
+                    "new_timer_seconds": timer_request.seconds
+                }
+            }
+        )
+
+        return {"message": "Draft timer updated successfully", "new_timer_seconds": timer_request.seconds}
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.websocket("/ws/{league_id}")
 async def websocket_endpoint(websocket: WebSocket, league_id: int = Path(...), token: str = Query(...)):
     """
@@ -164,22 +237,36 @@ async def websocket_endpoint(websocket: WebSocket, league_id: int = Path(...), t
         # In production, use proper token verification
 
         await manager.connect(websocket, league_id)
+        print(f"[WebSocket] Client connected to league {league_id}")
 
         try:
-            # Keep connection alive, handling messages
+            # Keep connection alive by waiting for disconnect
+            # Don't try to receive messages as clients typically only listen
             while True:
-                # We're mainly using this for server -> client communication,
-                # but we can handle client messages too
-                data = await websocket.receive_text()
-
-                # Echo back for testing
-                await websocket.send_json({"echo": data})
+                # Wait for any message or disconnect
+                # Use receive_json with a timeout to detect disconnections
+                try:
+                    # Short timeout to detect disconnections quickly
+                    await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                    # If we receive any message, just ignore it (or echo for testing)
+                    # await websocket.send_json({"echo": "received"})
+                except asyncio.TimeoutError:
+                    # Timeout is normal - send a ping to keep connection alive
+                    await websocket.send_json({"type": "ping"})
+                except WebSocketDisconnect:
+                    break
 
         except WebSocketDisconnect:
+            print(f"[WebSocket] Client disconnected from league {league_id}")
+        finally:
             manager.disconnect(websocket, league_id)
 
     except Exception as e:
+        print(f"[WebSocket] Error in websocket_endpoint: {e}")
         # Handle authentication errors or other exceptions
-        if websocket.client_state.CONNECTED:
-            await websocket.close(code=1008, reason=str(e))
+        try:
+            if websocket.client_state == websocket.client_state.CONNECTED:
+                await websocket.close(code=1008, reason=str(e))
+        except:
+            pass  # Connection may already be closed
         return

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { UsersIcon, CogIcon } from '@heroicons/react/24/outline';
 import api from '../../lib/api';
-import type { LeagueWithRole, LeagueOut } from '../../types';
+import type { LeagueWithRole, LeagueOut, UserTeam } from '../../types';
 import type { DraftState } from '../../types/draft';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
@@ -11,6 +12,7 @@ import CreateLeagueModal from '../common/CreateLeagueModal';
 interface LeagueWithDraft extends LeagueWithRole {
   draftState?: DraftState | null;
   teamCount?: number;
+  userTeam?: UserTeam | null;
 }
 
 const MyLeaguesDashboard: React.FC = () => {
@@ -28,7 +30,10 @@ const MyLeaguesDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const userLeagues = await api.leagues.getMine();
+      const [userLeagues, userTeams] = await Promise.all([
+        api.leagues.getMine(),
+        api.users.getMyTeams()
+      ]);
 
       // Fetch draft state and team count for each league
       const leaguesWithDraft = await Promise.all(
@@ -38,18 +43,35 @@ const MyLeaguesDashboard: React.FC = () => {
               api.leagues.getDraftState(leagueWithRole.league.id).catch(() => null),
               api.leagues.getTeams(leagueWithRole.league.id).catch(() => [])
             ]);
+
+            // Find user's team in this league
+            const userTeam = userTeams.find(team => team.league_id === leagueWithRole.league.id);
+
             return {
               ...leagueWithRole,
               draftState,
-              teamCount: teams.length
+              teamCount: teams.length,
+              userTeam: userTeam || null
             };
           } catch {
-            // No draft exists for this league, but still get team count
+            // No draft exists for this league, but still get team count and user team
             try {
               const teams = await api.leagues.getTeams(leagueWithRole.league.id);
-              return { ...leagueWithRole, draftState: null, teamCount: teams.length };
+              const userTeam = userTeams.find(team => team.league_id === leagueWithRole.league.id);
+              return {
+                ...leagueWithRole,
+                draftState: null,
+                teamCount: teams.length,
+                userTeam: userTeam || null
+              };
             } catch {
-              return { ...leagueWithRole, draftState: null, teamCount: 0 };
+              const userTeam = userTeams.find(team => team.league_id === leagueWithRole.league.id);
+              return {
+                ...leagueWithRole,
+                draftState: null,
+                teamCount: 0,
+                userTeam: userTeam || null
+              };
             }
           }
         })
@@ -138,7 +160,7 @@ const MyLeaguesDashboard: React.FC = () => {
 
       {leagues.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {leagues.map(({ league, role, draftState, teamCount }) => (
+          {leagues.map(({ league, role, draftState, teamCount, userTeam }) => (
             <div key={league.id} className="card p-6 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -180,6 +202,28 @@ const MyLeaguesDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* User Team Info */}
+              {userTeam && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-900">{userTeam.name}</h4>
+                      <div className="flex items-center gap-4 text-xs text-blue-700 mt-1">
+                        <span>{userTeam.season_points.toFixed(1)} pts</span>
+                        <span>{userTeam.moves_this_week}/3 moves</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/team/${userTeam.id}`)}
+                      className="flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                    >
+                      <UsersIcon className="h-4 w-4 mr-1" />
+                      Manage Team
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <div className="flex justify-between">
@@ -255,8 +299,9 @@ const MyLeaguesDashboard: React.FC = () => {
                 {role === 'commissioner' ? (
                   <button
                     onClick={() => navigate(`/league/${league.id}/manage`)}
-                    className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                    className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center justify-center"
                   >
+                    <CogIcon className="h-4 w-4 mr-1" />
                     Manage
                   </button>
                 ) : (

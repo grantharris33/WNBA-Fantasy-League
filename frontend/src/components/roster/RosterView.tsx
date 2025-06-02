@@ -1,5 +1,5 @@
 import React from 'react';
-import { StarIcon, UserIcon } from '@heroicons/react/24/outline';
+import { StarIcon, UserIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import type { UserTeam, Player } from '../../types';
 
@@ -7,9 +7,10 @@ interface RosterViewProps {
   team: UserTeam;
   onDropPlayer: (playerId: number) => void;
   onSetStarters: () => void;
+  movesRemaining: number;
 }
 
-const RosterView: React.FC<RosterViewProps> = ({ team, onDropPlayer, onSetStarters }) => {
+const RosterView: React.FC<RosterViewProps> = ({ team, onDropPlayer, onSetStarters, movesRemaining }) => {
   // Separate starters and bench players
   const starters: Player[] = [];
   const bench: Player[] = [];
@@ -68,8 +69,15 @@ const RosterView: React.FC<RosterViewProps> = ({ team, onDropPlayer, onSetStarte
           )}
           <button
             onClick={() => onDropPlayer(player.id)}
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
+            disabled={movesRemaining <= 0}
+            className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md transition-colors ${
+              movesRemaining <= 0
+                ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                : 'text-red-700 bg-red-100 hover:bg-red-200'
+            }`}
+            title={movesRemaining <= 0 ? 'No moves remaining this week' : 'Drop player'}
           >
+            <TrashIcon className="h-4 w-4 mr-1" />
             Drop
           </button>
         </div>
@@ -88,7 +96,7 @@ const RosterView: React.FC<RosterViewProps> = ({ team, onDropPlayer, onSetStarte
           </h2>
           <button
             onClick={onSetStarters}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
           >
             Edit Starters
           </button>
@@ -103,7 +111,7 @@ const RosterView: React.FC<RosterViewProps> = ({ team, onDropPlayer, onSetStarte
             </p>
             <button
               onClick={onSetStarters}
-              className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
             >
               Set Starting Lineup
             </button>
@@ -128,6 +136,10 @@ const RosterView: React.FC<RosterViewProps> = ({ team, onDropPlayer, onSetStarte
                   <p>
                     You need {5 - starters.length} more starter{5 - starters.length !== 1 ? 's' : ''} to complete your lineup.
                     Must include ≥2 Guards and ≥1 Forward/Center.
+                  </p>
+                  <p className="mt-1 text-xs">
+                    <strong>Tip:</strong> When you add players from free agents, they'll automatically be set as starters
+                    if needed to meet position requirements.
                   </p>
                 </div>
               </div>

@@ -32,6 +32,64 @@ class RosterService:
 
         return list(self.db.execute(query).scalars().all())
 
+    def _should_auto_set_as_starter(self, team_id: int, new_player: Player) -> bool:
+        """
+        Determine if a new player should be automatically set as a starter.
+
+        Rules:
+        1. Must have fewer than 5 current starters
+        2. Adding this player must not violate position requirements
+        3. If we have <5 starters total, auto-add if it helps meet requirements
+        """
+        # Get current starters
+        current_starters = (
+            self.db.query(RosterSlot)
+            .join(Player, RosterSlot.player_id == Player.id)
+            .filter(RosterSlot.team_id == team_id, RosterSlot.is_starter == True)
+            .all()
+        )
+
+        # If we already have 5 starters, don't auto-add
+        if len(current_starters) >= 5:
+            return False
+
+        # Get current starter positions
+        current_positions = [rs.player.position for rs in current_starters if rs.player.position]
+
+        # Count current position requirements
+        current_guards = sum(1 for pos in current_positions if pos and 'G' in pos)
+        current_forwards_centers = sum(1 for pos in current_positions if pos and ('F' in pos or 'C' in pos))
+
+        # If adding this player, what would the counts be?
+        new_position = new_player.position
+        new_guards = current_guards + (1 if new_position and 'G' in new_position else 0)
+        new_forwards_centers = current_forwards_centers + (1 if new_position and ('F' in new_position or 'C' in new_position) else 0)
+
+        # Auto-add if:
+        # 1. We have fewer than 5 starters AND
+        # 2. Either we need more guards and this is a guard, OR we need more F/C and this is F/C, OR
+        # 3. We already meet requirements but still need to fill roster spots
+
+        starters_count = len(current_starters)
+
+        # If we have 0-1 starters, definitely add
+        if starters_count <= 1:
+            return True
+
+        # If we don't have enough guards yet and this is a guard
+        if current_guards < 2 and new_position and 'G' in new_position:
+            return True
+
+        # If we don't have any forwards/centers yet and this is one
+        if current_forwards_centers < 1 and new_position and ('F' in new_position or 'C' in new_position):
+            return True
+
+        # If we meet position requirements but still need more starters (up to 5)
+        if current_guards >= 2 and current_forwards_centers >= 1 and starters_count < 5:
+            return True
+
+        return False
+
     def add_player_to_team(
         self, team_id: int, player_id: int, set_as_starter: bool = False, user_id: Optional[int] = None
     ) -> RosterSlot:
@@ -64,21 +122,26 @@ class RosterService:
         if roster_count >= 10:
             raise ValueError("Team roster is full (10 players maximum)")
 
+        # Determine if player should be auto-set as starter (if not explicitly requested)
+        auto_starter = False
+        if not set_as_starter:
+            auto_starter = self._should_auto_set_as_starter(team_id, player)
+            set_as_starter = auto_starter
+
         # Create the roster slot
         roster_slot = RosterSlot(
             team_id=team_id, player_id=player_id, position=player.position, is_starter=set_as_starter
         )
 
-        # If player is set as starter, increment the moves_this_week counter
-        if set_as_starter:
-            team.moves_this_week += 1
+        # Increment the moves counter (both regular adds and starter adds count as moves)
+        team.moves_this_week += 1
 
         self.db.add(roster_slot)
 
         # Create transaction log
         action = f"ADD {player.full_name} to {team.name}"
         if set_as_starter:
-            action += " (set as starter)"
+            action += " (auto-set as starter)" if auto_starter else " (set as starter)"
 
         self.db.add(TransactionLog(user_id=user_id, action=action, timestamp=datetime.utcnow()))
 
@@ -92,6 +155,10 @@ class RosterService:
         if not team:
             raise ValueError(f"Team with ID {team_id} not found")
 
+        # Verify that we haven't reached the weekly move cap
+        if team.moves_this_week >= 3:
+            raise ValueError("Weekly move limit reached (3 moves per week)")
+
         # Verify the player is on the team
         roster_slot = (
             self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id, RosterSlot.player_id == player_id).first()
@@ -102,6 +169,9 @@ class RosterService:
 
         # Get player name for the log
         player = self.db.get(Player, player_id)
+
+        # Increment the moves counter for drops too
+        team.moves_this_week += 1
 
         # Delete the roster slot
         self.db.delete(roster_slot)

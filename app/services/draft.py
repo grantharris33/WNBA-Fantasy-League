@@ -55,6 +55,9 @@ class DraftService:
         reverse_team_ids.reverse()
         pick_order = ",".join(map(str, team_ids + reverse_team_ids))
 
+        # Get timer setting from league settings
+        timer_seconds = league.settings.get('draft_timer_seconds', 60) if league.settings else 60
+
         # Create draft state
         draft_state = DraftState(
             league_id=league_id,
@@ -62,7 +65,7 @@ class DraftService:
             pick_order=pick_order,
             current_round=1,
             current_pick_index=0,
-            seconds_remaining=60,  # Default to 60 seconds per pick
+            seconds_remaining=timer_seconds,
         )
 
         self.db.add(draft_state)
@@ -143,8 +146,12 @@ class DraftService:
         # Add player to team's roster
         roster_slot = RosterSlot(team_id=team_id, player_id=player_id, position=player.position)
 
+        # Get timer setting from league settings
+        league = self.db.query(League).filter(League.id == draft.league_id).first()
+        timer_seconds = league.settings.get('draft_timer_seconds', 60) if league.settings else 60
+
         # Update draft state (advance to next pick)
-        draft.advance_pick()
+        draft.advance_pick(timer_seconds)
 
         # Check if draft is complete (10 rounds)
         if draft.current_round > 10:

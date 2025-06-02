@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface DraftTimerProps {
   secondsRemainingFromState: number;
@@ -8,17 +8,22 @@ interface DraftTimerProps {
 
 const DraftTimer: React.FC<DraftTimerProps> = ({ secondsRemainingFromState, draftStatus, onTimerExpire }) => {
   const [timeLeft, setTimeLeft] = useState(secondsRemainingFromState);
+  const hasExpiredRef = useRef(false);
 
   useEffect(() => {
-    // Update timer when the state from props changes (e.g., after a pick, pause, resume)
+    // Update timer when the state from props changes (e.g., after a pick, pause, resume, or sync)
+    console.log(`[DraftTimer] Timer sync: ${timeLeft} -> ${secondsRemainingFromState} (status: ${draftStatus})`);
     setTimeLeft(secondsRemainingFromState);
+    // Reset expiration flag when timer resets
+    hasExpiredRef.current = false;
   }, [secondsRemainingFromState]);
 
   useEffect(() => {
     if (draftStatus !== 'active' || timeLeft <= 0) {
       // If timer is already at 0 or draft is not active, ensure no interval is running.
-      // If it reached 0 and was active, call onTimerExpire.
-      if (draftStatus === 'active' && timeLeft <= 0) {
+      // If it reached 0 and was active, call onTimerExpire (but only once).
+      if (draftStatus === 'active' && timeLeft <= 0 && !hasExpiredRef.current) {
+        hasExpiredRef.current = true;
         onTimerExpire?.();
       }
       return; // Don't start an interval if not active or time is up
@@ -28,9 +33,14 @@ const DraftTimer: React.FC<DraftTimerProps> = ({ secondsRemainingFromState, draf
       setTimeLeft(prevTime => {
         if (prevTime <= 1) {
           clearInterval(intervalId); // Clear interval when time is about to hit 0
-          onTimerExpire?.();
+          if (!hasExpiredRef.current) {
+            hasExpiredRef.current = true;
+            onTimerExpire?.();
+          }
           return 0;
         }
+
+        // Always decrement locally - backend sync events will override when needed
         return prevTime - 1;
       });
     }, 1000);

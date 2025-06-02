@@ -46,15 +46,66 @@ const DraftPage: React.FC = () => {
   const [playerToPick, setPlayerToPick] = useState<Player | null>(null);
   const [pickError, setPickError] = useState<string | null>(null); // For errors during pick submission
 
+  // Stabilize callback functions to prevent WebSocket reconnections
+  const handleWebSocketError = useCallback((event: Event) => {
+    console.error('WebSocket error in DraftPage:', event);
+    // Don't clear draft state on WebSocket errors
+  }, []);
+
+  const handleWebSocketClose = useCallback(() => {
+    console.log('WebSocket closed in DraftPage - maintaining current draft state');
+    // Preserve current state during disconnections
+  }, []);
+
   // WebSocket connection managed by the hook
-  const { draftState: wsDraftState, isConnected } = useDraftWebSocket({
+  const { draftState: wsDraftState, isConnected, connectionCount, lastKnownState } = useDraftWebSocket({
     leagueId,
     token,
+    onError: handleWebSocketError,
+    onClose: handleWebSocketClose
   });
 
-  // Derived draft state (prefer WebSocket state if connected and available)
-  const currentDraftState = wsDraftState || initialDraftState;
-  // The draft_id should come from the initial draft state fetched for the league.
+      // DEFENSIVE STATE PRESERVATION: Use persistent ref to never lose state
+  const persistentDraftStateRef = useRef<DraftState | null>(null);
+
+  const currentDraftState = (() => {
+    // Priority: WebSocket state > Initial API state > WebSocket's last known state > our persistent state
+    let selectedState: DraftState | null = null;
+
+    if (wsDraftState) {
+      console.log(`[DraftPage] Using WEBSOCKET state (picks: ${wsDraftState.picks?.length || 0})`);
+      selectedState = wsDraftState;
+    } else if (initialDraftState) {
+      console.log(`[DraftPage] Using INITIAL_API state (picks: ${initialDraftState.picks?.length || 0})`);
+      selectedState = initialDraftState;
+    } else if (lastKnownState) {
+      console.log(`[DraftPage] Using WS_FALLBACK state (picks: ${lastKnownState.picks?.length || 0})`);
+      selectedState = lastKnownState;
+    } else if (persistentDraftStateRef.current) {
+      console.log(`[DraftPage] Using PERSISTENT_FALLBACK state (picks: ${persistentDraftStateRef.current.picks?.length || 0})`);
+      selectedState = persistentDraftStateRef.current;
+    }
+
+    // Always update our persistent ref with the latest good state
+    if (selectedState) {
+      persistentDraftStateRef.current = selectedState;
+      return selectedState;
+    }
+
+    console.error('[DraftPage] NO STATE AVAILABLE - this will cause blank page');
+    return null;
+  })();
+
+  // LOGGING FIX #3: Track state changes and component renders
+  useEffect(() => {
+    console.log(`[DraftPage] State update - WS: ${wsDraftState ? 'HAS' : 'NO'}, Initial: ${initialDraftState ? 'HAS' : 'NO'}, LastKnown: ${lastKnownState ? 'HAS' : 'NO'}, Current: ${currentDraftState ? 'HAS' : 'NO'}, Connected: ${isConnected}, Connection#: ${connectionCount}`);
+
+    if (!currentDraftState && isConnected) {
+      console.error(`[DraftPage] BLANK PAGE CONDITION DETECTED! Connected but no current state. WS state: ${!!wsDraftState}, Initial: ${!!initialDraftState}, LastKnown: ${!!lastKnownState}`);
+    }
+  }, [wsDraftState, initialDraftState, lastKnownState, currentDraftState, isConnected, connectionCount]);
+
+  // The draft_id should come from the current draft state
   const draftId = currentDraftState?.id;
 
   // Ref to store previous draft state for comparison to trigger toasts
@@ -67,13 +118,23 @@ const DraftPage: React.FC = () => {
     }
   }, [queuedPlayerIds, localStorageQueueKey]);
 
-  // Effect for WebSocket event-based toasts
+  // Effect for WebSocket event-based toasts and UI updates
   useEffect(() => {
     if (currentDraftState && prevDraftStateRef.current) {
-      // Pick Made Toast
+      // Pick Made Toast and Player Removal
       if (currentDraftState.picks.length > prevDraftStateRef.current.picks.length) {
         const newPick = currentDraftState.picks[currentDraftState.picks.length - 1];
         toast.success(`${newPick.team_name} picked ${newPick.player_name}!`);
+
+        // Remove picked player from available players list
+        setAvailablePlayers(prev => prev.filter(player => player.id !== newPick.player_id));
+
+        // Remove from queue if the picked player was queued
+        setQueuedPlayerIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(newPick.player_id);
+          return newSet;
+        });
       }
       // Draft Paused Toast
       if (currentDraftState.status === 'paused' && prevDraftStateRef.current.status !== 'paused') {
@@ -92,6 +153,39 @@ const DraftPage: React.FC = () => {
     prevDraftStateRef.current = currentDraftState;
   }, [currentDraftState]);
 
+  // Add a ref to track if we've already attempted initial fetch
+  const hasAttemptedInitialFetch = useRef(false);
+
+  // CRITICAL FIX #3: Detect and recover from blank page conditions
+  const blankPageRecoveryAttempts = useRef(0);
+  const maxBlankPageRecoveryAttempts = 3;
+
+  useEffect(() => {
+    // If we're connected but have no state after a reasonable time, force recovery
+    if (isConnected && !currentDraftState && blankPageRecoveryAttempts.current < maxBlankPageRecoveryAttempts) {
+      const timer = setTimeout(() => {
+        if (isConnected && !currentDraftState) {
+          blankPageRecoveryAttempts.current += 1;
+          console.log(`[DraftPage] BLANK PAGE RECOVERY ATTEMPT #${blankPageRecoveryAttempts.current}: Connected but no state, forcing API refresh`);
+
+          // Force a fresh API call to get draft state
+          if (leagueId) {
+            api.leagues.getDraftState(parseInt(leagueId))
+              .then((draftStateData) => {
+                console.log('[DraftPage] Recovery: Got fresh draft state from API', draftStateData);
+                setInitialDraftState(draftStateData);
+              })
+              .catch((err) => {
+                console.error('[DraftPage] Recovery: Failed to fetch fresh draft state', err);
+              });
+          }
+        }
+      }, 2000); // Wait 2 seconds before attempting recovery
+
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, currentDraftState, leagueId]);
+
   useEffect(() => {
     if (!leagueId || !isAuthenticated) {
       setIsLoading(false);
@@ -99,16 +193,28 @@ const DraftPage: React.FC = () => {
       return;
     }
 
+    // Prevent multiple simultaneous fetches
+    if (hasAttemptedInitialFetch.current) {
+      return;
+    }
+
+    hasAttemptedInitialFetch.current = true;
+
     const fetchData = async () => {
-      setIsLoading(true);
+      // Don't set loading if we already have current draft state to prevent blank page
+      const hasExistingState = initialDraftState !== null || wsDraftState !== null;
+      if (!hasExistingState) {
+        setIsLoading(true);
+      }
       setError(null);
       setPickError(null); // Reset pick error on full fetch
+
       try {
         // Fetch League Details (for commissioner_id)
         const leagueData: LeagueDetails = await api.leagues.getById(parseInt(leagueId));
         setLeagueDetails(leagueData);
 
-        // 1. Fetch initial draft state for the league
+        // 1. Fetch initial draft state for the league - always fetch to have fallback
         const draftStateData: DraftState = await api.leagues.getDraftState(parseInt(leagueId));
         setInitialDraftState(draftStateData);
 
@@ -124,14 +230,14 @@ const DraftPage: React.FC = () => {
         console.error('Error fetching draft page data:', err);
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         setError(errorMessage);
-        toast.error(`Data fetch error: ${errorMessage}`);
+        toast.error(`Data fetch error: ${errorMessage}. Please try refreshing the page.`);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [leagueId, token, isAuthenticated]);
+  }, [leagueId, isAuthenticated]);
 
   const handleTimerExpire = () => {
     console.log("Draft timer expired! Backend should handle auto-pick.");
@@ -207,11 +313,96 @@ const DraftPage: React.FC = () => {
     });
   }, []);
 
-  if (isLoading) return <div className="p-4 text-center">Loading draft room...</div>;
-  if (error) return <div className="p-4 text-center text-red-600">Error: {error}</div>;
-  if (!currentDraftState && !isConnected) return <div className="p-4 text-center">Draft information not available. Waiting for connection or initial data...</div>;
-  if (!currentDraftState && isConnected) return <div className="p-4 text-center">Connected to draft. Waiting for data...</div>;
-  if (!currentDraftState) return <div className="p-4 text-center">No draft data loaded.</div>; // Should ideally be covered by previous conditions
+  // CRITICAL DEBUGGING: Log why we might show loading/error states
+  const debugInfo = {
+    isLoading,
+    hasCurrentDraftState: !!currentDraftState,
+    isConnected,
+    hasError: !!error,
+    connectionCount,
+    hasWsState: !!wsDraftState,
+    hasInitialState: !!initialDraftState,
+    hasLastKnownState: !!lastKnownState
+  };
+
+  // Only show loading if we truly have no state AND are not connected
+  if (isLoading && !currentDraftState && !isConnected) {
+    console.log('[DraftPage] Showing loading state:', debugInfo);
+    return <div className="p-4 text-center">Loading draft room...</div>;
+  }
+
+  // Show error only if we have no fallback state
+  if (error && !currentDraftState) {
+    console.log('[DraftPage] Showing error state:', debugInfo);
+    return (
+      <div className="p-4 text-center">
+        <div className="text-red-600 mb-4">Error: {error}</div>
+        {isConnected && <div className="text-blue-600 mb-2">WebSocket connected - waiting for data...</div>}
+        <div className="text-xs text-gray-500 mt-2">Debug: {JSON.stringify(debugInfo)}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
+
+  // Show waiting message only if we have no state at all
+  if (!currentDraftState && !isConnected) {
+    console.log('[DraftPage] Showing disconnected no-state condition:', debugInfo);
+    return (
+      <div className="p-4 text-center">
+        <div className="mb-4">Draft information not available. Waiting for connection or initial data...</div>
+        <div className="text-xs text-gray-500 mt-2">Debug: {JSON.stringify(debugInfo)}</div>
+        <button
+          onClick={() => {
+            setError(null);
+            window.location.reload();
+          }}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
+
+  // Show connection status if connected but no data yet
+  if (!currentDraftState && isConnected) {
+    console.log('[DraftPage] Showing connected no-state condition (THIS IS THE BLANK PAGE ISSUE):', debugInfo);
+    return (
+      <div className="p-4 text-center">
+        <div className="mb-4">Connected to draft. Waiting for data...</div>
+        <div className="text-sm text-gray-600">If this persists, try reloading the page.</div>
+        <div className="text-xs text-gray-500 mt-2">Debug: {JSON.stringify(debugInfo)}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
+
+  // Last resort - should rarely hit this
+  if (!currentDraftState) {
+    console.error('[DraftPage] CRITICAL: No state available despite all fallbacks:', debugInfo);
+    return (
+      <div className="p-4 text-center">
+        <div className="mb-4">No draft data loaded.</div>
+        <div className="text-xs text-gray-500 mt-2">Debug: {JSON.stringify(debugInfo)}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
 
   const userTeamInThisDraft = userTeams.length > 0 ? userTeams[0] : null; // Simplification: assumes one team per user per league
   const isMyTurnForQueuePick = userTeamInThisDraft?.id === currentDraftState.current_team_id;
@@ -235,6 +426,7 @@ const DraftPage: React.FC = () => {
             draftId={draftId}
             apiBaseUrl={API_BASE_URL}
             authToken={token}
+            leagueSettings={leagueDetails.settings}
         />
       )}
 

@@ -14,7 +14,7 @@ const SetStartersModal: React.FC<SetStartersModalProps> = ({ team, onSetStarters
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+  useEffect(() => {
     const starters: Player[] = [];
     const available: Player[] = [];
 
@@ -87,6 +87,13 @@ const SetStartersModal: React.FC<SetStartersModalProps> = ({ team, onSetStarters
     onSetStarters(starterIds);
   };
 
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // Only close if clicking the overlay itself, not the modal content
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   const renderPlayerCard = (player: Player, isStarter: boolean, canToggle: boolean = true) => (
     <div
       key={player.id}
@@ -136,31 +143,35 @@ const SetStartersModal: React.FC<SetStartersModalProps> = ({ team, onSetStarters
   const { guards, forwards, centers } = getPositionCounts();
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose}></div>
+    <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
+      {/* Background overlay */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        onClick={handleOverlayClick}
+      ></div>
 
-        {/* Modal panel */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+      {/* Modal container */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-4xl bg-white rounded-lg shadow-xl">
           {/* Header */}
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div className="border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
                 <StarIcon className="h-6 w-6 text-yellow-500 mr-2" />
                 Set Starting Lineup
               </h3>
               <button
                 onClick={onClose}
-                className="bg-white rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <span className="sr-only">Close</span>
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
           </div>
 
           {/* Content */}
-          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
             {/* Position Requirements */}
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
               <h4 className="text-sm font-medium text-blue-900 mb-2">Position Requirements:</h4>
@@ -207,7 +218,7 @@ const SetStartersModal: React.FC<SetStartersModalProps> = ({ team, onSetStarters
                   <StarIconSolid className="h-5 w-5 text-yellow-500 mr-2" />
                   Starting Lineup ({selectedStarters.length}/5)
                 </h4>
-                <div className="space-y-2 min-h-64">
+                <div className="space-y-2 min-h-[300px]">
                   {selectedStarters.map((player) => renderPlayerCard(player, true))}
                   {selectedStarters.length < 5 && (
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500">
@@ -224,7 +235,7 @@ const SetStartersModal: React.FC<SetStartersModalProps> = ({ team, onSetStarters
                   <UserIcon className="h-5 w-5 text-gray-500 mr-2" />
                   Available Players ({availablePlayers.length})
                 </h4>
-                <div className="space-y-2 min-h-64">
+                <div className="space-y-2 min-h-[300px]">
                   {availablePlayers.map((player) =>
                     renderPlayerCard(player, false, selectedStarters.length < 5)
                   )}
@@ -240,25 +251,25 @@ const SetStartersModal: React.FC<SetStartersModalProps> = ({ team, onSetStarters
           </div>
 
           {/* Footer */}
-          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div className="border-t border-gray-200 px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
+            >
+              Cancel
+            </button>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={selectedStarters.length !== 5}
-              className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm ${
+              className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto sm:text-sm ${
                 selectedStarters.length === 5
                   ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
                   : 'bg-gray-400 cursor-not-allowed'
               }`}
             >
               Save Starting Lineup
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-            >
-              Cancel
             </button>
           </div>
         </div>
