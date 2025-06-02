@@ -12,6 +12,7 @@ from app.core.scheduler import list_jobs, scheduler, shutdown_scheduler, start_s
 from app.jobs.bonus_calc import calc_weekly_bonuses
 from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks, start_scheduled_drafts
 from app.jobs.ingest import ingest_stat_lines
+from app.jobs.ingest_players import ingest_player_profiles
 from app.jobs.reset_weekly_moves import reset_weekly_moves
 
 init_db()
@@ -135,6 +136,19 @@ async def _startup() -> None:
             misfire_grace_time=3600,
         )
 
+    # Schedule weekly player profile ingestion for Tuesdays at 02:00 UTC
+    if not scheduler.get_job("weekly_player_ingestion"):
+        player_ingest_hour = int(os.getenv("PLAYER_INGEST_HOUR_UTC", "2"))
+        scheduler.add_job(
+            ingest_player_profiles,
+            "cron",
+            day_of_week="tue",
+            hour=player_ingest_hour,
+            id="weekly_player_ingestion",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
     # Draft clock jobs
 
     # Restore any active draft clocks on startup
@@ -229,6 +243,19 @@ def _schedule_nightly() -> None:
             hour=5,
             minute=59,
             id="weekly_bonus_calc",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+    # Schedule weekly player profile ingestion for Tuesdays at 02:00 UTC
+    if not scheduler.get_job("weekly_player_ingestion"):
+        player_ingest_hour = int(os.getenv("PLAYER_INGEST_HOUR_UTC", "2"))
+        scheduler.add_job(
+            ingest_player_profiles,
+            "cron",
+            day_of_week="tue",
+            hour=player_ingest_hour,
+            id="weekly_player_ingestion",
             replace_existing=True,
             misfire_grace_time=3600,
         )

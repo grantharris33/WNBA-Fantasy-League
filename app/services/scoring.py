@@ -35,6 +35,7 @@ _REB_W = 1.2  # Rebounds
 _AST_W = 1.5  # Assists
 _STL_W = 3.0  # Steals
 _BLK_W = 3.0  # Blocks
+_TO_W = -1.0  # Turnovers (negative points)
 _TRIPLE_DOUBLE_BONUS = 10.0
 
 # Categories we consider for double / triple-double detection.
@@ -59,13 +60,8 @@ def compute_fantasy_points(stat: "models.StatLine | Mapping[str, object]") -> fl
     * 1.5 x assists
     * 3.0 x steals
     * 3.0 x blocks
+    * -1.0 x turnovers
     * +10 bonus for a *triple-double* (≥ 10 in **three** separate categories)
-
-    Turnovers are not currently stored in the ``stat_line`` table, so they
-    are **not** part of the formula. When the schema adds a ``turnovers``
-    column we can subtract points here accordingly.
-
-    TODO: Add turnovers to the formula.
     """
 
     # Normalise to mapping interface first to simplify code.
@@ -76,6 +72,7 @@ def compute_fantasy_points(stat: "models.StatLine | Mapping[str, object]") -> fl
             "assists": stat.assists,
             "steals": stat.steals,
             "blocks": stat.blocks,
+            "turnovers": stat.turnovers,
         }
     else:
         data = dict(stat)  # make copy
@@ -85,8 +82,9 @@ def compute_fantasy_points(stat: "models.StatLine | Mapping[str, object]") -> fl
     ast = _to_float(data.get("assists")) * _AST_W
     stl = _to_float(data.get("steals")) * _STL_W
     blk = _to_float(data.get("blocks")) * _BLK_W
+    to = _to_float(data.get("turnovers")) * _TO_W
 
-    total = pts + reb + ast + stl + blk
+    total = pts + reb + ast + stl + blk + to
 
     # Triple-double bonus detection.
     cats_10 = sum(_to_float(data.get(k)) >= 10 for k in _CATEGORIES)

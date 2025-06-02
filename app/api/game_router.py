@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any, List
 
 import httpx
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Depends
+from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     GamePlayByPlayOut,
@@ -12,7 +13,12 @@ from app.api.schemas import (
     GameSummaryPlayerStatsOut,
     GameInfoOut,
     PlayByPlayEventOut,
+    ComprehensiveGameStatsOut,
+    ComprehensivePlayerStatsOut,
+    GameOut,
 )
+from app.api.deps import get_db
+from app import models
 from app.external_apis.rapidapi_client import RapidApiClient, RetryError, wnba_client
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -124,4 +130,78 @@ async def game_playbyplay(game_id: str = Path(..., description="Game ID")) -> Ga
         raise HTTPException(status_code=404, detail="Game not found")
 
     return _map_playbyplay(raw)
+
+
+@router.get("/{game_id}/comprehensive-stats", response_model=ComprehensiveGameStatsOut)
+async def get_comprehensive_game_stats(
+    game_id: str = Path(..., description="Game ID"),
+    db: Session = Depends(get_db)
+) -> ComprehensiveGameStatsOut:
+    """Get comprehensive statistics for a game from our database."""
+
+    # Get game record
+    game = db.get(models.Game, game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    # Get all stat lines for this game
+    stat_lines = (
+        db.query(models.StatLine)
+        .filter(models.StatLine.game_id == game_id)
+        .join(models.Player)
+        .all()
+    )
+
+    # Convert to response format
+    player_stats = []
+    for stat_line in stat_lines:
+        player_stats.append(
+            ComprehensivePlayerStatsOut(
+                player_id=stat_line.player_id,
+                player_name=stat_line.player.full_name,
+                position=stat_line.player.position,
+                is_starter=stat_line.is_starter,
+                did_not_play=stat_line.did_not_play,
+                points=stat_line.points,
+                rebounds=stat_line.rebounds,
+                assists=stat_line.assists,
+                steals=stat_line.steals,
+                blocks=stat_line.blocks,
+                minutes_played=stat_line.minutes_played,
+                field_goals_made=stat_line.field_goals_made,
+                field_goals_attempted=stat_line.field_goals_attempted,
+                field_goal_percentage=stat_line.field_goal_percentage,
+                three_pointers_made=stat_line.three_pointers_made,
+                three_pointers_attempted=stat_line.three_pointers_attempted,
+                three_point_percentage=stat_line.three_point_percentage,
+                free_throws_made=stat_line.free_throws_made,
+                free_throws_attempted=stat_line.free_throws_attempted,
+                free_throw_percentage=stat_line.free_throw_percentage,
+                offensive_rebounds=stat_line.offensive_rebounds,
+                defensive_rebounds=stat_line.defensive_rebounds,
+                turnovers=stat_line.turnovers,
+                personal_fouls=stat_line.personal_fouls,
+                plus_minus=stat_line.plus_minus,
+                team_id=stat_line.team_id,
+                opponent_id=stat_line.opponent_id,
+                is_home_game=stat_line.is_home_game,
+            )
+        )
+
+    game_out = GameOut(
+        id=game.id,
+        date=game.date,
+        home_team_id=game.home_team_id,
+        away_team_id=game.away_team_id,
+        home_score=game.home_score,
+        away_score=game.away_score,
+        status=game.status,
+        venue=game.venue,
+        attendance=game.attendance,
+    )
+
+    return ComprehensiveGameStatsOut(
+        game=game_out,
+        player_stats=player_stats
+    )
 

@@ -6,12 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
-from app.core.database import SessionLocal
-from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState, StatLine, RosterSlot
-from app.services.roster import RosterService
-from app.services.team import TeamService, map_team_to_out
-from app.services.draft import DraftService
+from app.api.deps import get_current_user
 from app.api.schemas import (
     AddPlayerRequest,
     BonusOut,
@@ -46,25 +41,15 @@ from app.api.schemas import (
     TeamUpdate,
     UserOut,
 )
+from app.core.database import get_db
+from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState, StatLine, RosterSlot
+from app.services.roster import RosterService
+from app.services.team import TeamService, map_team_to_out
+from app.services.draft import DraftService
 
-router = APIRouter(prefix="/api/v1", tags=["public"])
-
-# Create Roster Management router
-router_roster = APIRouter(tags=["roster"])
-
-
-# ---------------------------------------------------------------------------
-# Dependency: provide DB session per request
-# ---------------------------------------------------------------------------
-
-
-def _get_db() -> Session:  # noqa: D401
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# CORS support
+router = APIRouter(prefix="/api/v1")
+router_roster = APIRouter()
 
 # ---------------------------------------------------------------------------
 # 5-B List Leagues – GET /api/v1/leagues
@@ -73,7 +58,7 @@ def _get_db() -> Session:  # noqa: D401
 
 @router.get("/leagues", response_model=Pagination[LeagueOut])
 def list_leagues(  # noqa: D401
-    *, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0), db: Session = Depends(_get_db)
+    *, limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0), db: Session = Depends(get_db)
 ):
     total = db.query(League).count()
     leagues = db.query(League).order_by(League.id).offset(offset).limit(limit).all()  # deterministic ordering
@@ -88,7 +73,7 @@ def list_leagues(  # noqa: D401
 
 
 @router.get("/teams/{team_id}", response_model=TeamWithRosterSlotsOut)
-def team_detail(*, team_id: int, db: Session = Depends(_get_db)):  # noqa: D401
+def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
     team = db.query(Team).filter_by(id=team_id).one_or_none()
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -125,7 +110,7 @@ def team_detail(*, team_id: int, db: Session = Depends(_get_db)):  # noqa: D401
 
 
 @router.get("/scores/current", response_model=List[ScoreOut])
-def current_scores(*, db: Session = Depends(_get_db)) -> List[ScoreOut]:  # noqa: D401
+def current_scores(*, db: Session = Depends(get_db)) -> List[ScoreOut]:  # noqa: D401
     # Determine latest week id (if any)
     latest_week = db.query(func.max(TeamScore.week)).scalar()
 
@@ -181,7 +166,7 @@ def current_scores(*, db: Session = Depends(_get_db)) -> List[ScoreOut]:  # noqa
 
 
 @router.get("/scores/history", response_model=List[WeeklyScoresOut])
-def historical_scores(*, db: Session = Depends(_get_db), league_id: int = Query(None)) -> List[WeeklyScoresOut]:  # noqa: D401
+def historical_scores(*, db: Session = Depends(get_db), league_id: int = Query(None)) -> List[WeeklyScoresOut]:  # noqa: D401
     """Get historical weekly scores for all teams."""
     # Get all weeks that have scores
     weeks_query = db.query(TeamScore.week).distinct().order_by(TeamScore.week)
@@ -261,43 +246,48 @@ def historical_scores(*, db: Session = Depends(_get_db), league_id: int = Query(
 
 
 @router.get("/scores/top-performers", response_model=List[TopPerformerOut])
-def top_performers(*, db: Session = Depends(_get_db), week: int = Query(None)) -> List[TopPerformerOut]:  # noqa: D401
-    """Get top performers for current or specified week."""
-    if week is None:
-        week = db.query(func.max(TeamScore.week)).scalar() or 1
+def top_performers(*, db: Session = Depends(get_db), week: int = Query(None)) -> List[TopPerformerOut]:  # noqa: D401
+    """Get top performing players for a given week or overall."""
+    from app.models import StatLine
 
-    # Get top scorers for the week
-    top_performers = []
+    query = db.query(StatLine).join(Player)
 
-    # Query for top points in the week
-    points_query = (
-        db.query(
-            Player.id,
-            Player.full_name,
-            Player.position,
-            Team.name.label('team_name'),
-            func.sum(StatLine.points).label('total_points')
-        )
-        .join(RosterSlot, Player.id == RosterSlot.player_id)
-        .join(Team, RosterSlot.team_id == Team.id)
-        .join(StatLine, Player.id == StatLine.player_id)
-        .filter(func.extract('week', StatLine.game_date) == week)
-        .group_by(Player.id, Player.full_name, Player.position, Team.name)
-        .order_by(func.sum(StatLine.points).desc())
-        .limit(5)
-    )
+    # Filter by week if provided
+    if week is not None:
+        # Simple week calculation - in a real app you'd have proper week boundaries
+        query = query.filter(func.extract('week', StatLine.game_date) == week)
 
-    for player_id, player_name, position, team_name, total_points in points_query.all():
-        top_performers.append(TopPerformerOut(
-            player_id=player_id,
-            player_name=player_name,
-            team_name=team_name,
-            position=position,
-            points_scored=round(float(total_points), 2),
-            category="top_scorer"
+    # Get stat lines and calculate points
+    stat_lines = query.all()
+
+    # Group by player and sum points
+    player_totals = {}
+    for stat in stat_lines:
+        if stat.player_id not in player_totals:
+            player_totals[stat.player_id] = {
+                'player': stat.player,
+                'total_points': 0.0,
+                'games_played': 0
+            }
+        player_totals[stat.player_id]['total_points'] += stat.points
+        player_totals[stat.player_id]['games_played'] += 1
+
+    # Convert to TopPerformerOut and sort
+    performers = []
+    for player_data in player_totals.values():
+        performers.append(TopPerformerOut(
+            player_id=player_data['player'].id,
+            player_name=player_data['player'].full_name,
+            position=player_data['player'].position,
+            team_abbr=player_data['player'].team_abbr,
+            total_points=round(player_data['total_points'], 2),
+            games_played=player_data['games_played'],
+            avg_points=round(player_data['total_points'] / max(player_data['games_played'], 1), 2)
         ))
 
-    return top_performers
+    # Sort by total points descending and limit to top 50
+    performers.sort(key=lambda p: p.total_points, reverse=True)
+    return performers[:50]
 
 
 # ---------------------------------------------------------------------------
@@ -306,33 +296,39 @@ def top_performers(*, db: Session = Depends(_get_db), week: int = Query(None)) -
 
 
 @router.get("/scores/trends", response_model=List[ScoreTrendOut])
-def score_trends(*, db: Session = Depends(_get_db), league_id: int = Query(None)) -> List[ScoreTrendOut]:  # noqa: D401
-    """Get score trends for teams over time."""
+def score_trends(*, db: Session = Depends(get_db), league_id: int = Query(None)) -> List[ScoreTrendOut]:  # noqa: D401
+    """Get score trends over time for teams."""
     teams_query = db.query(Team)
     if league_id:
         teams_query = teams_query.filter(Team.league_id == league_id)
     teams = teams_query.all()
 
     result = []
-
     for team in teams:
+        # Get scores by week
         weekly_scores = []
-        weeks = []
+        cumulative_points = 0.0
 
-        # Get all scores for this team, ordered by week
-        team_scores = sorted(team.scores, key=lambda s: s.week)
+        # Sort scores by week
+        sorted_scores = sorted(team.scores, key=lambda s: s.week)
 
-        for score in team_scores:
-            weekly_scores.append(round(score.score, 2))
-            weeks.append(score.week)
+        for score in sorted_scores:
+            cumulative_points += score.score
+            weekly_scores.append({
+                'week': score.week,
+                'weekly_score': round(score.score, 2),
+                'cumulative_score': round(cumulative_points, 2)
+            })
 
         result.append(ScoreTrendOut(
             team_id=team.id,
             team_name=team.name,
             weekly_scores=weekly_scores,
-            weeks=weeks
+            total_points=round(cumulative_points, 2)
         ))
 
+    # Sort by total points
+    result.sort(key=lambda t: t.total_points, reverse=True)
     return result
 
 
@@ -342,10 +338,8 @@ def score_trends(*, db: Session = Depends(_get_db), league_id: int = Query(None)
 
 
 @router.get("/scores/champion", response_model=LeagueChampionOut | None)
-def league_champion(*, db: Session = Depends(_get_db), league_id: int = Query(None)) -> LeagueChampionOut | None:  # noqa: D401
-    """Get league champion if season is complete."""
-    # For now, just return the current leader
-    # In a real implementation, you'd check if the season is officially over
+def league_champion(*, db: Session = Depends(get_db), league_id: int = Query(None)) -> LeagueChampionOut | None:  # noqa: D401
+    """Get the current league champion (team with highest season points)."""
     teams_query = db.query(Team)
     if league_id:
         teams_query = teams_query.filter(Team.league_id == league_id)
@@ -354,56 +348,51 @@ def league_champion(*, db: Session = Depends(_get_db), league_id: int = Query(No
     if not teams:
         return None
 
-    # Find team with highest season total
+    # Calculate season totals and find champion
     champion_team = None
-    highest_score = 0.0
+    champion_points = 0.0
 
     for team in teams:
-        season_total = sum(score.score for score in team.scores)
-        if season_total > highest_score:
-            highest_score = season_total
+        season_points = sum(score.score for score in team.scores)
+        if season_points > champion_points:
+            champion_points = season_points
             champion_team = team
 
     if not champion_team:
         return None
 
-    # Count weeks won (weeks where this team had the highest score)
-    weeks_won = 0
-    weeks = db.query(TeamScore.week).distinct().all()
-
-    for week_tuple in weeks:
-        week = week_tuple[0]
-        week_winner = None
-        highest_weekly = 0.0
-
-        for team in teams:
-            for score in team.scores:
-                if score.week == week and score.score > highest_weekly:
-                    highest_weekly = score.score
-                    week_winner = team
-
-        if week_winner and week_winner.id == champion_team.id:
-            weeks_won += 1
-
-    owner_name = None
-    if champion_team.owner:
-        owner_name = champion_team.owner.email  # or name field if you have one
+    # Get champion's best week
+    best_week_score = 0.0
+    best_week = 0
+    for score in champion_team.scores:
+        if score.score > best_week_score:
+            best_week_score = score.score
+            best_week = score.week
 
     return LeagueChampionOut(
         team_id=champion_team.id,
         team_name=champion_team.name,
-        owner_name=owner_name,
-        final_score=round(highest_score, 2),
-        weeks_won=weeks_won
+        total_points=round(champion_points, 2),
+        best_week=best_week,
+        best_week_score=round(best_week_score, 2),
+        league_id=champion_team.league_id
     )
+
+
+# ---------------------------------------------------------------------------
+# User's profile information
+# ---------------------------------------------------------------------------
 
 
 @router.get("/me", response_model=dict)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
-    """
-    Test endpoint to verify the current user authentication
-    """
-    return {"id": current_user.id, "email": current_user.email}
+    """Get current user's information."""
+    return {"id": current_user.id, "email": current_user.email, "name": current_user.name}
+
+
+# ---------------------------------------------------------------------------
+# Roster management endpoints
+# ---------------------------------------------------------------------------
 
 
 @router_roster.get("/leagues/{league_id}/free-agents", response_model=Pagination[PlayerOut])
@@ -415,7 +404,7 @@ def list_free_agents(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    List players not currently on any team in the specified league.
+    Get list of free agents (players not on any roster) in a league.
     """
     # Verify league exists
     league = db.query(League).filter(League.id == league_id).first()
@@ -424,12 +413,14 @@ def list_free_agents(
 
     # Get free agents
     service = RosterService(db)
-    players = service.get_free_agents(league_id, page, limit)
+    free_agents = service.get_free_agents(league_id, page, limit)
 
-    # Calculate total for pagination
-    total = len(service.get_free_agents(league_id, 1, 10000))  # Approximate count of all free agents
+    # Calculate pagination info
+    total_count = len(service.get_free_agents(league_id, 1, 10000))  # Get total count
+    offset = (page - 1) * limit
 
-    return Pagination[PlayerOut](total=total, limit=limit, offset=(page - 1) * limit, items=players)
+    items = [PlayerOut.from_orm(player) for player in free_agents]
+    return Pagination[PlayerOut](total=total_count, limit=limit, offset=offset, items=items)
 
 
 @router_roster.post("/teams/{team_id}/roster/add", response_model=TeamWithRosterSlotsOut)
@@ -608,7 +599,7 @@ def update_team(
 def get_league_draft_state(
     *,
     league_id: int,
-    db: Session = Depends(_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -627,6 +618,59 @@ def get_league_draft_state(
     # Use DraftService to get formatted response
     draft_service = DraftService(db)
     return draft_service.get_draft_state(draft_state.id)
+
+
+# ---------------------------------------------------------------------------
+# Player Endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/players", response_model=Pagination[PlayerOut])
+def list_players(
+    *,
+    limit: int = Query(100, ge=1, le=500, description="Number of players to return"),
+    offset: int = Query(0, ge=0, description="Number of players to skip"),
+    position: str = Query(None, description="Filter by position (e.g., 'G', 'F', 'C')"),
+    team_abbr: str = Query(None, description="Filter by team abbreviation"),
+    status: str = Query("active", description="Filter by status (active, injured, inactive)"),
+    search: str = Query(None, description="Search by player name"),
+    db: Session = Depends(get_db)
+) -> Pagination[PlayerOut]:
+    """List all players with optional filtering."""
+    query = db.query(Player)
+
+    # Apply filters
+    if position:
+        query = query.filter(Player.position == position)
+    if team_abbr:
+        query = query.filter(Player.team_abbr == team_abbr)
+    if status:
+        query = query.filter(Player.status == status)
+    if search:
+        query = query.filter(Player.full_name.ilike(f"%{search}%"))
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination and ordering
+    players = query.order_by(Player.full_name).offset(offset).limit(limit).all()
+
+    items = [PlayerOut.from_orm(player) for player in players]
+    return Pagination[PlayerOut](total=total, limit=limit, offset=offset, items=items)
+
+
+@router.get("/players/{player_id}", response_model=PlayerOut)
+def get_player(
+    *,
+    player_id: int = Path(..., description="Player ID"),
+    db: Session = Depends(get_db)
+) -> PlayerOut:
+    """Get detailed player profile by ID."""
+    player = db.query(Player).filter_by(id=player_id).one_or_none()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    return PlayerOut.from_orm(player)
 
 
 # Add the router to the API

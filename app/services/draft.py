@@ -253,18 +253,27 @@ class DraftService:
         Returns:
             Dictionary with draft state and drafted players
         """
+        from sqlalchemy.orm import joinedload
+
         draft = self.db.query(DraftState).filter(DraftState.id == draft_id).first()
         if not draft:
             raise ValueError(f"Draft with ID {draft_id} not found")
 
-        # Get all picks in this draft
-        picks = self.db.query(DraftPick).filter(DraftPick.draft_id == draft_id).all()
+        # Get all picks in this draft with eager loading of related objects
+        picks = (
+            self.db.query(DraftPick)
+            .options(joinedload(DraftPick.player), joinedload(DraftPick.team))
+            .filter(DraftPick.draft_id == draft_id)
+            .all()
+        )
 
         # Format picks for response
         formatted_picks = []
         for pick in picks:
-            player = self.db.query(Player).filter(Player.id == pick.player_id).first()
-            team = self.db.query(Team).filter(Team.id == pick.team_id).first()
+            # Access the eager-loaded attributes
+            player_name = pick.player.full_name if pick.player else "Unknown"
+            player_position = pick.player.position if pick.player else "Unknown"
+            team_name = pick.team.name if pick.team else "Unknown"
 
             formatted_picks.append(
                 {
@@ -272,10 +281,10 @@ class DraftService:
                     "round": pick.round,
                     "pick_number": pick.pick_number,
                     "team_id": pick.team_id,
-                    "team_name": team.name if team else "Unknown",
+                    "team_name": team_name,
                     "player_id": pick.player_id,
-                    "player_name": player.full_name if player else "Unknown",
-                    "player_position": player.position if player else "Unknown",
+                    "player_name": player_name,
+                    "player_position": player_position,
                     "timestamp": pick.timestamp.isoformat(),
                     "is_auto": pick.is_auto,
                 }

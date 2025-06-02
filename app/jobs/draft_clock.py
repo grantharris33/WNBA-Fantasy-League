@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -204,7 +205,7 @@ def start_scheduled_drafts():
             .filter(
                 League.draft_date <= now,
                 League.draft_date.isnot(None),
-                ~League.id.in_(leagues_with_drafts)  # No draft state exists
+                ~League.id.in_(select(leagues_with_drafts.c.league_id))  # No draft state exists
             )
             .all()
         )

@@ -32,10 +32,14 @@ const ScoreTrendsChart: React.FC<ScoreTrendsChartProps> = ({ scoreTrends }) => {
   }
 
   // Get all weeks across all teams
-  const allWeeks = Array.from(new Set(validTrends.flatMap(trend => trend.weeks))).sort((a, b) => a - b);
+  const allWeeks = Array.from(new Set(validTrends.flatMap(trend =>
+    trend.weekly_scores.map(score => score.week)
+  ))).sort((a, b) => a - b);
 
   // Get min/max scores for scaling
-  const allScores = validTrends.flatMap(trend => trend.weekly_scores);
+  const allScores = validTrends.flatMap(trend =>
+    trend.weekly_scores.map(score => score.cumulative_score)
+  );
   const minScore = Math.min(...allScores);
   const maxScore = Math.max(...allScores);
   const scoreRange = maxScore - minScore || 1; // Avoid division by zero
@@ -113,9 +117,9 @@ const ScoreTrendsChart: React.FC<ScoreTrendsChartProps> = ({ scoreTrends }) => {
             const color = colors[trendIndex % colors.length];
 
             // Create path for this team's scores
-            const pathData = trend.weeks.map((week, index) => {
-              const x = padding + (allWeeks.indexOf(week) * xStep);
-              const normalizedScore = (trend.weekly_scores[index] - minScore) / scoreRange;
+            const pathData = trend.weekly_scores.map((scoreData, index) => {
+              const x = padding + (allWeeks.indexOf(scoreData.week) * xStep);
+              const normalizedScore = (scoreData.cumulative_score - minScore) / scoreRange;
               const y = chartHeight - padding - (normalizedScore * innerHeight);
               return `${index === 0 ? 'M' : 'L'} ${x},${y}`;
             }).join(' ');
@@ -133,14 +137,14 @@ const ScoreTrendsChart: React.FC<ScoreTrendsChartProps> = ({ scoreTrends }) => {
                 />
 
                 {/* Points */}
-                {trend.weeks.map((week, index) => {
-                  const x = padding + (allWeeks.indexOf(week) * xStep);
-                  const normalizedScore = (trend.weekly_scores[index] - minScore) / scoreRange;
+                {trend.weekly_scores.map((scoreData) => {
+                  const x = padding + (allWeeks.indexOf(scoreData.week) * xStep);
+                  const normalizedScore = (scoreData.cumulative_score - minScore) / scoreRange;
                   const y = chartHeight - padding - (normalizedScore * innerHeight);
 
                   return (
                     <circle
-                      key={`${trend.team_id}-${week}`}
+                      key={`${trend.team_id}-${scoreData.week}`}
                       cx={x}
                       cy={y}
                       r="5"
@@ -255,9 +259,9 @@ const ScoreTrendsChart: React.FC<ScoreTrendsChartProps> = ({ scoreTrends }) => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {displayTrends.map((trend, index) => {
             const color = colors[index % colors.length];
-            const latestScore = trend.weekly_scores[trend.weekly_scores.length - 1];
+            const latestScore = trend.weekly_scores[trend.weekly_scores.length - 1]?.cumulative_score || 0;
             const previousScore = trend.weekly_scores.length > 1
-              ? trend.weekly_scores[trend.weekly_scores.length - 2]
+              ? trend.weekly_scores[trend.weekly_scores.length - 2]?.cumulative_score || 0
               : latestScore;
             const change = latestScore - previousScore;
 

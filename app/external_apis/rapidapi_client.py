@@ -159,6 +159,26 @@ class RapidApiClient:
         """Fetch league-wide injury information."""
         return await self._get_json("injuries")
 
+    async def fetch_team_roster(self, team_id: str) -> Any:
+        """Fetch roster data for a specific team."""
+        return await self._get_json("team-roster", params={"teamId": team_id})
+
+    async def fetch_player_bio(self, player_id: str) -> Any:
+        """Fetch biographical data for a specific player."""
+        return await self._get_json("player/bio", params={"playerId": player_id})
+
+    async def fetch_all_teams(self) -> Any:
+        """Fetch all WNBA teams."""
+        return await self._get_json("team/id")
+
+    async def fetch_standings(self, year: str) -> Any:
+        """Fetch current standings."""
+        return await self._get_json("wnbastandings", params={"year": year})
+
+    async def fetch_team_schedule(self, season: str, team_id: str) -> Any:
+        """Fetch a team's full season schedule."""
+        return await self._get_json("team/schedulev2", params={"season": season, "teamId": team_id})
+
     async def close(self) -> None:
         """Close the client session."""
         if self._client is not None:

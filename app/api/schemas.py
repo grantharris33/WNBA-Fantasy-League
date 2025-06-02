@@ -79,6 +79,27 @@ class PlayerOut(BaseModel):
     position: str | None = None
     team_abbr: str | None = None
 
+    # New biographical fields
+    first_name: str | None = None
+    last_name: str | None = None
+    jersey_number: str | None = None
+    height: int | None = None  # in inches
+    weight: int | None = None  # in pounds
+    birth_date: datetime | None = None
+    birth_place: str | None = None
+    college: str | None = None
+    draft_year: int | None = None
+    draft_round: int | None = None
+    draft_pick: int | None = None
+    years_pro: int | None = None
+    status: str = "active"  # active, injured, inactive
+    headshot_url: str | None = None
+
+    # Metadata
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    team_id: int | None = None
+
     class Config:
         orm_mode = True
 
@@ -376,10 +397,11 @@ class LeagueChampionOut(BaseModel):
 class TopPerformerOut(BaseModel):
     player_id: int
     player_name: str
-    team_name: str
     position: str | None = None
-    points_scored: float
-    category: str  # e.g., "top_scorer", "top_rebounder"
+    team_abbr: str | None = None
+    total_points: float
+    games_played: int
+    avg_points: float
 
     class Config:
         orm_mode = True
@@ -388,8 +410,78 @@ class TopPerformerOut(BaseModel):
 class ScoreTrendOut(BaseModel):
     team_id: int
     team_name: str
-    weekly_scores: List[float] = Field(default_factory=list)
-    weeks: List[int] = Field(default_factory=list)
+    weekly_scores: List[dict] = Field(default_factory=list)
+    total_points: float = Field(default=0.0)
+
+    class Config:
+        orm_mode = True
+
+
+# Comprehensive Statistics Schemas
+class ComprehensivePlayerStatsOut(BaseModel):
+    """Comprehensive player statistics for a game."""
+
+    player_id: int
+    player_name: str
+    position: Optional[str] = None
+    is_starter: bool = False
+    did_not_play: bool = False
+
+    # Basic stats
+    points: float = 0.0
+    rebounds: float = 0.0
+    assists: float = 0.0
+    steals: float = 0.0
+    blocks: float = 0.0
+
+    # Detailed stats
+    minutes_played: float = 0.0
+    field_goals_made: int = 0
+    field_goals_attempted: int = 0
+    field_goal_percentage: float = 0.0
+    three_pointers_made: int = 0
+    three_pointers_attempted: int = 0
+    three_point_percentage: float = 0.0
+    free_throws_made: int = 0
+    free_throws_attempted: int = 0
+    free_throw_percentage: float = 0.0
+    offensive_rebounds: int = 0
+    defensive_rebounds: int = 0
+    turnovers: int = 0
+    personal_fouls: int = 0
+    plus_minus: int = 0
+
+    # Game context
+    team_id: Optional[int] = None
+    opponent_id: Optional[int] = None
+    is_home_game: bool = True
+
+    class Config:
+        orm_mode = True
+
+
+class GameOut(BaseModel):
+    """Comprehensive game information."""
+
+    id: str
+    date: datetime
+    home_team_id: Optional[int] = None
+    away_team_id: Optional[int] = None
+    home_score: int = 0
+    away_score: int = 0
+    status: str = "scheduled"
+    venue: Optional[str] = None
+    attendance: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class ComprehensiveGameStatsOut(BaseModel):
+    """Complete game statistics including game info and all player stats."""
+
+    game: GameOut
+    player_stats: List[ComprehensivePlayerStatsOut] = Field(default_factory=list)
 
     class Config:
         orm_mode = True

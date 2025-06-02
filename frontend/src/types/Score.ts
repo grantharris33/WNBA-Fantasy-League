@@ -56,15 +56,20 @@ export interface LeagueChampion {
 export interface TopPerformer {
   player_id: number;
   player_name: string;
-  team_name: string;
   position?: string;
-  points_scored: number;
-  category: string; // e.g., "top_scorer", "top_rebounder"
+  team_abbr?: string;
+  total_points: number;
+  games_played: number;
+  avg_points: number;
 }
 
 export interface ScoreTrend {
   team_id: number;
   team_name: string;
-  weekly_scores: number[];
-  weeks: number[];
+  weekly_scores: Array<{
+    week: number;
+    weekly_score: number;
+    cumulative_score: number;
+  }>;
+  total_points: number;
 }
