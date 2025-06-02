@@ -8,25 +8,43 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.database import SessionLocal
-from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState
+from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState, StatLine, RosterSlot
 from app.services.roster import RosterService
 from app.services.team import TeamService, map_team_to_out
 from app.services.draft import DraftService
-from app.api.schemas import TeamCreate, TeamUpdate
-
-from .schemas import (
+from app.api.schemas import (
     AddPlayerRequest,
     BonusOut,
+    DraftPickRequest,
+    DraftPickResponse,
+    DraftStateResponse,
     DropPlayerRequest,
+    GamePlayByPlayOut,
+    GameSummaryOut,
+    JoinLeagueRequest,
+    LeagueCreate,
     LeagueOut,
+    LeagueUpdate,
+    LeagueWithRole,
+    InviteCodeResponse,
+    NewsArticleOut,
     Pagination,
     PlayerOut,
     RosterSlotOut,
+    ScheduleDayOut,
     ScoreOut,
+    PlayerScoreBreakdownOut,
+    TeamScoreHistoryOut,
+    WeeklyScoresOut,
+    LeagueChampionOut,
+    TopPerformerOut,
+    ScoreTrendOut,
     SetStartersRequest,
     TeamOut,
     TeamWithRosterSlotsOut,
-    DraftStateResponse,
+    TeamCreate,
+    TeamUpdate,
+    UserOut,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
@@ -155,6 +173,229 @@ def current_scores(*, db: Session = Depends(_get_db)) -> List[ScoreOut]:  # noqa
     # Sort descending by season points
     result.sort(key=lambda s: s.season_points, reverse=True)
     return result
+
+
+# ---------------------------------------------------------------------------
+# 5-E Historical Scores – GET /api/v1/scores/history
+# ---------------------------------------------------------------------------
+
+
+@router.get("/scores/history", response_model=List[WeeklyScoresOut])
+def historical_scores(*, db: Session = Depends(_get_db), league_id: int = Query(None)) -> List[WeeklyScoresOut]:  # noqa: D401
+    """Get historical weekly scores for all teams."""
+    # Get all weeks that have scores
+    weeks_query = db.query(TeamScore.week).distinct().order_by(TeamScore.week)
+    weeks = [week[0] for week in weeks_query.all()]
+
+    result = []
+
+    for week in weeks:
+        # Get all team scores for this week
+        weekly_scores = []
+        teams_query = db.query(Team)
+        if league_id:
+            teams_query = teams_query.filter(Team.league_id == league_id)
+        teams = teams_query.all()
+
+        for team in teams:
+            # Calculate season total up to this week
+            season_total = sum(
+                score.score for score in team.scores
+                if score.week <= week
+            )
+
+            # Get weekly score
+            weekly_score = 0.0
+            for score in team.scores:
+                if score.week == week:
+                    weekly_score = score.score
+                    break
+
+            # Get player breakdown for this week
+            player_breakdown = []
+            for roster_slot in team.roster_slots:
+                # Calculate player's points for this week
+                player_points = 0.0
+                games_played = 0
+
+                # Sum points from stat lines in this week
+                for stat_line in roster_slot.player.stat_lines:
+                    # Simple week calculation - in a real app you'd have proper week boundaries
+                    stat_week = stat_line.game_date.isocalendar()[1]
+                    if stat_week == week:
+                        player_points += stat_line.points
+                        games_played += 1
+
+                if player_points > 0 or games_played > 0:
+                    player_breakdown.append(PlayerScoreBreakdownOut(
+                        player_id=roster_slot.player_id,
+                        player_name=roster_slot.player.full_name,
+                        position=roster_slot.player.position,
+                        points_scored=round(player_points, 2),
+                        games_played=games_played,
+                        is_starter=roster_slot.is_starter
+                    ))
+
+            weekly_scores.append(TeamScoreHistoryOut(
+                team_id=team.id,
+                team_name=team.name,
+                week=week,
+                weekly_score=round(weekly_score, 2),
+                season_total=round(season_total, 2),
+                player_breakdown=player_breakdown
+            ))
+
+        # Sort by season total and assign ranks
+        weekly_scores.sort(key=lambda s: s.season_total, reverse=True)
+        for i, score in enumerate(weekly_scores):
+            score.rank = i + 1
+
+        result.append(WeeklyScoresOut(week=week, scores=weekly_scores))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 5-F Top Performers – GET /api/v1/scores/top-performers
+# ---------------------------------------------------------------------------
+
+
+@router.get("/scores/top-performers", response_model=List[TopPerformerOut])
+def top_performers(*, db: Session = Depends(_get_db), week: int = Query(None)) -> List[TopPerformerOut]:  # noqa: D401
+    """Get top performers for current or specified week."""
+    if week is None:
+        week = db.query(func.max(TeamScore.week)).scalar() or 1
+
+    # Get top scorers for the week
+    top_performers = []
+
+    # Query for top points in the week
+    points_query = (
+        db.query(
+            Player.id,
+            Player.full_name,
+            Player.position,
+            Team.name.label('team_name'),
+            func.sum(StatLine.points).label('total_points')
+        )
+        .join(RosterSlot, Player.id == RosterSlot.player_id)
+        .join(Team, RosterSlot.team_id == Team.id)
+        .join(StatLine, Player.id == StatLine.player_id)
+        .filter(func.extract('week', StatLine.game_date) == week)
+        .group_by(Player.id, Player.full_name, Player.position, Team.name)
+        .order_by(func.sum(StatLine.points).desc())
+        .limit(5)
+    )
+
+    for player_id, player_name, position, team_name, total_points in points_query.all():
+        top_performers.append(TopPerformerOut(
+            player_id=player_id,
+            player_name=player_name,
+            team_name=team_name,
+            position=position,
+            points_scored=round(float(total_points), 2),
+            category="top_scorer"
+        ))
+
+    return top_performers
+
+
+# ---------------------------------------------------------------------------
+# 5-G Score Trends – GET /api/v1/scores/trends
+# ---------------------------------------------------------------------------
+
+
+@router.get("/scores/trends", response_model=List[ScoreTrendOut])
+def score_trends(*, db: Session = Depends(_get_db), league_id: int = Query(None)) -> List[ScoreTrendOut]:  # noqa: D401
+    """Get score trends for teams over time."""
+    teams_query = db.query(Team)
+    if league_id:
+        teams_query = teams_query.filter(Team.league_id == league_id)
+    teams = teams_query.all()
+
+    result = []
+
+    for team in teams:
+        weekly_scores = []
+        weeks = []
+
+        # Get all scores for this team, ordered by week
+        team_scores = sorted(team.scores, key=lambda s: s.week)
+
+        for score in team_scores:
+            weekly_scores.append(round(score.score, 2))
+            weeks.append(score.week)
+
+        result.append(ScoreTrendOut(
+            team_id=team.id,
+            team_name=team.name,
+            weekly_scores=weekly_scores,
+            weeks=weeks
+        ))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 5-H League Champion – GET /api/v1/scores/champion
+# ---------------------------------------------------------------------------
+
+
+@router.get("/scores/champion", response_model=LeagueChampionOut | None)
+def league_champion(*, db: Session = Depends(_get_db), league_id: int = Query(None)) -> LeagueChampionOut | None:  # noqa: D401
+    """Get league champion if season is complete."""
+    # For now, just return the current leader
+    # In a real implementation, you'd check if the season is officially over
+    teams_query = db.query(Team)
+    if league_id:
+        teams_query = teams_query.filter(Team.league_id == league_id)
+    teams = teams_query.all()
+
+    if not teams:
+        return None
+
+    # Find team with highest season total
+    champion_team = None
+    highest_score = 0.0
+
+    for team in teams:
+        season_total = sum(score.score for score in team.scores)
+        if season_total > highest_score:
+            highest_score = season_total
+            champion_team = team
+
+    if not champion_team:
+        return None
+
+    # Count weeks won (weeks where this team had the highest score)
+    weeks_won = 0
+    weeks = db.query(TeamScore.week).distinct().all()
+
+    for week_tuple in weeks:
+        week = week_tuple[0]
+        week_winner = None
+        highest_weekly = 0.0
+
+        for team in teams:
+            for score in team.scores:
+                if score.week == week and score.score > highest_weekly:
+                    highest_weekly = score.score
+                    week_winner = team
+
+        if week_winner and week_winner.id == champion_team.id:
+            weeks_won += 1
+
+    owner_name = None
+    if champion_team.owner:
+        owner_name = champion_team.owner.email  # or name field if you have one
+
+    return LeagueChampionOut(
+        team_id=champion_team.id,
+        team_name=champion_team.name,
+        owner_name=owner_name,
+        final_score=round(highest_score, 2),
+        weeks_won=weeks_won
+    )
 
 
 @router.get("/me", response_model=dict)

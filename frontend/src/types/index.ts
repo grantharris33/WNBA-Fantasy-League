@@ -16,4 +16,14 @@ export type {
   InviteCodeResponse
 } from './League';
 export type { DraftState, DraftPick, Player } from './draft';
-export type { BonusDetail, TeamScoreData, CurrentScores } from './Score';
+export type {
+  BonusDetail,
+  TeamScoreData,
+  CurrentScores,
+  PlayerScoreBreakdown,
+  TeamScoreHistory,
+  WeeklyScores,
+  LeagueChampion,
+  TopPerformer,
+  ScoreTrend
+} from './Score';

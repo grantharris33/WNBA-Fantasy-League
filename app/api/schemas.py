@@ -326,3 +326,70 @@ class LeagueInjuryReportOut(BaseModel):
     """Aggregated league-wide injuries."""
 
     teams: List[TeamInjuryListOut] = Field(default_factory=list)
+
+
+# Historical scores and player performance schemas
+class PlayerScoreBreakdownOut(BaseModel):
+    player_id: int
+    player_name: str
+    position: str | None = None
+    points_scored: float
+    games_played: int
+    is_starter: bool = False
+
+    class Config:
+        orm_mode = True
+
+
+class TeamScoreHistoryOut(BaseModel):
+    team_id: int
+    team_name: str
+    week: int
+    weekly_score: float
+    season_total: float
+    rank: int = 0  # Will be calculated
+    player_breakdown: List[PlayerScoreBreakdownOut] = Field(default_factory=list)
+
+    class Config:
+        orm_mode = True
+
+
+class WeeklyScoresOut(BaseModel):
+    week: int
+    scores: List[TeamScoreHistoryOut]
+
+    class Config:
+        orm_mode = True
+
+
+class LeagueChampionOut(BaseModel):
+    team_id: int
+    team_name: str
+    owner_name: str | None = None
+    final_score: float
+    weeks_won: int = 0
+
+    class Config:
+        orm_mode = True
+
+
+class TopPerformerOut(BaseModel):
+    player_id: int
+    player_name: str
+    team_name: str
+    position: str | None = None
+    points_scored: float
+    category: str  # e.g., "top_scorer", "top_rebounder"
+
+    class Config:
+        orm_mode = True
+
+
+class ScoreTrendOut(BaseModel):
+    team_id: int
+    team_name: str
+    weekly_scores: List[float] = Field(default_factory=list)
+    weeks: List[int] = Field(default_factory=list)
+
+    class Config:
+        orm_mode = True

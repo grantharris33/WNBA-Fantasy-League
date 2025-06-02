@@ -86,18 +86,18 @@ const MyLeaguesDashboard: React.FC = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold">My Leagues</h2>
-        <div className="space-x-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+        <h2 className="text-2xl font-bold text-gray-900">My Leagues</h2>
+        <div className="flex gap-3">
           <button
             onClick={() => navigate('/join')}
-            className="px-4 py-2 border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
+            className="btn-secondary"
           >
             Join League
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="btn-primary"
           >
             Create League
           </button>
@@ -107,13 +107,13 @@ const MyLeaguesDashboard: React.FC = () => {
       {leagues.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {leagues.map(({ league, role }) => (
-            <div key={league.id} className="bg-white shadow rounded-lg p-6">
+            <div key={league.id} className="card p-6 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold">{league.name}</h3>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <h3 className="text-lg font-semibold text-gray-900">{league.name}</h3>
+                  <div className="flex items-center gap-2 mt-2">
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
+                      className={`badge ${
                         role === 'commissioner'
                           ? 'bg-purple-100 text-purple-800'
                           : 'bg-blue-100 text-blue-800'
@@ -122,10 +122,10 @@ const MyLeaguesDashboard: React.FC = () => {
                       {role === 'commissioner' ? 'Commissioner' : 'Member'}
                     </span>
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
+                      className={`badge ${
                         league.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'badge-success'
+                          : 'badge-secondary'
                       }`}
                     >
                       {league.is_active ? 'Active' : 'Inactive'}
@@ -137,11 +137,11 @@ const MyLeaguesDashboard: React.FC = () => {
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <div className="flex justify-between">
                   <span>Teams:</span>
-                  <span className="font-medium">0/{league.max_teams}</span>
+                  <span className="font-medium text-gray-900">0/{league.max_teams}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Draft Date:</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-gray-900">
                     {league.draft_date
                       ? new Date(league.draft_date).toLocaleDateString()
                       : 'Not scheduled'
@@ -150,7 +150,7 @@ const MyLeaguesDashboard: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Created:</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-gray-900">
                     {league.created_at
                       ? new Date(league.created_at).toLocaleDateString()
                       : 'Unknown'
@@ -161,17 +161,17 @@ const MyLeaguesDashboard: React.FC = () => {
 
               {/* Invite Code for Commissioners */}
               {role === 'commissioner' && league.invite_code && (
-                <div className="mb-4 p-3 bg-gray-50 rounded">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
                     Invite Code
                   </label>
-                  <div className="flex items-center space-x-2">
-                    <code className="flex-1 text-sm font-mono bg-white px-2 py-1 rounded border">
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm font-mono bg-white px-3 py-2 rounded border text-gray-900">
                       {league.invite_code}
                     </code>
                     <button
                       onClick={() => handleCopyInviteCode(league.invite_code!)}
-                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                     >
                       Copy
                     </button>
@@ -180,10 +180,10 @@ const MyLeaguesDashboard: React.FC = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex space-x-2">
+              <div className="flex gap-2">
                 <button
                   onClick={() => navigate(`/league/${league.id}`)}
-                  className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="flex-1 btn-primary text-sm"
                 >
                   View
                 </button>
@@ -191,14 +191,14 @@ const MyLeaguesDashboard: React.FC = () => {
                 {role === 'commissioner' ? (
                   <button
                     onClick={() => navigate(`/league/${league.id}/manage`)}
-                    className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                    className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
                   >
                     Manage
                   </button>
                 ) : (
                   <button
                     onClick={() => handleLeaveLeague(league.id, league.name)}
-                    className="flex-1 px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                    className="flex-1 btn-destructive text-sm"
                   >
                     Leave
                   </button>
@@ -210,22 +210,25 @@ const MyLeaguesDashboard: React.FC = () => {
       ) : (
         <div className="text-center py-12">
           <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-2xl">🏀</span>
+            </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No leagues yet
             </h3>
             <p className="text-gray-600 mb-6">
               Get started by creating your own league or joining an existing one with an invite code.
             </p>
-            <div className="space-x-3">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="btn-primary"
               >
                 Create League
               </button>
               <button
                 onClick={() => navigate('/join')}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+                className="btn-secondary"
               >
                 Join League
               </button>

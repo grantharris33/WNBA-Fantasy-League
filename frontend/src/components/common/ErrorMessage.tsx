@@ -6,10 +6,18 @@ interface ErrorMessageProps {
 
 const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => {
   if (!message) return null;
+
   return (
-    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-      <strong className="font-bold">Error: </strong>
-      <span className="block sm:inline">{message}</span>
+    <div className="card p-4 border-red-200 bg-red-50">
+      <div className="flex items-center">
+        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+          <span className="text-red-600 text-lg">⚠️</span>
+        </div>
+        <div>
+          <h3 className="font-medium text-red-800">Error</h3>
+          <p className="text-sm text-red-700">{message}</p>
+        </div>
+      </div>
     </div>
   );
 };

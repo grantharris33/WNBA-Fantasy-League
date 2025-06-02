@@ -14,49 +14,97 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ scores }) => {
   const renderBonusDetails = (bonuses: BonusDetail[]) => {
     if (!bonuses || bonuses.length === 0) return <span className="text-gray-400">-</span>;
     return (
-      <ul className="list-disc list-inside text-xs">
+      <ul className="list-disc list-inside text-xs space-y-1">
         {bonuses.map((bonus, idx) => (
-          <li key={idx}>{bonus.reason}: {bonus.points > 0 ? '+': ''}{bonus.points} pts</li>
+          <li key={idx} className="text-gray-600">
+            <span className="font-medium">{bonus.category}:</span> {bonus.points > 0 ? '+': ''}{bonus.points} pts
+            <span className="text-gray-500"> ({bonus.player_name})</span>
+          </li>
         ))}
       </ul>
     );
   };
 
   if (rankedScores.length === 0) {
-    return <p className="text-gray-600">No standings data available currently.</p>;
+    return (
+      <div className="card p-8 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+          <span className="text-2xl">📊</span>
+        </div>
+        <p className="text-gray-600">No standings data available currently.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team Name</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Season Points</th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Weekly Δ</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weekly Bonuses</th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {rankedScores.map((scoreItem) => (
-            <tr key={scoreItem.team_id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{scoreItem.rank}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{scoreItem.team_name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{scoreItem.owner_name || 'N/A'}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 text-right font-semibold">{scoreItem.season_points}</td>
-              <td
-                className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium
-                            ${scoreItem.weekly_change > 0 ? 'text-green-600' : scoreItem.weekly_change < 0 ? 'text-red-600' : 'text-gray-500'}`}
-              >
-                {scoreItem.weekly_change > 0 ? '+' : ''}{scoreItem.weekly_change}
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-500">{renderBonusDetails(scoreItem.weekly_bonuses)}</td>
+    <div className="card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Rank
+              </th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-0">
+                Team Name
+              </th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Owner
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Season Points
+              </th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Weekly Points
+              </th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Weekly Bonuses
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {rankedScores.map((scoreItem, index) => (
+              <tr key={scoreItem.team_id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                      index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                      index === 1 ? 'bg-gray-100 text-gray-800' :
+                      index === 2 ? 'bg-orange-100 text-orange-800' :
+                      'bg-blue-50 text-blue-700'
+                    }`}>
+                      {scoreItem.rank}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-4 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{scoreItem.team_name}</div>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-600">{scoreItem.owner_name || 'N/A'}</div>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap text-right">
+                  <div className="text-sm font-semibold text-gray-900">{scoreItem.season_points}</div>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap text-right">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    scoreItem.weekly_delta > 0 ? 'bg-green-100 text-green-800' :
+                    scoreItem.weekly_delta < 0 ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {scoreItem.weekly_delta > 0 ? '+' : ''}{scoreItem.weekly_delta}
+                  </span>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="max-w-xs">
+                    {renderBonusDetails(scoreItem.bonuses)}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

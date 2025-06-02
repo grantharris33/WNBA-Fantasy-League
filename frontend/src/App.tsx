@@ -9,6 +9,7 @@ import DraftPage from './pages/DraftPage';
 import TeamPage from './pages/TeamPage';
 import JoinLeaguePage from './pages/JoinLeaguePage';
 import LeagueManagementPage from './pages/LeagueManagementPage';
+import ScoreboardPage from './pages/ScoreboardPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/scoreboard" element={<ScoreboardPage />} />
             <Route path="/join" element={<JoinLeaguePage />} />
             <Route path="/league/:leagueId/manage" element={<LeagueManagementPage />} />
             <Route path="/draft/:leagueId" element={<DraftPage />} />

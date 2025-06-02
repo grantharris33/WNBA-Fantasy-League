@@ -5,6 +5,7 @@ import api from '../lib/api';
 import type { LeagueOut, UserTeam, LeagueUpdate } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
+import Breadcrumb from '../components/common/Breadcrumb';
 
 const LeagueManagementPage: React.FC = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -17,6 +18,11 @@ const LeagueManagementPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<LeagueUpdate>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const breadcrumbItems = [
+    { label: 'Dashboard', href: '/' },
+    { label: league?.name || 'League Management', current: true },
+  ];
 
   useEffect(() => {
     if (leagueId) {
@@ -153,17 +159,13 @@ const LeagueManagementPage: React.FC = () => {
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <button
-          onClick={() => navigate('/')}
-          className="text-blue-600 hover:text-blue-800 mb-4"
-        >
-          ← Back to Dashboard
-        </button>
-        <h1 className="text-3xl font-bold text-gray-900">League Management</h1>
-      </div>
+      return (
+      <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={breadcrumbItems} />
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">League Management</h1>
+          <p className="text-gray-600">Manage your league settings, teams, and configurations</p>
+        </div>
 
       {/* League Info Section */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">

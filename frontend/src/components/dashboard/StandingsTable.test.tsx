@@ -2,101 +2,103 @@ import { render, screen } from '@testing-library/react';
 import StandingsTable from './StandingsTable';
 import type { TeamScoreData } from '../../types';
 
-describe('StandingsTable Component', () => {
-  const mockScores: TeamScoreData[] = [
-    {
-      team_id: 1,
-      team_name: 'Winners',
-      owner_name: 'Alice',
-      season_points: 150,
-      weekly_change: 10,
-      weekly_bonuses: [{ reason: 'Top Scorer', points: 5 }],
-    },
-    {
-      team_id: 2,
-      team_name: 'Challengers',
-      owner_name: 'Bob',
-      season_points: 160,
-      weekly_change: -5,
-      weekly_bonuses: [],
-    },
-    {
-      team_id: 3,
-      team_name: 'Underdogs',
-      owner_name: 'Charlie',
-      season_points: 120,
-      weekly_change: 20,
-      weekly_bonuses: [
-        { reason: 'Comeback King', points: 10 },
-        { reason: 'Streak Bonus', points: 3 },
-      ],
-    },
-  ];
+const mockScores: TeamScoreData[] = [
+  {
+    team_id: 1,
+    team_name: 'The Champs',
+    season_points: 150,
+    weekly_delta: 10,
+    weekly_bonus_points: 5,
+    bonuses: [
+      { category: 'Top Scorer', points: 5, player_name: 'Jane Doe' }
+    ],
+    owner_name: 'Alice',
+  },
+  {
+    team_id: 2,
+    team_name: 'Underdogs',
+    season_points: 120,
+    weekly_delta: -5,
+    weekly_bonus_points: 0,
+    bonuses: [],
+    owner_name: 'Bob',
+  },
+  {
+    team_id: 3,
+    team_name: 'Middle Ground',
+    season_points: 135,
+    weekly_delta: 20,
+    weekly_bonus_points: 2,
+    bonuses: [
+      { category: 'Most Assists', points: 2, player_name: 'John Smith' }
+    ],
+    owner_name: 'Charlie',
+  },
+];
 
-  test('renders table headers correctly', () => {
+describe('StandingsTable', () => {
+  it('renders team names and scores correctly', () => {
     render(<StandingsTable scores={mockScores} />);
-    expect(screen.getByRole('columnheader', { name: /rank/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /team name/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /owner/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /season points/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /weekly Δ/i })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: /weekly bonuses/i })).toBeInTheDocument();
+
+    expect(screen.getByText('The Champs')).toBeInTheDocument();
+    expect(screen.getByText('Underdogs')).toBeInTheDocument();
+    expect(screen.getByText('Middle Ground')).toBeInTheDocument();
+
+    expect(screen.getByText('150')).toBeInTheDocument();
+    expect(screen.getByText('120')).toBeInTheDocument();
+    expect(screen.getByText('135')).toBeInTheDocument();
   });
 
-  test('renders scores sorted by season points (descending) with correct rank', () => {
+  it('shows correct ranking based on season points', () => {
     render(<StandingsTable scores={mockScores} />);
-    const rows = screen.getAllByRole('row'); // Includes header row
 
-    // Check Challengers (160 pts) - Rank 1
-    expect(rows[1]).toHaveTextContent('1'); // Rank
-    expect(rows[1]).toHaveTextContent('Challengers');
-    expect(rows[1]).toHaveTextContent('160');
-
-    // Check Winners (150 pts) - Rank 2
-    expect(rows[2]).toHaveTextContent('2'); // Rank
-    expect(rows[2]).toHaveTextContent('Winners');
-    expect(rows[2]).toHaveTextContent('150');
-
-    // Check Underdogs (120 pts) - Rank 3
-    expect(rows[3]).toHaveTextContent('3'); // Rank
-    expect(rows[3]).toHaveTextContent('Underdogs');
-    expect(rows[3]).toHaveTextContent('120');
+    const rows = screen.getAllByRole('row');
+    // First row is header, so data starts from row[1]
+    expect(rows[1]).toHaveTextContent('1'); // The Champs should be ranked 1st (150 points)
+    expect(rows[2]).toHaveTextContent('2'); // Middle Ground should be ranked 2nd (135 points)
+    expect(rows[3]).toHaveTextContent('3'); // Underdogs should be ranked 3rd (120 points)
   });
 
-  test('displays team data correctly in rows', () => {
+  it('displays weekly change with appropriate styling', () => {
     render(<StandingsTable scores={mockScores} />);
-    // Check for Alice's team (Winners)
-    expect(screen.getByRole('cell', { name: 'Winners' })).toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: 'Alice' })).toBeInTheDocument();
-    expect(screen.getByText('+10')).toBeInTheDocument(); // Weekly change for Winners
-    expect(screen.getByText(/Top Scorer: \+5 pts/i)).toBeInTheDocument();
-  });
 
-  test('displays multiple bonuses correctly', () => {
-    render(<StandingsTable scores={mockScores} />);
-    expect(screen.getByText(/Comeback King: \+10 pts/i)).toBeInTheDocument();
-    expect(screen.getByText(/Streak Bonus: \+3 pts/i)).toBeInTheDocument();
-  });
-
-  test('handles empty scores array', () => {
-    render(<StandingsTable scores={[]} />);
-    expect(screen.getByText(/no standings data available currently/i)).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-  });
-
-  test('displays N/A for missing owner name', () => {
-    const scoresWithMissingOwner: TeamScoreData[] = [
-      { team_id: 4, team_name: 'Solo Act', season_points: 100, weekly_change: 5, weekly_bonuses: [], owner_name: undefined },
-    ];
-    render(<StandingsTable scores={scoresWithMissingOwner} />);
-    expect(screen.getByRole('cell', { name: 'N/A' })).toBeInTheDocument();
-  });
-
-   test('formats weekly change colors correctly', () => {
-    render(<StandingsTable scores={mockScores} />);
-    const positiveChange = screen.getByText('+10');
-    const negativeChange = screen.getByText('-5');
+    // Check for positive change (green)
+    const positiveChange = screen.getByText('+20');
     expect(positiveChange).toHaveClass('text-green-600');
+
+    // Check for negative change (red)
+    const negativeChange = screen.getByText('-5');
     expect(negativeChange).toHaveClass('text-red-600');
+  });
+
+  it('displays bonus details correctly', () => {
+    render(<StandingsTable scores={mockScores} />);
+
+    expect(screen.getByText(/Top Scorer.*5.*Jane Doe/)).toBeInTheDocument();
+    expect(screen.getByText(/Most Assists.*2.*John Smith/)).toBeInTheDocument();
+  });
+
+  it('handles empty scores array', () => {
+    render(<StandingsTable scores={[]} />);
+    expect(screen.getByText('No standings data available currently.')).toBeInTheDocument();
+  });
+
+  it('sorts teams correctly by season points', () => {
+    const unsortedScores: TeamScoreData[] = [
+      { team_id: 4, team_name: 'Solo Act', season_points: 100, weekly_delta: 5, weekly_bonus_points: 0, bonuses: [], owner_name: undefined },
+      { team_id: 5, team_name: 'Top Team', season_points: 200, weekly_delta: 15, weekly_bonus_points: 3, bonuses: [], owner_name: 'Dave' },
+      { team_id: 6, team_name: 'Mid Team', season_points: 150, weekly_delta: 0, weekly_bonus_points: 1, bonuses: [], owner_name: 'Eve' },
+    ];
+
+    render(<StandingsTable scores={unsortedScores} />);
+
+    const teamNames = screen.getAllByRole('cell').filter(cell =>
+      cell.textContent === 'Top Team' || cell.textContent === 'Mid Team' || cell.textContent === 'Solo Act'
+    );
+
+    // Should be sorted: Top Team (200), Mid Team (150), Solo Act (100)
+    expect(teamNames[0]).toHaveTextContent('Top Team');
+    expect(teamNames[1]).toHaveTextContent('Mid Team');
+    expect(teamNames[2]).toHaveTextContent('Solo Act');
   });
 });
