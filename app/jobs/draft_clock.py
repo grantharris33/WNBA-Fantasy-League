@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import DraftState
+from app.models import DraftState, League
 from app.services.draft import DraftService
 
 logger = logging.getLogger(__name__)
@@ -115,5 +115,51 @@ def restore_draft_clocks():
 
     except Exception as e:
         logger.error(f"Error restoring draft clocks: {str(e)}")
+    finally:
+        db.close()
+
+
+def start_scheduled_drafts():
+    """
+    Check for leagues with draft_date that has passed and start their drafts.
+    This job runs every minute.
+    """
+    logger.info("Checking for scheduled drafts to start")
+
+    # Get DB session
+    db = next(get_db())
+
+    try:
+        # Get leagues with draft_date that has passed and no draft started
+        now = datetime.utcnow()
+        leagues_to_start = (
+            db.query(League)
+            .filter(
+                League.draft_date <= now,
+                League.draft_date.isnot(None),
+                League.draft_state.is_(None)  # No draft state exists
+            )
+            .all()
+        )
+
+        draft_service = DraftService(db)
+
+        for league in leagues_to_start:
+            try:
+                # Check if league has enough teams
+                if len(league.teams) >= 2:
+                    logger.info(f"Starting scheduled draft for league {league.id} ({league.name})")
+                    draft_state = draft_service.start_draft(league.id, league.commissioner_id)
+                    logger.info(f"Successfully started draft {draft_state.id} for league {league.id}")
+                else:
+                    logger.warning(f"Cannot start draft for league {league.id} - not enough teams ({len(league.teams)})")
+            except Exception as e:
+                logger.error(f"Error starting scheduled draft for league {league.id}: {str(e)}")
+
+        db.commit()
+
+    except Exception as e:
+        logger.error(f"Error in scheduled draft check: {str(e)}")
+        db.rollback()
     finally:
         db.close()

@@ -48,6 +48,7 @@ class League(Base):
     commissioner = relationship("User", back_populates="leagues_owned")
 
     teams = relationship("Team", back_populates="league", cascade="all, delete-orphan")
+    draft_state = relationship("DraftState", back_populates="league", uselist=False)
 
 
 # ---------------------------------------------------------------------------
@@ -211,7 +212,7 @@ class DraftState(Base):
     # Store the pick order as comma-separated team IDs, e.g. "1,2,3,4,4,3,2,1"
     pick_order: str = Column(String, nullable=False)
 
-    league = relationship("League", backref="draft_state")
+    league = relationship("League", back_populates="draft_state")
     picks = relationship("DraftPick", back_populates="draft", cascade="all, delete-orphan")
 
     def get_pick_order(self) -> list[int]:

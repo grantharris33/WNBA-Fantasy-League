@@ -10,7 +10,7 @@ from app.core.database import init_db
 from app.core.middleware import ChangeLogMiddleware
 from app.core.scheduler import list_jobs, scheduler, shutdown_scheduler, start_scheduler
 from app.jobs.bonus_calc import calc_weekly_bonuses
-from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks
+from app.jobs.draft_clock import check_draft_clocks, pause_stale_drafts, restore_draft_clocks, start_scheduled_drafts
 from app.jobs.ingest import ingest_stat_lines
 from app.jobs.reset_weekly_moves import reset_weekly_moves
 
@@ -151,6 +151,10 @@ async def _startup() -> None:
     if not scheduler.get_job("pause_stale_drafts"):
         scheduler.add_job(pause_stale_drafts, "interval", hours=1, id="pause_stale_drafts", replace_existing=True)
 
+    # Check for scheduled drafts to start every minute
+    if not scheduler.get_job("start_scheduled_drafts"):
+        scheduler.add_job(start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True)
+
 
 @app.on_event("shutdown")
 async def _shutdown() -> None:
@@ -238,6 +242,10 @@ def _schedule_nightly() -> None:
 
     if not scheduler.get_job("pause_stale_drafts"):
         scheduler.add_job(pause_stale_drafts, "interval", hours=1, id="pause_stale_drafts", replace_existing=True)
+
+    # Also add scheduled draft checker to _schedule_nightly for tests
+    if not scheduler.get_job("start_scheduled_drafts"):
+        scheduler.add_job(start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True)
 
 
 # Schedule immediately so that tests without lifespan still see job

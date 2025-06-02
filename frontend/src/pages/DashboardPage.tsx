@@ -12,6 +12,7 @@ const DashboardPage: React.FC = () => {
   const [currentScoresData, setCurrentScoresData] = useState<CurrentScores>([]);
   const [scoresLoading, setScoresLoading] = useState<boolean>(true);
   const [scoresError, setScoresError] = useState<string | null>(null);
+  const [activeDrafts, setActiveDrafts] = useState<Array<{ leagueId: number; status: string }>>([]);
 
   const fetchCurrentScores = useCallback(async () => {
     setScoresLoading(true);
@@ -25,9 +26,32 @@ const DashboardPage: React.FC = () => {
     setScoresLoading(false);
   }, []);
 
+  const fetchActiveDrafts = useCallback(async () => {
+    try {
+      const userLeagues = await api.leagues.getMine();
+      const drafts: Array<{ leagueId: number; status: string }> = [];
+
+      for (const { league } of userLeagues) {
+        try {
+          const draftState = await api.leagues.getDraftState(league.id);
+          if (draftState && ['active', 'paused'].includes(draftState.status)) {
+            drafts.push({ leagueId: league.id, status: draftState.status });
+          }
+        } catch {
+          // No draft for this league
+        }
+      }
+
+      setActiveDrafts(drafts);
+    } catch (error) {
+      console.error('Failed to fetch draft states:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCurrentScores();
-  }, [fetchCurrentScores]);
+    fetchActiveDrafts();
+  }, [fetchCurrentScores, fetchActiveDrafts]);
 
   return (
     <div className="space-y-8">
@@ -158,12 +182,26 @@ const DashboardPage: React.FC = () => {
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">Draft Center</h3>
-              <p className="text-sm text-gray-600">Participate in drafts</p>
+              <p className="text-sm text-gray-600">
+                {activeDrafts.length > 0
+                  ? `${activeDrafts.length} active draft${activeDrafts.length > 1 ? 's' : ''}`
+                  : 'Participate in drafts'
+                }
+              </p>
             </div>
           </div>
-          <button className="btn-secondary w-full" disabled>
-            Coming Soon
-          </button>
+          {activeDrafts.length > 0 ? (
+            <button
+              className="btn-primary w-full"
+              onClick={() => navigate(`/draft/${activeDrafts[0].leagueId}`)}
+            >
+              Go to Draft Room
+            </button>
+          ) : (
+            <button className="btn-secondary w-full" disabled>
+              No Active Drafts
+            </button>
+          )}
         </div>
       </section>
     </div>

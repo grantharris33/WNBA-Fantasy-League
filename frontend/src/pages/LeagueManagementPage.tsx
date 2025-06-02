@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../lib/api';
 import type { LeagueOut, UserTeam, LeagueUpdate } from '../types';
+import type { DraftState } from '../types/draft';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
 import Breadcrumb from '../components/common/Breadcrumb';
@@ -18,6 +19,10 @@ const LeagueManagementPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<LeagueUpdate>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [draftState, setDraftState] = useState<DraftState | null>(null);
+  const [isStartingDraft, setIsStartingDraft] = useState(false);
+  const [isPausingDraft, setIsPausingDraft] = useState(false);
+  const [isResumingDraft, setIsResumingDraft] = useState(false);
 
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/' },
@@ -39,18 +44,25 @@ const LeagueManagementPage: React.FC = () => {
     try {
       const [leagueData, teamsData] = await Promise.all([
         api.leagues.getById(parseInt(leagueId, 10)),
-        api.users.getMyTeams(),
+        api.leagues.getTeams(parseInt(leagueId, 10)),
       ]);
 
       setLeague(leagueData);
-      // Filter teams for this league
-      setTeams(teamsData.filter(team => team.league_id === parseInt(leagueId, 10)));
+      setTeams(teamsData);
       setEditForm({
         name: leagueData.name,
         max_teams: leagueData.max_teams,
         draft_date: leagueData.draft_date || undefined,
         settings: leagueData.settings,
       });
+
+      // Try to fetch draft state if exists
+      try {
+        const draftData = await api.leagues.getDraftState(parseInt(leagueId, 10));
+        setDraftState(draftData);
+      } catch {
+        // Draft doesn't exist yet, that's fine
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load league data');
     } finally {
@@ -120,6 +132,57 @@ const LeagueManagementPage: React.FC = () => {
       navigate('/');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete league');
+    }
+  };
+
+  const handleStartDraft = async () => {
+    if (!league) return;
+
+    setIsStartingDraft(true);
+    try {
+      await api.leagues.startDraft(league.id);
+      // Fetch the updated draft state
+      const draftData = await api.leagues.getDraftState(league.id);
+      setDraftState(draftData);
+      toast.success('Draft started successfully!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start draft');
+    } finally {
+      setIsStartingDraft(false);
+    }
+  };
+
+  const handlePauseDraft = async () => {
+    if (!league || !draftState) return;
+
+    setIsPausingDraft(true);
+    try {
+      await api.leagues.pauseDraft(draftState.id);
+      // Fetch the updated draft state
+      const draftData = await api.leagues.getDraftState(league.id);
+      setDraftState(draftData);
+      toast.success('Draft paused successfully!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to pause draft');
+    } finally {
+      setIsPausingDraft(false);
+    }
+  };
+
+  const handleResumeDraft = async () => {
+    if (!league || !draftState) return;
+
+    setIsResumingDraft(true);
+    try {
+      await api.leagues.resumeDraft(draftState.id);
+      // Fetch the updated draft state
+      const draftData = await api.leagues.getDraftState(league.id);
+      setDraftState(draftData);
+      toast.success('Draft resumed successfully!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to resume draft');
+    } finally {
+      setIsResumingDraft(false);
     }
   };
 
@@ -306,6 +369,84 @@ const LeagueManagementPage: React.FC = () => {
         ) : (
           <p className="text-gray-600">No teams have joined yet.</p>
         )}
+      </div>
+
+      {/* Draft Controls Section */}
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Draft Management</h2>
+        <div className="space-y-4">
+          {!draftState ? (
+            <div>
+              <p className="text-gray-600 mb-4">
+                The draft has not been started yet. Make sure you have at least 2 teams before starting.
+              </p>
+              <button
+                onClick={handleStartDraft}
+                disabled={teams.length < 2 || isStartingDraft}
+                className={`px-4 py-2 rounded font-medium ${
+                  teams.length < 2
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+              >
+                {isStartingDraft ? 'Starting...' : 'Start Draft'}
+              </button>
+              {teams.length < 2 && (
+                <p className="text-sm text-red-600 mt-2">Need at least 2 teams to start the draft</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Status</p>
+                  <p className="font-medium capitalize">{draftState.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Current Round</p>
+                  <p className="font-medium">{draftState.current_round}/10</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Picks</p>
+                  <p className="font-medium">{draftState.picks.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Time Remaining</p>
+                  <p className="font-medium">{draftState.seconds_remaining}s</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => navigate(`/draft/${league.id}`)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Go to Draft Room
+                </button>
+
+                {draftState.status === 'active' && (
+                  <button
+                    onClick={handlePauseDraft}
+                    disabled={isPausingDraft}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                  >
+                    {isPausingDraft ? 'Pausing...' : 'Pause Draft'}
+                  </button>
+                )}
+
+                {draftState.status === 'paused' && (
+                  <button
+                    onClick={handleResumeDraft}
+                    disabled={isResumingDraft}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    {isResumingDraft ? 'Resuming...' : 'Resume Draft'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Danger Zone */}

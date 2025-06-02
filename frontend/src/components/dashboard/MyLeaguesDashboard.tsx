@@ -3,13 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../lib/api';
 import type { LeagueWithRole, LeagueOut } from '../../types';
+import type { DraftState } from '../../types/draft';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import CreateLeagueModal from '../common/CreateLeagueModal';
 
+interface LeagueWithDraft extends LeagueWithRole {
+  draftState?: DraftState | null;
+  teamCount?: number;
+}
+
 const MyLeaguesDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [leagues, setLeagues] = useState<LeagueWithRole[]>([]);
+  const [leagues, setLeagues] = useState<LeagueWithDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -23,7 +29,33 @@ const MyLeaguesDashboard: React.FC = () => {
     setError(null);
     try {
       const userLeagues = await api.leagues.getMine();
-      setLeagues(userLeagues);
+
+      // Fetch draft state and team count for each league
+      const leaguesWithDraft = await Promise.all(
+        userLeagues.map(async (leagueWithRole) => {
+          try {
+            const [draftState, teams] = await Promise.all([
+              api.leagues.getDraftState(leagueWithRole.league.id).catch(() => null),
+              api.leagues.getTeams(leagueWithRole.league.id).catch(() => [])
+            ]);
+            return {
+              ...leagueWithRole,
+              draftState,
+              teamCount: teams.length
+            };
+          } catch {
+            // No draft exists for this league, but still get team count
+            try {
+              const teams = await api.leagues.getTeams(leagueWithRole.league.id);
+              return { ...leagueWithRole, draftState: null, teamCount: teams.length };
+            } catch {
+              return { ...leagueWithRole, draftState: null, teamCount: 0 };
+            }
+          }
+        })
+      );
+
+      setLeagues(leaguesWithDraft);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch leagues');
     } finally {
@@ -33,7 +65,7 @@ const MyLeaguesDashboard: React.FC = () => {
 
   const handleLeagueCreated = (league: LeagueOut) => {
     // Add the new league to the list
-    const newLeagueWithRole: LeagueWithRole = {
+    const newLeagueWithRole: LeagueWithDraft = {
       league,
       role: 'commissioner',
     };
@@ -106,7 +138,7 @@ const MyLeaguesDashboard: React.FC = () => {
 
       {leagues.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {leagues.map(({ league, role }) => (
+          {leagues.map(({ league, role, draftState, teamCount }) => (
             <div key={league.id} className="card p-6 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -130,6 +162,21 @@ const MyLeaguesDashboard: React.FC = () => {
                     >
                       {league.is_active ? 'Active' : 'Inactive'}
                     </span>
+                    {draftState && (
+                      <span
+                        className={`badge ${
+                          draftState.status === 'active'
+                            ? 'bg-green-100 text-green-800'
+                            : draftState.status === 'paused'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : draftState.status === 'completed'
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        Draft: {draftState.status}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -137,7 +184,7 @@ const MyLeaguesDashboard: React.FC = () => {
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <div className="flex justify-between">
                   <span>Teams:</span>
-                  <span className="font-medium text-gray-900">0/{league.max_teams}</span>
+                  <span className="font-medium text-gray-900">{teamCount ?? 0}/{league.max_teams}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Draft Date:</span>
@@ -148,6 +195,14 @@ const MyLeaguesDashboard: React.FC = () => {
                     }
                   </span>
                 </div>
+                {draftState && (
+                  <div className="flex justify-between">
+                    <span>Draft Round:</span>
+                    <span className="font-medium text-gray-900">
+                      {draftState.status === 'completed' ? 'Complete' : `${draftState.current_round}/10`}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Created:</span>
                   <span className="font-medium text-gray-900">
@@ -187,6 +242,15 @@ const MyLeaguesDashboard: React.FC = () => {
                 >
                   View
                 </button>
+
+                {draftState && ['active', 'paused'].includes(draftState.status) && (
+                  <button
+                    onClick={() => navigate(`/draft/${league.id}`)}
+                    className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    Draft Room
+                  </button>
+                )}
 
                 {role === 'commissioner' ? (
                   <button
