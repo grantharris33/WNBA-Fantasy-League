@@ -97,8 +97,66 @@ async def run_ingest(date: _Optional[str] = None):  # noqa: D401
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format – use YYYY-MM-DD")
 
-    await _ingest_stat_lines(target_date)
-    return {"status": "ingest_completed", "date": (target_date or "auto")}  # type: ignore[arg-type]
+    try:
+        await _ingest_stat_lines(target_date)
+        return {"status": "ingest_completed", "date": (target_date or "auto")}  # type: ignore[arg-type]
+    except Exception as e:
+        # Log the error
+        session = SessionLocal()
+        try:
+            ingest_log = IngestLog(provider="admin_api", message=f"ERROR: Manual ingest failed: {str(e)}")
+            session.add(ingest_log)
+            session.commit()
+        except Exception:
+            session.rollback()
+        finally:
+            session.close()
+
+        raise HTTPException(status_code=500, detail=f"Ingest failed: {str(e)}")
+
+
+@router.get("/admin/ingest/test")
+async def test_ingest_connectivity():
+    """Test ingest system connectivity and configuration."""
+    from app.external_apis.rapidapi_client import wnba_client
+    import os
+
+    diagnostics = {
+        "api_key_configured": bool(os.getenv("WNBA_API_KEY") or os.getenv("RAPIDAPI_KEY")),
+        "api_key_partial": None,
+        "connectivity_test": None,
+        "sample_date_test": None
+    }
+
+    # Show partial API key for verification
+    api_key = os.getenv("WNBA_API_KEY") or os.getenv("RAPIDAPI_KEY")
+    if api_key:
+        diagnostics["api_key_partial"] = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "***"
+
+    try:
+        # Test basic connectivity with a recent date that should have games
+        test_games = await wnba_client.fetch_schedule("2024", "05", "15")
+        diagnostics["connectivity_test"] = "SUCCESS"
+        diagnostics["sample_games_found"] = len(test_games) if test_games else 0
+    except Exception as e:
+        diagnostics["connectivity_test"] = f"FAILED: {str(e)}"
+
+    try:
+        # Test today's date (might have no games, but should not error)
+        from datetime import datetime
+        today = datetime.now()
+        today_games = await wnba_client.fetch_schedule(
+            today.strftime("%Y"),
+            today.strftime("%m"),
+            today.strftime("%d")
+        )
+        diagnostics["sample_date_test"] = "SUCCESS"
+        diagnostics["today_games_found"] = len(today_games) if today_games else 0
+    except Exception as e:
+        diagnostics["sample_date_test"] = f"FAILED: {str(e)}"
+
+    await wnba_client.close()
+    return diagnostics
 
 
 @router.post("/admin/scores/recompute")
@@ -142,27 +200,29 @@ async def backfill_season(year: int, start_date: _Optional[str] = None, end_date
             raise HTTPException(status_code=400, detail="Invalid end_date format – use YYYY-MM-DD")
 
     async with BackfillService() as service:
-        run = await service.backfill_season(
+        run_dict = await service.backfill_season(
             year=year,
             start_date=start_date_obj,
             end_date=end_date_obj,
             dry_run=dry_run
         )
-        return run.as_dict()
+        return run_dict
 
 
 @router.get("/admin/ingestion/health")
 async def ingestion_health(days_back: int = 7):
     """Get ingestion system health metrics."""
     async with BackfillService() as service:
-        return service.get_ingestion_health(days_back)
+        health_data = service.get_ingestion_health(days_back)
+        return health_data
 
 
 @router.post("/admin/ingestion/reprocess/{game_id}")
 async def reprocess_game(game_id: str, force: bool = False):
     """Reprocess a specific game."""
     async with BackfillService() as service:
-        return await service.reprocess_game(game_id, force)
+        result = await service.reprocess_game(game_id, force)
+        return result
 
 
 @router.get("/admin/ingestion/runs")
@@ -218,9 +278,10 @@ async def find_missing_games(start_date: str, end_date: str):
 
     async with BackfillService() as service:
         missing_games = await service.find_missing_games(start_date_obj, end_date_obj)
-        return {
+        result = {
             "start_date": start_date,
             "end_date": end_date,
             "missing_games": missing_games,
             "count": len(missing_games)
         }
+        return result

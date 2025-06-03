@@ -243,14 +243,20 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
     date_iso = target_date.strftime("%Y-%m-%d")
     game_datetime = dt.datetime.combine(target_date, dt.time())
 
+    _log_info(provider="rapidapi", msg=f"Starting ingest for {date_iso}")
+
     try:
         games = await fetch_schedule(date_iso)
+        _log_info(provider="rapidapi", msg=f"Fetched schedule for {date_iso}: {len(games) if games else 0} games found")
     except (RetryError, RapidApiError) as exc:
         _log_error(provider="rapidapi", msg=f"Failed to fetch schedule {date_iso}: {exc}")
         return
+    except Exception as exc:
+        _log_error(provider="rapidapi", msg=f"Unexpected error fetching schedule {date_iso}: {exc}")
+        return
 
     if not games:
-        _log_error(provider="rapidapi", msg=f"No games found for {date_iso}")
+        _log_info(provider="rapidapi", msg=f"No games found for {date_iso} - this is normal for off-season dates")
         return
 
     processed_games = 0

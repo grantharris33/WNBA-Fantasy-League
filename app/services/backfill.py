@@ -50,7 +50,7 @@ class BackfillService:
         start_date: date = None,
         end_date: date = None,
         dry_run: bool = False
-    ) -> IngestionRun:
+    ) -> Dict[str, Any]:
         """
         Backfill all games for a season or date range.
 
@@ -61,7 +61,7 @@ class BackfillService:
             dry_run: If True, only identify games without ingesting
 
         Returns:
-            IngestionRun record tracking the operation
+            Dictionary representation of the IngestionRun record
         """
         start_date = start_date or date(year, 1, 1)
         end_date = end_date or date(year, 12, 31)
@@ -77,6 +77,11 @@ class BackfillService:
         )
         self.db.add(run)
         self.db.commit()
+
+        # Capture initial attributes before any processing that might affect session
+        run_id = run.id
+        run_start_time = run.start_time
+        run_target_date = run.target_date
 
         try:
             current_date = start_date
@@ -120,6 +125,7 @@ class BackfillService:
                     error_msg = f"Error processing {current_date}: {str(e)}"
                     errors.append(error_msg)
                     self._log_error("backfill", error_msg)
+                    # Continue processing other dates even if one fails
 
                 current_date += dt.timedelta(days=1)
 
@@ -134,16 +140,49 @@ class BackfillService:
             run.errors = json.dumps(errors)
             run.status = "completed" if not errors else "partial"
 
+            # Capture final values
+            run_end_time = run.end_time
+            run_status = run.status
+            run_games_found = run.games_found
+            run_games_processed = run.games_processed
+            run_players_updated = run.players_updated
+            run_errors = run.errors
+
         except Exception as e:
             run.end_time = datetime.utcnow()
             run.status = "failed"
             run.errors = json.dumps([str(e)])
             self._log_error("backfill", f"Season backfill failed: {str(e)}")
 
-        finally:
-            self.db.commit()
+            # Capture final values for error case
+            run_end_time = run.end_time
+            run_status = run.status
+            run_games_found = run.games_found
+            run_games_processed = run.games_processed
+            run_players_updated = run.players_updated
+            run_errors = run.errors
 
-        return run
+        # Commit changes to ensure they're saved
+        self.db.commit()
+
+        # Build result dict using the captured values
+        result = {
+            "id": run_id,
+            "start_time": run_start_time.isoformat(),
+            "end_time": run_end_time.isoformat() if run_end_time else None,
+            "target_date": run_target_date.isoformat(),
+            "status": run_status,
+            "games_found": run_games_found,
+            "games_processed": run_games_processed,
+            "players_updated": run_players_updated,
+            "errors": run_errors,
+        }
+
+                # Close the WNBA client to avoid connection issues
+        from app.external_apis.rapidapi_client import wnba_client
+        await wnba_client.close()
+
+        return result
 
     async def backfill_player_season_stats(self, player_id: int, year: int) -> Dict[str, Any]:
         """
