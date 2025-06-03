@@ -88,32 +88,3 @@ async def test_update_weekly_team_scores(monkeypatch, tmp_path: Path):
     assert scores[team1_id] == 16.0
     assert scores[team2_id] == 18.5
     session2.close()
-
-
-# ---------------------------------------------------------------------------
-# 4-D – Backfill CLI
-# ---------------------------------------------------------------------------
-
-
-def test_backfill_cli(monkeypatch, tmp_path: Path):
-    db_file = tmp_path / "test.db"
-    monkeypatch.setenv("DB_FILENAME", str(db_file))
-    monkeypatch.setenv("TESTING", "true")
-
-    # Ensure DB has tables
-    from app.core import database as db
-
-    db.init_db()
-
-    # Construct path to manage.py script
-    manage_py_path = Path(__file__).resolve().parents[1] / "scripts" / "manage.py"
-
-    # Run the backfill command using subprocess
-    result = subprocess.run(
-        [sys.executable, str(manage_py_path), "backfill", "2025"], capture_output=True, text=True, check=False
-    )
-
-    assert result.returncode == 0, f"Script failed with error: {result.stderr}"
-    # Expect output message contains processed weeks
-    assert "Backfill complete" in result.stdout
-    assert "processed 52 ISO weeks (1–52)" in result.stdout

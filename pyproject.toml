@@ -28,6 +28,7 @@ freezegun = "^1.5.1"
 jsonpatch = "^1.33"
 python-dateutil = "^2.9.0.post0"
 click = "^8.2.1"
+numpy = "^2.2.6"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^23.9.1", allow-prereleases = false}

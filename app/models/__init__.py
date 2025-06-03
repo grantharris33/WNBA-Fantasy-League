@@ -538,3 +538,10 @@ class WeeklyBonus(Base):
 
     player = relationship("Player", backref="weekly_bonuses")
     team = relationship("Team", backref="weekly_bonuses")
+
+
+# ---------------------------------------------------------------------------
+# Analytics Models
+# ---------------------------------------------------------------------------
+
+from app.models.analytics import PlayerSeasonStats, PlayerTrends, MatchupAnalysis

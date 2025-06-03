@@ -169,6 +169,21 @@ async def _startup() -> None:
     if not scheduler.get_job("start_scheduled_drafts"):
         scheduler.add_job(start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True)
 
+    # Schedule daily analytics calculation at 04:00 UTC (after ingest and scoring)
+    if not scheduler.get_job("daily_analytics"):
+        analytics_hour = int(os.getenv("ANALYTICS_HOUR_UTC", "4"))
+
+        from app.jobs.analytics_job import run_analytics_calculation
+
+        scheduler.add_job(
+            run_analytics_calculation,
+            "cron",
+            hour=analytics_hour,
+            id="daily_analytics",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
 
 @app.on_event("shutdown")
 async def _shutdown() -> None:
@@ -273,6 +288,21 @@ def _schedule_nightly() -> None:
     # Also add scheduled draft checker to _schedule_nightly for tests
     if not scheduler.get_job("start_scheduled_drafts"):
         scheduler.add_job(start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True)
+
+    # Schedule daily analytics calculation at 04:00 UTC (after ingest and scoring)
+    if not scheduler.get_job("daily_analytics"):
+        analytics_hour = int(os.getenv("ANALYTICS_HOUR_UTC", "4"))
+
+        from app.jobs.analytics_job import run_analytics_calculation
+
+        scheduler.add_job(
+            run_analytics_calculation,
+            "cron",
+            hour=analytics_hour,
+            id="daily_analytics",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
 
 
 # Schedule immediately so that tests without lifespan still see job
