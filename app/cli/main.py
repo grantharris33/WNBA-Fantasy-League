@@ -31,6 +31,7 @@ from app.models import (
 from app.services.backfill import BackfillService
 from app.services.scoring import update_weekly_team_scores
 from app.jobs.ingest import ingest_stat_lines
+from app.cli.admin import admin
 
 
 @click.group()
@@ -340,6 +341,126 @@ def list():
 
 
 # =============================================================================
+# LINEUP MANAGEMENT COMMANDS
+# =============================================================================
+
+@cli.group()
+def lineup():
+    """Weekly lineup management commands."""
+    pass
+
+
+@lineup.command()
+@click.option('--week-id', type=int, help='Specific week ID to lock (format: YYYYWW, e.g., 202502)')
+@click.option('--current', is_flag=True, help='Lock current week')
+@click.option('--dry-run', is_flag=True, help='Show what would be locked without actually doing it')
+def lock(week_id: Optional[int], current: bool, dry_run: bool):
+    """Lock lineups for a specific week."""
+    if not week_id and not current:
+        click.echo("❌ Error: Must specify either --week-id or --current")
+        return
+
+    if week_id and current:
+        click.echo("❌ Error: Cannot specify both --week-id and --current")
+        return
+
+    init_db()
+
+    from app.services.lineup import LineupService
+
+    db = SessionLocal()
+    try:
+        lineup_service = LineupService(db)
+
+        if current:
+            week_id = lineup_service.get_current_week_id()
+            click.echo(f"🗓️  Using current week: {week_id}")
+
+        if dry_run:
+            click.echo("🔍 DRY RUN MODE - No lineups will be locked")
+
+            # Get all teams
+            teams = db.query(Team).all()
+            click.echo(f"📊 Would process {len(teams)} teams for week {week_id}")
+
+            for team in teams:
+                # Check if already locked
+                from app.models import WeeklyLineup
+                existing = db.query(WeeklyLineup).filter(
+                    WeeklyLineup.team_id == team.id,
+                    WeeklyLineup.week_id == week_id
+                ).first()
+
+                status = "already locked" if existing else "would lock"
+                click.echo(f"  - {team.name}: {status}")
+        else:
+            click.echo(f"🔒 Locking lineups for week {week_id}...")
+            teams_processed = lineup_service.lock_weekly_lineups(week_id)
+            click.echo(f"✅ Successfully locked lineups for {teams_processed} teams")
+
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+    finally:
+        db.close()
+
+
+@lineup.command()
+@click.option('--week-id', type=int, help='Week ID to check (format: YYYYWW)')
+@click.option('--team-id', type=int, help='Specific team ID to check')
+def status(week_id: Optional[int], team_id: Optional[int]):
+    """Check lineup lock status for teams."""
+    init_db()
+
+    from app.services.lineup import LineupService
+
+    db = SessionLocal()
+    try:
+        lineup_service = LineupService(db)
+
+        if not week_id:
+            week_id = lineup_service.get_current_week_id()
+            click.echo(f"🗓️  Using current week: {week_id}")
+
+        # Query teams
+        teams_query = db.query(Team)
+        if team_id:
+            teams_query = teams_query.filter(Team.id == team_id)
+        teams = teams_query.all()
+
+        if not teams:
+            click.echo("❌ No teams found")
+            return
+
+        click.echo(f"📊 Lineup status for week {week_id}:")
+        click.echo("=" * 50)
+
+        locked_count = 0
+        unlocked_count = 0
+
+        for team in teams:
+            from app.models import WeeklyLineup
+            lineup = db.query(WeeklyLineup).filter(
+                WeeklyLineup.team_id == team.id,
+                WeeklyLineup.week_id == week_id
+            ).first()
+
+            if lineup:
+                click.echo(f"🔒 {team.name}: LOCKED (at {lineup.locked_at})")
+                locked_count += 1
+            else:
+                click.echo(f"🔓 {team.name}: UNLOCKED")
+                unlocked_count += 1
+
+        click.echo("=" * 50)
+        click.echo(f"📈 Summary: {locked_count} locked, {unlocked_count} unlocked")
+
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+    finally:
+        db.close()
+
+
+# =============================================================================
 # DATABASE COMMANDS
 # =============================================================================
 
@@ -503,6 +624,10 @@ def stats():
 
     finally:
         db.close()
+
+
+# Add admin commands to the main CLI
+cli.add_command(admin)
 
 
 if __name__ == '__main__':

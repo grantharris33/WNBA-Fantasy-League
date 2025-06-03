@@ -4,7 +4,7 @@ import pathlib
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
-DB_FILENAME = os.getenv("DB_FILENAME", "dev.db")
+DB_FILENAME = os.getenv("DB_FILENAME", "prod.db")
 DB_PATH = pathlib.Path(DB_FILENAME)
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 

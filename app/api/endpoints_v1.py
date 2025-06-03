@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Any, List
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy import func
@@ -40,12 +41,18 @@ from app.api.schemas import (
     TeamCreate,
     TeamUpdate,
     UserOut,
+    WeeklyLineupOut,
+    WeeklyLineupPlayerOut,
+    LineupHistoryOut,
+    SetWeeklyStartersRequest,
+    LineupLockResponse,
 )
 from app.core.database import get_db
 from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState, StatLine, RosterSlot
 from app.services.roster import RosterService
 from app.services.team import TeamService, map_team_to_out
 from app.services.draft import DraftService
+from app.services.lineup import LineupService
 
 # CORS support
 router = APIRouter(prefix="/api/v1")
@@ -671,6 +678,145 @@ def get_player(
         raise HTTPException(status_code=404, detail="Player not found")
 
     return PlayerOut.from_orm(player)
+
+
+# ---------------------------------------------------------------------------
+# Weekly Lineup Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/teams/{team_id}/lineups/{week_id}", response_model=WeeklyLineupOut)
+def get_weekly_lineup(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    week_id: int = Path(..., description="Week ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> WeeklyLineupOut:
+    """Get lineup for a specific team and week."""
+    # Verify team ownership
+    team = db.query(Team).filter(Team.id == team_id, Team.owner_id == current_user.id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found or access denied")
+
+    lineup_service = LineupService(db)
+
+    lineup_data = lineup_service.get_weekly_lineup(team_id, week_id)
+    if lineup_data is None:
+        raise HTTPException(status_code=404, detail="Lineup not found for this week")
+
+    # Convert to schema format
+    lineup_players = []
+    for player_data in lineup_data:
+        lineup_players.append(WeeklyLineupPlayerOut(
+            player_id=player_data["player_id"],
+            player_name=player_data["player_name"],
+            position=player_data["position"],
+            team_abbr=player_data["team_abbr"],
+            is_starter=player_data["is_starter"],
+            locked=player_data["locked"],
+            locked_at=player_data.get("locked_at")
+        ))
+
+    current_week_id = lineup_service.get_current_week_id()
+    return WeeklyLineupOut(
+        week_id=week_id,
+        lineup=lineup_players,
+        is_current=week_id == current_week_id
+    )
+
+
+@router.get("/teams/{team_id}/lineups/history", response_model=LineupHistoryOut)
+def get_lineup_history(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> LineupHistoryOut:
+    """Get all historical lineups for a team."""
+    # Verify team ownership
+    team = db.query(Team).filter(Team.id == team_id, Team.owner_id == current_user.id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found or access denied")
+
+    lineup_service = LineupService(db)
+
+    history_data = lineup_service.get_lineup_history(team_id)
+
+    # Convert to schema format
+    history = []
+    for week_data in history_data:
+        lineup_players = []
+        for player_data in week_data["lineup"]:
+            lineup_players.append(WeeklyLineupPlayerOut(
+                player_id=player_data["player_id"],
+                player_name=player_data["player_name"],
+                position=player_data["position"],
+                team_abbr=player_data["team_abbr"],
+                is_starter=player_data["is_starter"],
+                locked=player_data["locked"],
+                locked_at=player_data.get("locked_at")
+            ))
+
+        history.append(WeeklyLineupOut(
+            week_id=week_data["week_id"],
+            lineup=lineup_players,
+            is_current=week_data["is_current"]
+        ))
+
+    return LineupHistoryOut(history=history)
+
+
+@router.put("/teams/{team_id}/lineups/{week_id}/starters", response_model=WeeklyLineupOut)
+def set_weekly_starters(
+    *,
+    team_id: int = Path(..., description="Team ID"),
+    week_id: int = Path(..., description="Week ID"),
+    data: SetWeeklyStartersRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> WeeklyLineupOut:
+    """Set starters for a specific week."""
+    # Verify team ownership
+    team = db.query(Team).filter(Team.id == team_id, Team.owner_id == current_user.id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found or access denied")
+
+    lineup_service = LineupService(db)
+
+    # Check if lineup can be modified
+    if not lineup_service.can_modify_lineup(team_id, week_id):
+        raise HTTPException(status_code=400, detail="Lineup is locked and cannot be modified")
+
+    # Set the starters
+    success = lineup_service.set_weekly_starters(team_id, week_id, data.starter_player_ids)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to set starters")
+
+    # Return the updated lineup
+    return get_weekly_lineup(team_id=team_id, week_id=week_id, db=db, current_user=current_user)
+
+
+@router.post("/admin/lineups/lock/{week_id}", response_model=LineupLockResponse)
+def lock_weekly_lineups(
+    *,
+    week_id: int = Path(..., description="Week ID to lock"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> LineupLockResponse:
+    """Lock lineups for a specific week (admin only)."""
+    # Check if user is admin
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    lineup_service = LineupService(db)
+
+    teams_processed = lineup_service.lock_weekly_lineups(week_id)
+
+    return LineupLockResponse(
+        week_id=week_id,
+        teams_processed=teams_processed,
+        locked_at=datetime.now(timezone.utc)
+    )
 
 
 # Add the router to the API

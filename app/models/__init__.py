@@ -74,6 +74,7 @@ class Team(Base):
     roster_slots = relationship("RosterSlot", back_populates="team", cascade="all, delete-orphan")
     scores = relationship("TeamScore", back_populates="team", cascade="all, delete-orphan")
     players = relationship("Player", back_populates="team")
+    weekly_lineups = relationship("WeeklyLineup", back_populates="team", cascade="all, delete-orphan")
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +192,7 @@ class Player(Base):
     stat_lines = relationship("StatLine", back_populates="player")
     team = relationship("Team", back_populates="players")
     wnba_team = relationship("WNBATeam", back_populates="players")
+    weekly_lineups = relationship("WeeklyLineup", back_populates="player", cascade="all, delete-orphan")
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +212,26 @@ class RosterSlot(Base):
 
     team = relationship("Team", back_populates="roster_slots")
     player = relationship("Player", back_populates="roster_slots")
+
+
+# ---------------------------------------------------------------------------
+# WeeklyLineup (Historical lineups for each week)
+# ---------------------------------------------------------------------------
+
+
+class WeeklyLineup(Base):
+    __tablename__ = "weekly_lineup"
+    __table_args__ = (UniqueConstraint("team_id", "week_id", "player_id", name="uq_weekly_lineup_team_week_player"),)
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)
+    player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)
+    week_id: int = Column(Integer, nullable=False)
+    is_starter: bool = Column(Boolean, nullable=False)
+    locked_at: datetime = Column(DateTime, nullable=False)
+
+    team = relationship("Team", back_populates="weekly_lineups")
+    player = relationship("Player", back_populates="weekly_lineups")
 
 
 # ---------------------------------------------------------------------------

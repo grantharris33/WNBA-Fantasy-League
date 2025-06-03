@@ -122,6 +122,9 @@ def update_weekly_team_scores(target_date: date | None = None, *, session: Sessi
 
     Existing ``team_score`` rows for that week will be overwritten with the
     newly calculated totals so the function is **idempotent**.
+
+    For current week: uses RosterSlot.is_starter to determine starters
+    For past weeks: uses WeeklyLineup records to get historical lineup
     """
 
     owned_session = False
@@ -133,8 +136,29 @@ def update_weekly_team_scores(target_date: date | None = None, *, session: Sessi
     start_dt, end_dt, week_id = _week_bounds(target_date)
 
     try:
-        # Pre-compute current roster mapping: {player_id: team_id}
-        roster = {rs.player_id: rs.team_id for rs in session.query(models.RosterSlot).all()}
+                # Determine current week
+        current_week_id = _week_bounds(datetime.now(timezone.utc).date())[2]
+
+        # Build starter mapping based on whether this is current or past week
+        starter_mapping: dict[int, int] = {}  # {player_id: team_id} for starters only
+
+        if week_id >= current_week_id:
+            # Current/future week: use RosterSlot table
+            roster_query = (
+                session.query(models.RosterSlot)
+                .filter(models.RosterSlot.is_starter == True)
+            )
+            starter_mapping = {rs.player_id: rs.team_id for rs in roster_query}
+            print(f"DEBUG: Current/future week {week_id}, found {len(starter_mapping)} starters")
+        else:
+            # Past week: use WeeklyLineup table
+            lineup_query = (
+                session.query(models.WeeklyLineup)
+                .filter(models.WeeklyLineup.week_id == week_id)
+                .filter(models.WeeklyLineup.is_starter == True)
+            )
+            starter_mapping = {wl.player_id: wl.team_id for wl in lineup_query}
+            print(f"DEBUG: Past week {week_id}, found {len(starter_mapping)} starters")
 
         # Fetch all stat lines for the week in one trip.
         stat_q = (
@@ -145,9 +169,9 @@ def update_weekly_team_scores(target_date: date | None = None, *, session: Sessi
 
         team_totals: dict[int, float] = {}
         for line in stat_q:  # SQLAlchemy will stream rows efficiently
-            team_id = roster.get(line.player_id)
+            team_id = starter_mapping.get(line.player_id)
             if team_id is None:
-                # Player is not on any team (e.g., free agent) → ignore
+                # Player is not a starter for any team this week → ignore
                 continue
 
             pts = compute_fantasy_points(line)

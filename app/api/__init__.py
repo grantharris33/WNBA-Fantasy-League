@@ -21,6 +21,7 @@ from .league_management import router as league_management_router
 from .logs import router as logs_router
 from .users import router as users_router
 from .analytics import router as analytics_router
+from .admin import router as admin_router
 
 router = APIRouter()
 
@@ -41,6 +42,9 @@ router.include_router(logs_router)
 
 # Analytics endpoints
 router.include_router(analytics_router)
+
+# Admin endpoints
+router.include_router(admin_router)
 
 # V1 public endpoints
 router.include_router(v1_router)

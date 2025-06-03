@@ -485,3 +485,44 @@ class ComprehensiveGameStatsOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# Weekly Lineup Schemas
+class WeeklyLineupPlayerOut(BaseModel):
+    """Player in a weekly lineup."""
+
+    player_id: int
+    player_name: str
+    position: str | None = None
+    team_abbr: str | None = None
+    is_starter: bool = False
+    locked: bool = False
+    locked_at: Optional[datetime] = None
+
+
+class WeeklyLineupOut(BaseModel):
+    """Weekly lineup for a team."""
+
+    week_id: int
+    lineup: List[WeeklyLineupPlayerOut] = Field(default_factory=list)
+    is_current: bool = False
+
+
+class LineupHistoryOut(BaseModel):
+    """Historical lineups for a team."""
+
+    history: List[WeeklyLineupOut] = Field(default_factory=list)
+
+
+class SetWeeklyStartersRequest(BaseModel):
+    """Request to set starters for a specific week."""
+
+    starter_player_ids: List[int]
+
+
+class LineupLockResponse(BaseModel):
+    """Response for lineup locking operation."""
+
+    week_id: int
+    teams_processed: int
+    locked_at: datetime
