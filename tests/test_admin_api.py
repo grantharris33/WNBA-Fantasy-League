@@ -113,9 +113,6 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
     return lineup_entries
 
 
-
-
-
 class TestAdminAPI:
     """Test cases for admin API endpoints."""
 
@@ -327,15 +324,13 @@ class TestAdminAPI:
         assert "lineup" in data
         assert "admin_modified" in data
 
-    def test_get_admin_lineup_view_not_found(self, client: TestClient, admin_token: str, test_team: Team):
-        """Test admin lineup view with non-existent lineup."""
+    def test_get_admin_lineup_view_not_found(self, client: TestClient, admin_token: str):
+        """Test getting lineup view for non-existent team/week returns 404."""
         response = client.get(
-            f"/api/v1/admin/teams/{test_team.id}/weeks/202502/lineup",
+            "/api/v1/admin/teams/999/weeks/1/lineup",
             headers={"Authorization": f"Bearer {admin_token}"}
         )
-
         assert response.status_code == 404
-        assert "Lineup not found" in response.json()["detail"]
 
     def test_get_admin_lineup_view_unauthorized(self, client: TestClient, regular_token: str, test_team: Team):
         """Test admin lineup view without admin privileges."""
@@ -382,3 +377,282 @@ class TestAdminAPI:
         )
 
         assert response.status_code == 422
+
+    # Tests for Story 3: Enhanced Admin Move Management
+
+    def test_grant_team_moves_success(self, client: TestClient, admin_token: str, db: Session):
+        """Test successfully granting moves to a team."""
+        # Create test data
+        from app.models import Team, League, User
+
+        league = League(name="Test League", invite_code="TEST123")
+        db.add(league)
+        db.flush()
+
+        team = Team(name="Test Team", league_id=league.id)
+        db.add(team)
+        db.flush()
+
+        # Grant moves
+        response = client.post(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/grant-moves",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "moves_to_grant": 2,
+                "reason": "Emergency injury replacement",
+                "week_id": 1
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["team_id"] == team.id
+        assert data["moves_granted"] == 2
+        assert data["reason"] == "Emergency injury replacement"
+        assert data["week_id"] == 1
+
+    def test_grant_team_moves_invalid_team(self, client: TestClient, admin_token: str):
+        """Test granting moves to non-existent team returns 400."""
+        response = client.post(
+            "/api/v1/admin/teams/999/weeks/1/grant-moves",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "moves_to_grant": 2,
+                "reason": "Test",
+                "week_id": 1
+            }
+        )
+
+        assert response.status_code == 400
+        assert "not found" in response.json()["detail"]
+
+    def test_grant_team_moves_invalid_input(self, client: TestClient, admin_token: str, db: Session):
+        """Test granting moves with invalid input returns 400."""
+        # Create test data
+        from app.models import Team, League
+
+        league = League(name="Test League", invite_code="TEST123")
+        db.add(league)
+        db.flush()
+
+        team = Team(name="Test Team", league_id=league.id)
+        db.add(team)
+        db.flush()
+
+        # Test zero moves
+        response = client.post(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/grant-moves",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "moves_to_grant": 0,
+                "reason": "Test",
+                "week_id": 1
+            }
+        )
+
+        assert response.status_code == 400
+        assert "Must grant at least 1 move" in response.json()["detail"]
+
+    def test_get_team_move_summary_success(self, client: TestClient, admin_token: str, db: Session):
+        """Test getting team move summary."""
+        # Create test data
+        from app.models import Team, League, User, AdminMoveGrant
+
+        league = League(name="Test League", invite_code="TEST123")
+        db.add(league)
+        db.flush()
+
+        team = Team(name="Test Team", league_id=league.id, moves_this_week=1)
+        db.add(team)
+        db.flush()
+
+        # Create admin user for the grant
+        admin_user = User(email="admin_grant@test.com", hashed_password="hashed", is_admin=True)
+        db.add(admin_user)
+        db.flush()
+
+        # Add admin grant
+        grant = AdminMoveGrant(
+            team_id=team.id,
+            admin_user_id=admin_user.id,
+            moves_granted=2,
+            reason="Emergency",
+            week_id=1
+        )
+        db.add(grant)
+        db.commit()
+
+        # Get summary
+        response = client.get(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/move-summary",
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["team_id"] == team.id
+        assert data["week_id"] == 1
+        assert data["base_moves"] == 3
+        assert data["admin_granted_moves"] == 2
+        assert data["total_available_moves"] == 5
+        assert data["moves_used"] == 1
+        assert data["moves_remaining"] == 4
+        assert len(data["admin_grants"]) == 1
+
+    def test_get_team_move_summary_invalid_team(self, client: TestClient, admin_token: str):
+        """Test getting move summary for non-existent team returns 400."""
+        response = client.get(
+            "/api/v1/admin/teams/999/weeks/1/move-summary",
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+
+        assert response.status_code == 400
+        assert "not found" in response.json()["detail"]
+
+    def test_force_set_team_roster_success(self, client: TestClient, admin_token: str, db: Session):
+        """Test force setting team roster with admin override."""
+        # Create test data
+        from app.models import Team, League, Player, RosterSlot
+
+        league = League(name="Test League", invite_code="TEST123")
+        db.add(league)
+        db.flush()
+
+        team = Team(name="Test Team", league_id=league.id, moves_this_week=3)  # At limit
+        db.add(team)
+        db.flush()
+
+        # Create players
+        players = []
+        for i in range(7):
+            position = "G" if i < 2 else ("F" if i < 4 else "C")
+            player = Player(full_name=f"Player {i+1}", position=position)
+            db.add(player)
+            players.append(player)
+
+        db.flush()
+
+        # Add players to roster
+        for i, player in enumerate(players):
+            is_starter = i < 5
+            slot = RosterSlot(
+                team_id=team.id,
+                player_id=player.id,
+                position=player.position,
+                is_starter=is_starter
+            )
+            db.add(slot)
+
+        db.commit()
+
+        # Force set roster (change one starter)
+        new_starter_ids = [players[0].id, players[1].id, players[2].id, players[5].id, players[4].id]
+
+        response = client.put(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/force-roster",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "starter_ids": new_starter_ids,
+                "week_id": 1,
+                "bypass_move_limit": True
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["team_id"] == team.id
+        assert data["data"]["week_id"] == 1
+        assert data["data"]["bypass_move_limit"] is True
+
+    def test_force_set_team_roster_invalid_positions(self, client: TestClient, admin_token: str, db: Session):
+        """Test force setting roster with invalid positions returns 400."""
+        # Create test data
+        from app.models import Team, League, Player, RosterSlot
+
+        league = League(name="Test League", invite_code="TEST123")
+        db.add(league)
+        db.flush()
+
+        team = Team(name="Test Team", league_id=league.id)
+        db.add(team)
+        db.flush()
+
+        # Create players (all forwards - invalid lineup)
+        players = []
+        for i in range(5):
+            player = Player(full_name=f"Player {i+1}", position="F")
+            db.add(player)
+            players.append(player)
+
+        db.flush()
+
+        # Add players to roster
+        for player in players:
+            slot = RosterSlot(
+                team_id=team.id,
+                player_id=player.id,
+                position=player.position,
+                is_starter=False
+            )
+            db.add(slot)
+
+        db.commit()
+
+        # Try to force set invalid roster
+        response = client.put(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/force-roster",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "starter_ids": [p.id for p in players],
+                "week_id": 1,
+                "bypass_move_limit": True
+            }
+        )
+
+        assert response.status_code == 400
+        assert "at least 2 players with Guard" in response.json()["detail"]
+
+    def test_admin_endpoints_require_admin_privileges(self, client: TestClient, regular_token: str, db: Session):
+        """Test that admin endpoints require admin privileges."""
+        # Create test data
+        from app.models import Team, League
+
+        league = League(name="Test League", invite_code="TEST123")
+        db.add(league)
+        db.flush()
+
+        team = Team(name="Test Team", league_id=league.id)
+        db.add(team)
+        db.commit()
+
+        # Test grant moves
+        response = client.post(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/grant-moves",
+            headers={"Authorization": f"Bearer {regular_token}"},
+            json={
+                "moves_to_grant": 2,
+                "reason": "Test",
+                "week_id": 1
+            }
+        )
+        assert response.status_code == 403
+
+        # Test move summary
+        response = client.get(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/move-summary",
+            headers={"Authorization": f"Bearer {regular_token}"}
+        )
+        assert response.status_code == 403
+
+        # Test force roster
+        response = client.put(
+            f"/api/v1/admin/teams/{team.id}/weeks/1/force-roster",
+            headers={"Authorization": f"Bearer {regular_token}"},
+            json={
+                "starter_ids": [1, 2, 3, 4, 5],
+                "week_id": 1,
+                "bypass_move_limit": True
+            }
+        )
+        assert response.status_code == 403

@@ -18,7 +18,7 @@ def setup_active_draft(db: Session):
     db.flush()
 
     # Create test league
-    league = League(name="Test League", commissioner_id=user.id)
+    league = League(name="Test League", invite_code="TEST-1234-5678", commissioner_id=user.id)
     db.add(league)
     db.flush()
 

@@ -53,6 +53,7 @@ def test_data(db: Session) -> None:
     p1_stats = [
         StatLine(
             player_id=101,
+            game_id="test_game_1",
             game_date=datetime(2023, 5, 2, 18, 0),
             points=30.0,
             rebounds=5.0,
@@ -62,6 +63,7 @@ def test_data(db: Session) -> None:
         ),
         StatLine(
             player_id=101,
+            game_id="test_game_2",
             game_date=datetime(2023, 5, 5, 18, 0),
             points=25.0,
             rebounds=4.0,
@@ -75,6 +77,7 @@ def test_data(db: Session) -> None:
     p2_stats = [
         StatLine(
             player_id=102,
+            game_id="test_game_3",
             game_date=datetime(2023, 5, 1, 18, 0),
             points=15.0,
             rebounds=15.0,
@@ -84,6 +87,7 @@ def test_data(db: Session) -> None:
         ),
         StatLine(
             player_id=102,
+            game_id="test_game_4",
             game_date=datetime(2023, 5, 4, 18, 0),
             points=12.0,
             rebounds=18.0,
@@ -97,6 +101,7 @@ def test_data(db: Session) -> None:
     p3_stats = [
         StatLine(
             player_id=103,
+            game_id="test_game_5",
             game_date=datetime(2023, 5, 3, 18, 0),
             points=22.0,
             rebounds=12.0,
@@ -110,6 +115,7 @@ def test_data(db: Session) -> None:
     p4_stats = [
         StatLine(
             player_id=104,
+            game_id="test_game_6",
             game_date=datetime(2023, 5, 2, 18, 0),
             points=18.0,
             rebounds=3.0,
@@ -123,6 +129,7 @@ def test_data(db: Session) -> None:
     p5_stats = [
         StatLine(
             player_id=105,
+            game_id="test_game_7",
             game_date=datetime(2023, 5, 6, 18, 0),
             points=10.0,
             rebounds=8.0,

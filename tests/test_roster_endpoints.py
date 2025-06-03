@@ -40,7 +40,7 @@ def auth_client(db):
 @pytest.fixture
 def setup_roster_test_data(db: Session):
     # Create a test league
-    league = League(name="Test League")
+    league = League(name="Test League", invite_code="TEST-1234-5678")
     db.add(league)
     db.flush()
 

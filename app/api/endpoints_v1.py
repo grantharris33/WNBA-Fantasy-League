@@ -394,7 +394,7 @@ def league_champion(*, db: Session = Depends(get_db), league_id: int = Query(Non
 @router.get("/me", response_model=dict)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     """Get current user's information."""
-    return {"id": current_user.id, "email": current_user.email, "name": current_user.name}
+    return {"id": current_user.id, "email": current_user.email, "is_admin": current_user.is_admin}
 
 
 # ---------------------------------------------------------------------------

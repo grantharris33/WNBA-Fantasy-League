@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy import and_, exists, func, not_, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import League, Player, RosterSlot, Team, TransactionLog, User
+from app.models import League, Player, RosterSlot, Team, TransactionLog, User, AdminMoveGrant
 
 
 class RosterService:
@@ -133,8 +133,9 @@ class RosterService:
             team_id=team_id, player_id=player_id, position=player.position, is_starter=set_as_starter
         )
 
-        # Increment the moves counter (both regular adds and starter adds count as moves)
-        team.moves_this_week += 1
+        # Increment the moves counter only if player is set as starter
+        if set_as_starter:
+            team.moves_this_week += 1
 
         self.db.add(roster_slot)
 
@@ -185,6 +186,228 @@ class RosterService:
 
         self.db.commit()
 
+    def _get_total_available_moves(self, team_id: int, week_id: int) -> int:
+        """Calculate total available moves including admin grants for a specific week."""
+        team = self.db.get(Team, team_id)
+        if not team:
+            return 0
+
+        # Base weekly moves allowance
+        base_moves = 3
+
+        # Get admin-granted moves for this week
+        admin_grants = (
+            self.db.query(func.sum(AdminMoveGrant.moves_granted))
+            .filter(AdminMoveGrant.team_id == team_id, AdminMoveGrant.week_id == week_id)
+            .scalar() or 0
+        )
+
+        return base_moves + admin_grants
+
+    def get_team_move_summary(self, team_id: int, week_id: int) -> dict:
+        """Get detailed move summary for a team including admin grants."""
+        team = self.db.get(Team, team_id)
+        if not team:
+            raise ValueError(f"Team with ID {team_id} not found")
+
+        base_moves = 3
+        admin_grants = (
+            self.db.query(func.sum(AdminMoveGrant.moves_granted))
+            .filter(AdminMoveGrant.team_id == team_id, AdminMoveGrant.week_id == week_id)
+            .scalar() or 0
+        )
+        total_available = base_moves + admin_grants
+        moves_used = team.moves_this_week
+        moves_remaining = total_available - moves_used
+
+        # Get admin grant details
+        admin_grant_records = (
+            self.db.query(AdminMoveGrant)
+            .filter(AdminMoveGrant.team_id == team_id, AdminMoveGrant.week_id == week_id)
+            .all()
+        )
+
+        return {
+            "team_id": team_id,
+            "week_id": week_id,
+            "base_moves": base_moves,
+            "admin_granted_moves": admin_grants,
+            "total_available_moves": total_available,
+            "moves_used": moves_used,
+            "moves_remaining": moves_remaining,
+            "admin_grants": [
+                {
+                    "id": grant.id,
+                    "moves_granted": grant.moves_granted,
+                    "reason": grant.reason,
+                    "granted_at": grant.granted_at,
+                    "admin_user_id": grant.admin_user_id,
+                }
+                for grant in admin_grant_records
+            ]
+        }
+
+    def grant_admin_moves(
+        self,
+        team_id: int,
+        week_id: int,
+        moves_to_grant: int,
+        reason: str,
+        admin_user_id: int
+    ) -> AdminMoveGrant:
+        """Grant additional moves to a team for a specific week."""
+        # Verify admin user exists and is admin
+        admin_user = self.db.get(User, admin_user_id)
+        if not admin_user:
+            raise ValueError(f"Admin user with ID {admin_user_id} not found")
+        if not admin_user.is_admin:
+            raise ValueError(f"User with ID {admin_user_id} is not an admin")
+
+        # Verify team exists
+        team = self.db.get(Team, team_id)
+        if not team:
+            raise ValueError(f"Team with ID {team_id} not found")
+
+        # Validate inputs
+        if moves_to_grant <= 0:
+            raise ValueError("Must grant at least 1 move")
+        if not reason.strip():
+            raise ValueError("Reason is required")
+
+        # Create the grant record
+        grant = AdminMoveGrant(
+            team_id=team_id,
+            admin_user_id=admin_user_id,
+            moves_granted=moves_to_grant,
+            reason=reason.strip(),
+            week_id=week_id
+        )
+
+        self.db.add(grant)
+
+        # Create transaction log
+        self.db.add(TransactionLog(
+            user_id=admin_user_id,
+            action=f"ADMIN GRANT {moves_to_grant} moves to {team.name} for week {week_id}: {reason}",
+            timestamp=datetime.utcnow()
+        ))
+
+        self.db.commit()
+        return grant
+
+    def set_starters_admin_override(
+        self,
+        team_id: int,
+        starter_player_ids: List[int],
+        admin_user_id: int,
+        week_id: int,
+        bypass_move_limit: bool = True
+    ) -> List[RosterSlot]:
+        """Set starters with admin override capability."""
+        # Verify admin user exists and is admin
+        admin_user = self.db.get(User, admin_user_id)
+        if not admin_user:
+            raise ValueError(f"Admin user with ID {admin_user_id} not found")
+        if not admin_user.is_admin:
+            raise ValueError(f"User with ID {admin_user_id} is not an admin")
+
+        # Get the team and verify it exists
+        team = self.db.get(Team, team_id)
+        if not team:
+            raise ValueError(f"Team with ID {team_id} not found")
+
+        # Verify that all players are on the team
+        team_roster_query = self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id).all()
+        team_player_ids = [rs.player_id for rs in team_roster_query]
+
+        for player_id in starter_player_ids:
+            if player_id not in team_player_ids:
+                raise ValueError(f"Player with ID {player_id} is not on team with ID {team_id}")
+
+        # Verify that the correct number of starters is provided (5)
+        if len(starter_player_ids) != 5:
+            raise ValueError("A valid starting lineup must have exactly 5 players")
+
+        # Get the player positions to verify positional legality
+        players = self.db.query(Player).filter(Player.id.in_(starter_player_ids)).all()
+        player_positions = [p.position for p in players if p.position]
+
+        # Check positional requirements: ≥2 Guards (G) AND ≥1 Forward (F) or Forward/Center (F-C)
+        guard_count = sum(1 for pos in player_positions if pos and 'G' in pos)
+        forward_count = sum(1 for pos in player_positions if pos and ('F' in pos or 'C' in pos))
+
+        if guard_count < 2:
+            raise ValueError("Starting lineup must include at least 2 players with Guard (G) position")
+
+        if forward_count < 1:
+            raise ValueError(
+                "Starting lineup must include at least 1 player with Forward (F) or Forward/Center (F-C) position"
+            )
+
+        # Get current starters
+        current_starters = (
+            self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id, RosterSlot.is_starter == 1).all()
+        )
+        current_starter_ids = [rs.player_id for rs in current_starters]
+
+        # Count how many new players are being promoted to starter
+        new_starter_count = sum(1 for pid in starter_player_ids if pid not in current_starter_ids)
+
+        # Check move limits unless bypassing
+        if not bypass_move_limit:
+            total_available_moves = self._get_total_available_moves(team_id, week_id)
+            if new_starter_count > (total_available_moves - team.moves_this_week):
+                raise ValueError(
+                    f"Not enough moves left for the week. You're trying to add {new_starter_count} new starters but only have {total_available_moves - team.moves_this_week} moves left."
+                )
+
+        # Update is_starter for all roster slots
+        for rs in team_roster_query:
+            old_status = rs.is_starter
+            new_status = rs.player_id in starter_player_ids
+
+            # Update only if there's a change
+            if old_status != new_status:
+                rs.is_starter = new_status
+
+                # Only increment moves_this_week when setting a player TO starter
+                if new_status:
+                    if not bypass_move_limit:
+                        team.moves_this_week += 1
+
+                    # Log the transaction with admin override indication
+                    player = self.db.get(Player, rs.player_id)
+                    action = f"START {player.full_name} on {team.name}"
+                    if bypass_move_limit:
+                        action += " (ADMIN OVERRIDE)"
+
+                    self.db.add(
+                        TransactionLog(
+                            user_id=admin_user_id,
+                            action=action,
+                            timestamp=datetime.utcnow(),
+                        )
+                    )
+                else:
+                    # Log bench transaction but don't count it as a move
+                    player = self.db.get(Player, rs.player_id)
+                    action = f"BENCH {player.full_name} on {team.name}"
+                    if bypass_move_limit:
+                        action += " (ADMIN OVERRIDE)"
+
+                    self.db.add(
+                        TransactionLog(
+                            user_id=admin_user_id,
+                            action=action,
+                            timestamp=datetime.utcnow(),
+                        )
+                    )
+
+        self.db.commit()
+
+        # Return updated roster slots that are starters
+        return self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id, RosterSlot.is_starter == 1).all()
+
     def set_starters(
         self, team_id: int, starter_player_ids: List[int], user_id: Optional[int] = None
     ) -> List[RosterSlot]:  # noqa: C901
@@ -231,10 +454,14 @@ class RosterService:
         # Count how many new players are being promoted to starter
         new_starter_count = sum(1 for pid in starter_player_ids if pid not in current_starter_ids)
 
-        # Check if we have enough moves left for the week
-        if new_starter_count > (3 - team.moves_this_week):
+        # Check if we have enough moves left for the week (including admin grants)
+        # For current week check, we'll use week 1 as default since we don't have week tracking yet
+        current_week = 1  # TODO: Replace with actual current week logic
+        total_available_moves = self._get_total_available_moves(team_id, current_week)
+
+        if new_starter_count > (total_available_moves - team.moves_this_week):
             raise ValueError(
-                f"Not enough moves left for the week. You're trying to add {new_starter_count} new starters but only have {3 - team.moves_this_week} moves left."
+                f"Not enough moves left for the week. You're trying to add {new_starter_count} new starters but only have {total_available_moves - team.moves_this_week} moves left."
             )
 
         # Update is_starter for all roster slots

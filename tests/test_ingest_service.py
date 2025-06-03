@@ -69,10 +69,14 @@ async def test_rapidapi_client_retry(monkeypatch):
     class DummyResp:
         def __init__(self, ok: bool):
             self._ok = ok
+            # Mock status_code for HTTPStatusError creation
+            self.status_code = 500 if not ok else 200
+            self.request = None  # Required for HTTPStatusError
 
         def raise_for_status(self):
             if not self._ok:
-                raise httpx.HTTPError("oops")
+                # Raise HTTPStatusError which will be converted to RetryableError
+                raise httpx.HTTPStatusError("Server error", request=self.request, response=self)
 
         def json(self):
             return {"data": "test"}

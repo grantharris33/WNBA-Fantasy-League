@@ -60,19 +60,15 @@ def main() -> None:
 
     print("Creating demo data...")
     users = []
-    for i in range(1, 2):
+    for i in range(1, 5):  # Create demo1, demo2, demo3, demo4
         email = f"demo{i}@example.com"
-        user = models.User(email=email, hashed_password=hash_password("password"), is_admin=True)
-        db.add(user)
-        users.append(user)
-    for i in range(3, 5):
-        email = f"demo{i}@example.com"
-        user = models.User(email=email, hashed_password=hash_password("password"), is_admin=False)
+        is_admin = (i == 1)  # Only demo1 is admin
+        user = models.User(email=email, hashed_password=hash_password("password"), is_admin=is_admin)
         db.add(user)
         users.append(user)
     db.flush()  # assign IDs
 
-    league = models.League(name="Demo League", commissioner=users[0])
+    league = models.League(name="Demo League", invite_code="DEMO-1234-5678", commissioner=users[0])
     db.add(league)
     db.flush()
 

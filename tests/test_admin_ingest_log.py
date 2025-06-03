@@ -23,6 +23,10 @@ async def test_ingest_log_admin(monkeypatch, tmp_path: Path):
     from app.models import IngestLog
 
     session = SessionLocal()
+    # Clear any existing log entries first
+    session.query(IngestLog).delete()
+    session.commit()
+
     for i in range(150):
         session.add(IngestLog(provider="rapidapi", message=f"err {i}"))
     session.commit()

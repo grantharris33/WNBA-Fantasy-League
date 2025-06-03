@@ -35,6 +35,39 @@ class AdminActionResponse(BaseModel):
     data: Optional[Dict] = None
 
 
+class NewGrantMovesRequest(BaseModel):
+    moves_to_grant: int
+    reason: str
+    week_id: int
+
+
+class ForceSetRosterRequest(BaseModel):
+    starter_ids: List[int]
+    week_id: int
+    bypass_move_limit: bool = True
+
+
+class TeamMoveSummaryResponse(BaseModel):
+    team_id: int
+    week_id: int
+    base_moves: int
+    admin_granted_moves: int
+    total_available_moves: int
+    moves_used: int
+    moves_remaining: int
+    admin_grants: List[Dict]
+
+
+class AdminMoveGrantResponse(BaseModel):
+    id: int
+    team_id: int
+    admin_user_id: int
+    moves_granted: int
+    reason: str
+    granted_at: str
+    week_id: int
+
+
 class AuditLogEntry(BaseModel):
     id: int
     timestamp: str
@@ -245,5 +278,114 @@ async def get_admin_lineup_view(
 
     except HTTPException:
         raise  # Re-raise HTTP exceptions (like 404)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# New endpoints for Story 3: Enhanced Admin Move Management
+
+@router.post("/teams/{team_id}/weeks/{week_id}/grant-moves")
+async def grant_team_moves(
+    team_id: int = Path(..., description="Team ID"),
+    week_id: int = Path(..., description="Week ID"),
+    request: NewGrantMovesRequest = Body(...),
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None
+) -> AdminMoveGrantResponse:
+    """
+    Grant additional moves to a team for a specific week.
+    Requires admin privileges.
+    """
+    try:
+        from app.services.roster import RosterService
+        roster_service = RosterService(db)
+
+        grant = roster_service.grant_admin_moves(
+            team_id=team_id,
+            week_id=week_id,
+            moves_to_grant=request.moves_to_grant,
+            reason=request.reason,
+            admin_user_id=current_user.id
+        )
+
+        return AdminMoveGrantResponse(
+            id=grant.id,
+            team_id=grant.team_id,
+            admin_user_id=grant.admin_user_id,
+            moves_granted=grant.moves_granted,
+            reason=grant.reason,
+            granted_at=grant.granted_at.isoformat(),
+            week_id=grant.week_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/teams/{team_id}/weeks/{week_id}/move-summary")
+async def get_team_move_summary(
+    team_id: int = Path(..., description="Team ID"),
+    week_id: int = Path(..., description="Week ID"),
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None
+) -> TeamMoveSummaryResponse:
+    """
+    Get detailed move summary for a team including admin grants.
+    Requires admin privileges.
+    """
+    try:
+        from app.services.roster import RosterService
+        roster_service = RosterService(db)
+
+        summary = roster_service.get_team_move_summary(team_id, week_id)
+
+        return TeamMoveSummaryResponse(**summary)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.put("/teams/{team_id}/weeks/{week_id}/force-roster")
+async def force_set_team_roster(
+    team_id: int = Path(..., description="Team ID"),
+    week_id: int = Path(..., description="Week ID"),
+    request: ForceSetRosterRequest = Body(...),
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None
+) -> AdminActionResponse:
+    """
+    Force set team roster with admin override, bypassing move limits.
+    Requires admin privileges.
+    """
+    try:
+        from app.services.roster import RosterService
+        roster_service = RosterService(db)
+
+        starters = roster_service.set_starters_admin_override(
+            team_id=team_id,
+            starter_player_ids=request.starter_ids,
+            admin_user_id=current_user.id,
+            week_id=week_id,
+            bypass_move_limit=request.bypass_move_limit
+        )
+
+        return AdminActionResponse(
+            success=True,
+            message=f"Successfully set roster for team {team_id}, week {week_id}",
+            data={
+                "team_id": team_id,
+                "week_id": week_id,
+                "starter_ids": request.starter_ids,
+                "bypass_move_limit": request.bypass_move_limit,
+                "starters_count": len(starters)
+            }
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

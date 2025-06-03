@@ -195,11 +195,14 @@ Admins need the ability to set team rosters even when users have exhausted their
    - Warning messages when using admin overrides
 
 ### Acceptance Criteria
-- [ ] Admins can grant additional moves to any team with reason tracking
-- [ ] Admin-granted moves are tracked separately from normal weekly moves
-- [ ] Users can see total available moves (normal + admin granted)
-- [ ] All admin move grants are logged for audit purposes
+- [x] Admins can grant additional moves to any team with reason tracking
+- [x] Admin-granted moves are tracked separately from normal weekly moves
+- [x] Users can see total available moves (normal + admin granted)
+- [x] All admin move grants are logged for audit purposes
 - [ ] Frontend clearly indicates when admin overrides are being used
+
+### Implementation Status: ✅ BACKEND COMPLETE
+**Note**: All backend functionality has been implemented and tested. Frontend integration remains for Story 6.
 
 ---
 
@@ -583,26 +586,6 @@ Implement a notification system to keep users informed about lineup deadlines, s
 
 ---
 
-## Implementation Priority and Dependencies
-
-### Phase 1 (Core MVP Features)
-1. Story 1: Weekly Starter-Only Scoring System
-2. Story 2: Admin Roster Management and Score Recalculation
-
-### Phase 2 (Enhanced Features)
-3. Story 3: Enhanced Admin Capabilities for Weekly Move Overrides
-4. Story 6: Frontend Integration of All Backend Features
-
-### Phase 3 (Deployment and Data)
-5. Story 4: Production Deployment Setup with Hetzner VPS
-6. Story 5: 2025 Season Data Backfill
-
-### Phase 4 (Advanced Features)
-7. Story 7: Enhanced Analytics and Reporting System
-8. Story 8: Notification and Communication System
-
-### Technical Notes for Implementation Teams
-
 #### Database Migration Strategy
 - All new models should include Alembic migrations
 - Existing data preservation during schema changes
@@ -625,5 +608,3 @@ Implement a notification system to keep users informed about lineup deadlines, s
 - Caching strategies for analytics data
 - Lazy loading for historical data
 - Background job optimization
-
-Each story includes complete context about the current system state, technical requirements, and acceptance criteria to ensure successful implementation by development teams.

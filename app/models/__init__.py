@@ -563,6 +563,27 @@ class WeeklyBonus(Base):
 
 
 # ---------------------------------------------------------------------------
+# AdminMoveGrant (admin-granted emergency moves)
+# ---------------------------------------------------------------------------
+
+
+class AdminMoveGrant(Base):
+    __tablename__ = "admin_move_grant"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)
+    admin_user_id: int = Column(Integer, ForeignKey("user.id"), nullable=False)
+    moves_granted: int = Column(Integer, nullable=False)
+    reason: str = Column(String, nullable=False)
+    granted_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    week_id: int = Column(Integer, nullable=False)
+
+    # Relationships
+    team = relationship("Team", backref="admin_move_grants")
+    admin_user = relationship("User", backref="admin_moves_granted")
+
+
+# ---------------------------------------------------------------------------
 # Analytics Models
 # ---------------------------------------------------------------------------
 
