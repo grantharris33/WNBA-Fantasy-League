@@ -11,7 +11,7 @@ class RosterService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_free_agents(self, league_id: int, page: int = 1, limit: int = 100) -> List[Player]:
+    def get_free_agents(self, league_id: int) -> List[Player]:
         """Get players not currently on any team in the league."""
         # Find all player_ids that are in a roster_slot for the given league
         roster_subquery = (
@@ -26,8 +26,6 @@ class RosterService:
             select(Player)
             .where(not_(Player.id.in_(select(roster_subquery))))
             .order_by(Player.full_name)
-            .offset((page - 1) * limit)
-            .limit(limit)
         )
 
         return list(self.db.execute(query).scalars().all())

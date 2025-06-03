@@ -22,6 +22,8 @@ from .logs import router as logs_router
 from .users import router as users_router
 from .analytics import router as analytics_router
 from .admin import router as admin_router
+from .wnba import router as wnba_router
+from .lookup import router as lookup_router
 
 router = APIRouter()
 
@@ -50,6 +52,12 @@ router.include_router(admin_router)
 router.include_router(v1_router)
 router.include_router(game_router, prefix="/api/v1")
 router.include_router(league_router, prefix="/api/v1")
+
+# WNBA data endpoints
+router.include_router(wnba_router)
+
+# Lookup endpoints
+router.include_router(lookup_router)
 
 
 @router.get("/health")

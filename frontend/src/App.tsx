@@ -9,7 +9,10 @@ import DraftPage from './pages/DraftPage';
 import TeamPage from './pages/TeamPage';
 import JoinLeaguePage from './pages/JoinLeaguePage';
 import LeagueManagementPage from './pages/LeagueManagementPage';
+import LeagueDetailPage from './pages/LeagueDetailPage';
+import MyTeamsPage from './pages/MyTeamsPage';
 import ScoreboardPage from './pages/ScoreboardPage';
+import GameDetailPage from './pages/GameDetailPage';
 
 function App() {
   return (
@@ -24,9 +27,12 @@ function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/scoreboard" element={<ScoreboardPage />} />
             <Route path="/join" element={<JoinLeaguePage />} />
+            <Route path="/my-teams" element={<MyTeamsPage />} />
+            <Route path="/league/:leagueId" element={<LeagueDetailPage />} />
             <Route path="/league/:leagueId/manage" element={<LeagueManagementPage />} />
             <Route path="/draft/:leagueId" element={<DraftPage />} />
             <Route path="/team/:teamId" element={<TeamPage />} />
+            <Route path="/game/:gameId" element={<GameDetailPage />} />
           </Route>
 
           {/* Redirect to home for undefined routes */}

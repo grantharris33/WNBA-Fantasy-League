@@ -20,6 +20,7 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
     draft_date: '',
     settings: {},
   });
+  const [teamName, setTeamName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<LeagueOut | null>(null);
 
@@ -39,12 +40,29 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
       return;
     }
 
+    if (!teamName.trim()) {
+      toast.error('Team name is required');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      // First create the league
       const league = await api.leagues.create({
         ...formData,
         draft_date: formData.draft_date || undefined,
       });
+
+      // Then automatically join with the team name
+      try {
+        await api.leagues.join({
+          invite_code: league.invite_code!,
+          team_name: teamName.trim()
+        });
+      } catch (joinError) {
+        console.error('Failed to auto-join league:', joinError);
+        // Still show success for league creation even if auto-join fails
+      }
 
       setCreatedLeague(league);
       onLeagueCreated(league);
@@ -74,6 +92,7 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
       draft_date: '',
       settings: {},
     });
+    setTeamName('');
     setCreatedLeague(null);
     onClose();
   };
@@ -148,6 +167,24 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
                   placeholder="Enter league name"
                   required
                 />
+              </div>
+
+              <div>
+                <label htmlFor="teamName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Team Name *
+                </label>
+                <input
+                  type="text"
+                  id="teamName"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  className="input"
+                  placeholder="Enter your team name"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  You'll be automatically added to the league as commissioner with this team name.
+                </p>
               </div>
 
               <div>

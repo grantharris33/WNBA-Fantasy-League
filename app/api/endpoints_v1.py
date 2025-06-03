@@ -402,11 +402,9 @@ async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]
 # ---------------------------------------------------------------------------
 
 
-@router_roster.get("/leagues/{league_id}/free-agents", response_model=Pagination[PlayerOut])
+@router_roster.get("/leagues/{league_id}/free-agents", response_model=List[PlayerOut])
 def list_free_agents(
     league_id: int = Path(..., description="League ID"),
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(100, ge=1, le=1000, description="Items per page"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
@@ -418,16 +416,11 @@ def list_free_agents(
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
 
-    # Get free agents
+    # Get all free agents
     service = RosterService(db)
-    free_agents = service.get_free_agents(league_id, page, limit)
+    free_agents = service.get_free_agents(league_id)
 
-    # Calculate pagination info
-    total_count = len(service.get_free_agents(league_id, 1, 10000))  # Get total count
-    offset = (page - 1) * limit
-
-    items = [PlayerOut.from_orm(player) for player in free_agents]
-    return Pagination[PlayerOut](total=total_count, limit=limit, offset=offset, items=items)
+    return [PlayerOut.from_orm(player) for player in free_agents]
 
 
 @router_roster.post("/teams/{team_id}/roster/add", response_model=TeamWithRosterSlotsOut)

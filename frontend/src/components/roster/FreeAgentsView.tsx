@@ -7,7 +7,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import api from '../../lib/api';
-import type { Player, Pagination } from '../../types';
+import type { Player } from '../../types';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 interface FreeAgentsViewProps {
@@ -23,22 +23,19 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
   const [searchTerm, setSearchTerm] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('');
   const [teamFilter, setTeamFilter] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState<Pagination<Player> | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchFreeAgents();
-  }, [leagueId, currentPage]);
+  }, [leagueId]);
 
   const fetchFreeAgents = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const data = await api.roster.getFreeAgents(leagueId, currentPage, 50);
-      setFreeAgents(data.items);
-      setPagination(data);
+      const data = await api.roster.getFreeAgents(leagueId);
+      setFreeAgents(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load free agents');
     } finally {
@@ -247,11 +244,6 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
             <h2 className="text-lg font-semibold text-gray-900">
               Free Agents ({filteredAgents.length} players)
             </h2>
-            {pagination && (
-              <span className="text-sm text-gray-500">
-                Page {currentPage} of {Math.ceil(pagination.total / pagination.limit)}
-              </span>
-            )}
           </div>
         </div>
 
@@ -275,30 +267,7 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
               ))}
             </div>
 
-            {/* Pagination */}
-            {pagination && pagination.total > pagination.limit && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Showing {pagination.offset + 1} to {Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total} players
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage <= 1}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={pagination.offset + pagination.limit >= pagination.total}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+
           </>
         )}
       </div>

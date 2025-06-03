@@ -49,7 +49,8 @@ describe('NavBar Component', () => {
   const testUser: UserOut = {
     id: 1,
     email: 'test@example.com',
-    created_at: '2023-01-01T00:00:00Z'
+    created_at: '2023-01-01T00:00:00Z',
+    is_admin: false
   };
 
   test('displays user email and logout button when authenticated', () => {

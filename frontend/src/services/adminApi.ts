@@ -1,4 +1,4 @@
-import { api } from './api';
+import { fetchJSON } from '../lib/api';
 
 export interface AuditLogEntry {
   id: number;
@@ -27,7 +27,7 @@ export interface LineupHistoryEntry {
 export interface AdminActionResponse {
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface AdminLineupView {
@@ -55,11 +55,13 @@ class AdminApiService {
     starterIds: number[],
     justification: string = ''
   ): Promise<AdminActionResponse> {
-    const response = await api.put(`/admin/teams/${teamId}/lineups/${weekId}`, {
-      starter_ids: starterIds,
-      justification
+    return fetchJSON<AdminActionResponse>(`/admin/teams/${teamId}/lineups/${weekId}`, {
+      method: 'PUT',
+      body: {
+        starter_ids: starterIds,
+        justification
+      }
     });
-    return response.data;
   }
 
   /**
@@ -70,10 +72,10 @@ class AdminApiService {
     weekId: number,
     justification: string = ''
   ): Promise<AdminActionResponse> {
-    const response = await api.post(`/admin/teams/${teamId}/weeks/${weekId}/recalculate`, {
-      justification
+    return fetchJSON<AdminActionResponse>(`/admin/teams/${teamId}/weeks/${weekId}/recalculate`, {
+      method: 'POST',
+      body: { justification }
     });
-    return response.data;
   }
 
   /**
@@ -84,11 +86,13 @@ class AdminApiService {
     additionalMoves: number,
     justification: string = ''
   ): Promise<AdminActionResponse> {
-    const response = await api.post(`/admin/teams/${teamId}/moves/grant`, {
-      additional_moves: additionalMoves,
-      justification
+    return fetchJSON<AdminActionResponse>(`/admin/teams/${teamId}/moves/grant`, {
+      method: 'POST',
+      body: {
+        additional_moves: additionalMoves,
+        justification
+      }
     });
-    return response.data;
   }
 
   /**
@@ -108,24 +112,21 @@ class AdminApiService {
       params.append('team_id', teamId.toString());
     }
 
-    const response = await api.get(`/admin/audit-log?${params}`);
-    return response.data;
+    return fetchJSON<AuditLogEntry[]>(`/admin/audit-log?${params}`);
   }
 
   /**
    * Get team lineup history with admin modification indicators
    */
   async getTeamLineupHistory(teamId: number): Promise<LineupHistoryEntry[]> {
-    const response = await api.get(`/admin/teams/${teamId}/lineup-history`);
-    return response.data;
+    return fetchJSON<LineupHistoryEntry[]>(`/admin/teams/${teamId}/lineup-history`);
   }
 
   /**
    * Get detailed lineup view for admin modification
    */
   async getAdminLineupView(teamId: number, weekId: number): Promise<AdminLineupView> {
-    const response = await api.get(`/admin/teams/${teamId}/weeks/${weekId}/lineup`);
-    return response.data;
+    return fetchJSON<AdminLineupView>(`/admin/teams/${teamId}/weeks/${weekId}/lineup`);
   }
 }
 

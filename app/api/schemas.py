@@ -526,3 +526,221 @@ class LineupLockResponse(BaseModel):
     week_id: int
     teams_processed: int
     locked_at: datetime
+
+
+# WNBA Data Schemas
+class WNBATeamOut(BaseModel):
+    """WNBA team information."""
+
+    id: int
+    name: str
+    location: str
+    abbreviation: str
+    display_name: str
+    color: Optional[str] = None
+    alternate_color: Optional[str] = None
+    logo_url: Optional[str] = None
+    venue_name: Optional[str] = None
+    venue_city: Optional[str] = None
+    venue_state: Optional[str] = None
+    wins: int = 0
+    losses: int = 0
+    win_percentage: float = 0.0
+    games_behind: Optional[float] = None
+    streak: Optional[str] = None
+    last_10: Optional[str] = None
+    conference_rank: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class StandingsOut(BaseModel):
+    """Team standings information."""
+
+    rank: int
+    team_id: int
+    team_name: str
+    team_abbr: str
+    wins: int
+    losses: int
+    win_percentage: float
+    games_behind: float
+    streak: Optional[str] = None
+    last_10: Optional[str] = None
+    conference_rank: Optional[int] = None
+    home_record: str
+    away_record: str
+    points_for: float
+    points_against: float
+    point_differential: float
+
+
+class TeamRosterPlayerOut(BaseModel):
+    """Player information in team roster."""
+
+    player_id: int
+    full_name: str
+    jersey_number: Optional[str] = None
+    position: Optional[str] = None
+    height: Optional[int] = None
+    weight: Optional[int] = None
+    college: Optional[str] = None
+    years_pro: Optional[int] = None
+    status: str = "active"
+    headshot_url: Optional[str] = None
+    games_played: int = 0
+    ppg: float = 0.0
+    rpg: float = 0.0
+    apg: float = 0.0
+    mpg: float = 0.0
+    fg_percentage: float = 0.0
+
+
+class TeamScheduleGameOut(BaseModel):
+    """Game information in team schedule."""
+
+    game_id: str
+    date: datetime
+    is_home: bool
+    opponent_id: Optional[int] = None
+    opponent_name: str
+    opponent_abbr: str
+    team_score: int
+    opponent_score: int
+    status: str
+    venue: Optional[str] = None
+    result: Optional[str] = None  # W, L, or None if not final
+
+
+class TeamStatsOut(BaseModel):
+    """Team statistics summary."""
+
+    team_id: int
+    team_name: str
+    team_abbr: str
+    games_played: int
+    wins: int
+    losses: int
+    win_percentage: float
+    home_record: str
+    away_record: str
+    points_per_game: float
+    points_allowed_per_game: float
+    point_differential: float
+
+
+class PlayerGameLogOut(BaseModel):
+    """Player game log entry."""
+
+    game_id: str
+    date: datetime
+    opponent_id: Optional[int] = None
+    opponent_name: str
+    opponent_abbr: str
+    is_home: bool
+    is_starter: bool
+    minutes_played: float
+    points: float
+    rebounds: float
+    assists: float
+    steals: float
+    blocks: float
+    turnovers: float
+    field_goals_made: int
+    field_goals_attempted: int
+    field_goal_percentage: float
+    three_pointers_made: int
+    three_pointers_attempted: int
+    three_point_percentage: float
+    free_throws_made: int
+    free_throws_attempted: int
+    free_throw_percentage: float
+    plus_minus: int
+    did_not_play: bool
+
+
+class LeagueLeaderOut(BaseModel):
+    """League leader in a statistical category."""
+
+    rank: int
+    player_id: int
+    player_name: str
+    team_id: int
+    team_name: str
+    team_abbr: str
+    games_played: int
+    value: float
+    position: Optional[str] = None
+
+
+class PlayerSearchResultOut(BaseModel):
+    """Player search result."""
+
+    player_id: int
+    full_name: str
+    jersey_number: Optional[str] = None
+    position: Optional[str] = None
+    team_id: Optional[int] = None
+    team_name: Optional[str] = None
+    team_abbr: Optional[str] = None
+    height: Optional[int] = None
+    weight: Optional[int] = None
+    college: Optional[str] = None
+    years_pro: Optional[int] = None
+    status: str = "active"
+    headshot_url: Optional[str] = None
+    ppg: float = 0.0
+    rpg: float = 0.0
+    apg: float = 0.0
+    games_played: int = 0
+
+
+class DetailedPlayerStatsOut(BaseModel):
+    """Detailed player statistics including advanced metrics."""
+
+    player_id: int
+    player_name: str
+    team_id: Optional[int] = None
+    team_name: Optional[str] = None
+    team_abbr: Optional[str] = None
+    position: Optional[str] = None
+    jersey_number: Optional[str] = None
+
+    # Basic info
+    height: Optional[int] = None
+    weight: Optional[int] = None
+    college: Optional[str] = None
+    years_pro: Optional[int] = None
+    status: str = "active"
+    headshot_url: Optional[str] = None
+
+    # Season stats
+    season: int
+    games_played: int = 0
+    games_started: int = 0
+
+    # Per game averages
+    ppg: float = 0.0
+    rpg: float = 0.0
+    apg: float = 0.0
+    spg: float = 0.0
+    bpg: float = 0.0
+    topg: float = 0.0
+    mpg: float = 0.0
+
+    # Shooting percentages
+    fg_percentage: float = 0.0
+    three_point_percentage: float = 0.0
+    ft_percentage: float = 0.0
+
+    # Advanced metrics
+    per: float = 0.0
+    true_shooting_percentage: float = 0.0
+    usage_rate: float = 0.0
+
+    # Fantasy specific
+    fantasy_ppg: float = 0.0
+    consistency_score: float = 0.0
+    ceiling: float = 0.0
+    floor: float = 0.0

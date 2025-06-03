@@ -90,8 +90,7 @@ def test_list_free_agents(auth_client, setup_roster_test_data, db: Session):
     # Assert
     assert response.status_code == 200
     data = response.json()
-    assert data["total"] == 5  # 12 players - 7 on roster
-    assert len(data["items"]) == 5
+    assert len(data) == 5  # 12 players - 7 on roster
 
 
 def test_add_player(auth_client, setup_roster_test_data, db: Session):

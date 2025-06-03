@@ -42,13 +42,45 @@ const MyTeamPanel: React.FC<MyTeamPanelProps> = ({ myTeamId, teamName, allPicks 
     else roster.UTIL.push(playerDetails as Player);
   });
 
+  // Position requirements (typical fantasy basketball roster requirements)
+  const requirements = {
+    G: { min: 2, current: roster.G.length, label: 'Guards (≥2)' },
+    F: { min: 1, current: roster.F.length, label: 'Forwards (≥1)' },
+    C: { min: 1, current: roster.C.length, label: 'Centers (≥1)' },
+    Total: { min: 10, current: myTeamPicks.length, label: 'Total Roster (10)' }
+  };
+
+  const getRequirementStatus = (req: { min: number; current: number }) => {
+    if (req.current >= req.min) return 'text-green-600 bg-green-50';
+    return 'text-red-600 bg-red-50';
+  };
+
   return (
     <div className="p-4 border rounded shadow bg-white">
       <h2 className="text-xl font-semibold mb-3">My Team ({teamName || 'Team'})</h2>
+
+      {/* Position Requirements Section */}
+      <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Roster Requirements</h3>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {Object.entries(requirements).map(([pos, req]) => (
+            <div key={pos} className={`p-2 rounded ${getRequirementStatus(req)}`}>
+              <div className="font-medium">{req.label}</div>
+              <div className="text-lg font-bold">
+                {req.current}/{req.min}
+                {req.current >= req.min && ' ✓'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Current Roster */}
       {myTeamPicks.length === 0 ? (
         <p className="text-gray-500 italic py-4 text-center">Your team hasn't made any picks yet.</p>
       ) : (
         <div className="space-y-3">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Current Roster ({myTeamPicks.length} players)</h3>
           {(Object.keys(roster) as Array<keyof typeof roster>).map(posCategory => {
             if (roster[posCategory].length > 0) {
               return (

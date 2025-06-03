@@ -1,13 +1,14 @@
 import React from 'react';
 import type { DraftState } from '../../types/draft';
+import type { UserTeam } from '../../types';
 
 interface DraftStatusBannerProps {
   draftState: DraftState | null;
   userTeamId?: number | null; // To highlight if it's the user's turn
-  // We might need to map team_id to team_name if not readily available in draftState.current_team_name
+  allTeams?: UserTeam[]; // To map team_id to team_name
 }
 
-const DraftStatusBanner: React.FC<DraftStatusBannerProps> = ({ draftState, userTeamId }) => {
+const DraftStatusBanner: React.FC<DraftStatusBannerProps> = ({ draftState, userTeamId, allTeams }) => {
   if (!draftState) {
     return (
       <div className="p-4 bg-gray-100 border-b border-gray-300 text-center">
@@ -21,7 +22,9 @@ const DraftStatusBanner: React.FC<DraftStatusBannerProps> = ({ draftState, userT
   // Overall pick number is the count of picks made + 1 for the current pick.
   const overallPickNumber = picks.length + 1;
 
-  const teamOnClock = `Team ID: ${current_team_id}`;
+  // Find the team name from the current_team_id
+  const currentTeam = allTeams?.find(team => team.id === current_team_id);
+  const teamOnClock = currentTeam ? currentTeam.name : `Team ID: ${current_team_id}`;
   const isMyTurn = userTeamId === current_team_id && status === 'active';
 
   let statusText = status.toUpperCase();

@@ -14,6 +14,8 @@ const DashboardPage: React.FC = () => {
   const [scoresError, setScoresError] = useState<string | null>(null);
   const [activeDrafts, setActiveDrafts] = useState<Array<{ leagueId: number; status: string }>>([]);
   const [userTeams, setUserTeams] = useState<UserTeam[]>([]);
+  const [recentGames, setRecentGames] = useState<Array<{ id: string; date: string; home_team: string; away_team: string; home_score: number; away_score: number }>>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
 
   const fetchCurrentScores = useCallback(async () => {
     setScoresLoading(true);
@@ -58,11 +60,21 @@ const DashboardPage: React.FC = () => {
     }
   }, []);
 
+  const fetchRecentGames = useCallback(async () => {
+    try {
+      const games = await api.games.getRecentGames();
+      setRecentGames(games);
+    } catch (error) {
+      console.error('Failed to fetch recent games:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCurrentScores();
     fetchActiveDrafts();
     fetchUserTeams();
-  }, [fetchCurrentScores, fetchActiveDrafts, fetchUserTeams]);
+    fetchRecentGames();
+  }, [fetchCurrentScores, fetchActiveDrafts, fetchUserTeams, fetchRecentGames]);
 
   const totalSeasonPoints = userTeams.reduce((sum, team) => sum + team.season_points, 0);
   const totalMovesUsed = userTeams.reduce((sum, team) => sum + team.moves_this_week, 0);
@@ -80,8 +92,8 @@ const DashboardPage: React.FC = () => {
               Manage your leagues and track your fantasy performance
             </p>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            {/* Enhanced Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
               <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
                 <div className="text-2xl md:text-3xl font-bold">{userTeams.length}</div>
                 <div className="text-sm md:text-base text-blue-100">Active Teams</div>
@@ -98,10 +110,100 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <div className="text-sm md:text-base text-blue-100">Moves Used This Week</div>
               </div>
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <div className="text-2xl md:text-3xl font-bold">
+                  {activeDrafts.length}
+                </div>
+                <div className="text-sm md:text-base text-blue-100">Active Drafts</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Recent Games & Team Stats Section */}
+      <section className="mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent WNBA Games */}
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-xl">🏀</span>
+              Recent WNBA Games
+            </h3>
+            {recentGames.length > 0 ? (
+              <div className="space-y-3">
+                {recentGames.map(game => (
+                  <button
+                    key={game.id}
+                    onClick={() => navigate(`/game/${game.id}`)}
+                    className="w-full flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-xs text-gray-500">
+                        {new Date(game.date).toLocaleDateString()}
+                      </div>
+                      <div className="font-medium">
+                        {game.away_team} @ {game.home_team}
+                      </div>
+                    </div>
+                    <div className="text-sm font-bold">
+                      {game.away_score} - {game.home_score}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">No recent games available</p>
+            )}
+          </div>
+
+          {/* Team Selection & Weekly Stats */}
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-xl">📊</span>
+              Team Weekly Stats
+            </h3>
+            {userTeams.length > 0 ? (
+              <div className="space-y-4">
+                <select
+                  value={selectedTeamId || ''}
+                  onChange={(e) => setSelectedTeamId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="">Select a team</option>
+                  {userTeams.map(team => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedTeamId && (() => {
+                  const selectedTeam = userTeams.find(team => team.id === selectedTeamId);
+                  return selectedTeam ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Season Points:</span>
+                        <span className="font-medium">{selectedTeam.season_points.toFixed(1)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Moves This Week:</span>
+                        <span className="font-medium">{selectedTeam.moves_this_week}/3</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">League:</span>
+                        <span className="font-medium">League {selectedTeam.league_id}</span>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">No teams available</p>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* My Leagues Section */}
       <section>
@@ -169,35 +271,43 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
           {userTeams.length > 0 ? (
-            userTeams.length === 1 ? (
+            <div className="space-y-3">
+              {userTeams.length === 1 ? (
+                <button
+                  onClick={() => navigate(`/team/${userTeams[0].id}`)}
+                  className="btn-secondary w-full"
+                >
+                  Manage {userTeams[0].name}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500 mb-2">Recent teams:</div>
+                  {userTeams.slice(0, 2).map((team) => (
+                    <button
+                      key={team.id}
+                      onClick={() => navigate(`/team/${team.id}`)}
+                      className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">{team.name}</div>
+                      <div className="text-xs text-gray-600">
+                        {team.season_points.toFixed(1)} pts • {team.moves_this_week}/3 moves
+                      </div>
+                    </button>
+                  ))}
+                  {userTeams.length > 2 && (
+                    <div className="text-xs text-gray-500 text-center">
+                      +{userTeams.length - 2} more teams
+                    </div>
+                  )}
+                </div>
+              )}
               <button
-                onClick={() => navigate(`/team/${userTeams[0].id}`)}
+                onClick={() => navigate('/my-teams')}
                 className="btn-primary w-full"
               >
-                Manage {userTeams[0].name}
+                View All Teams
               </button>
-            ) : (
-              <div className="space-y-2">
-                <div className="text-xs text-gray-500 mb-2">Select a team:</div>
-                {userTeams.slice(0, 2).map((team) => (
-                  <button
-                    key={team.id}
-                    onClick={() => navigate(`/team/${team.id}`)}
-                    className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
-                  >
-                    <div className="font-medium">{team.name}</div>
-                    <div className="text-xs text-gray-600">
-                      {team.season_points.toFixed(1)} pts • {team.moves_this_week}/3 moves
-                    </div>
-                  </button>
-                ))}
-                {userTeams.length > 2 && (
-                  <div className="text-xs text-gray-500 text-center">
-                    +{userTeams.length - 2} more teams
-                  </div>
-                )}
-              </div>
-            )
+            </div>
           ) : (
             <button
               onClick={() => navigate('/join')}

@@ -250,6 +250,7 @@ Create a comprehensive deployment setup for a Hetzner VPS running Ubuntu 24.04 w
    ```python
    # Create 4 users: 1 admin, 3 regular users
    # Generate sample leagues and teams for testing
+   # Look at seed_demo.py for context
    ```
 
 #### Deployment Files Structure
@@ -266,7 +267,8 @@ ops/
 │   ├── setup-prod-db.sh
 │   ├── seed-users.py
 │   ├── deploy.sh
-│   └── backup-db.sh
+│   ├── backup-db.sh
+│   └── cloud-init.sh
 ├── cloudflare/
 │   └── dns-config.json
 └── README.md
@@ -274,7 +276,7 @@ ops/
 
 #### Setup Documentation
 1. **Complete Setup Guide**
-   - Hetzner VPS provisioning steps
+   - Hetzner VPS provisioning steps with cloud init file
    - Ubuntu 24.04 configuration
    - Docker and Docker Compose installation
    - Cloudflare DNS setup

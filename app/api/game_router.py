@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any, Dict, List
 
 import httpx
 from fastapi import APIRouter, HTTPException, Path, Depends
@@ -130,6 +130,141 @@ async def game_playbyplay(game_id: str = Path(..., description="Game ID")) -> Ga
         raise HTTPException(status_code=404, detail="Game not found")
 
     return _map_playbyplay(raw)
+
+
+@router.get("/{game_id}/enhanced", response_model=Dict)
+async def get_enhanced_game_view(
+    game_id: str = Path(..., description="Game ID"),
+    db: Session = Depends(get_db)
+) -> Dict:
+    """Get enhanced game view with team names, player names, and additional context."""
+
+    # Get game record
+    game = db.get(models.Game, game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    # Get team information
+    home_team = db.query(models.WNBATeam).filter(models.WNBATeam.id == game.home_team_id).first() if game.home_team_id else None
+    away_team = db.query(models.WNBATeam).filter(models.WNBATeam.id == game.away_team_id).first() if game.away_team_id else None
+
+    # Get all stat lines for this game with player and team info
+    stat_lines = (
+        db.query(models.StatLine)
+        .filter(models.StatLine.game_id == game_id)
+        .join(models.Player)
+        .outerjoin(models.WNBATeam, models.Player.wnba_team_id == models.WNBATeam.id)
+        .all()
+    )
+
+    # Group players by team
+    home_players = []
+    away_players = []
+
+    for stat_line in stat_lines:
+        player_data = {
+            "player_id": stat_line.player_id,
+            "player_name": stat_line.player.full_name,
+            "jersey_number": stat_line.player.jersey_number,
+            "position": stat_line.player.position,
+            "is_starter": stat_line.is_starter,
+            "did_not_play": stat_line.did_not_play,
+            "minutes_played": stat_line.minutes_played,
+            "points": stat_line.points,
+            "rebounds": stat_line.rebounds,
+            "assists": stat_line.assists,
+            "steals": stat_line.steals,
+            "blocks": stat_line.blocks,
+            "turnovers": stat_line.turnovers,
+            "personal_fouls": stat_line.personal_fouls,
+            "field_goals_made": stat_line.field_goals_made,
+            "field_goals_attempted": stat_line.field_goals_attempted,
+            "field_goal_percentage": stat_line.field_goal_percentage,
+            "three_pointers_made": stat_line.three_pointers_made,
+            "three_pointers_attempted": stat_line.three_pointers_attempted,
+            "three_point_percentage": stat_line.three_point_percentage,
+            "free_throws_made": stat_line.free_throws_made,
+            "free_throws_attempted": stat_line.free_throws_attempted,
+            "free_throw_percentage": stat_line.free_throw_percentage,
+            "plus_minus": stat_line.plus_minus,
+        }
+
+        if stat_line.is_home_game:
+            home_players.append(player_data)
+        else:
+            away_players.append(player_data)
+
+    # Calculate team totals
+    def calculate_team_totals(players):
+        if not players:
+            return {}
+
+        totals = {
+            "points": sum(p["points"] for p in players),
+            "rebounds": sum(p["rebounds"] for p in players),
+            "assists": sum(p["assists"] for p in players),
+            "steals": sum(p["steals"] for p in players),
+            "blocks": sum(p["blocks"] for p in players),
+            "turnovers": sum(p["turnovers"] for p in players),
+            "field_goals_made": sum(p["field_goals_made"] for p in players),
+            "field_goals_attempted": sum(p["field_goals_attempted"] for p in players),
+            "three_pointers_made": sum(p["three_pointers_made"] for p in players),
+            "three_pointers_attempted": sum(p["three_pointers_attempted"] for p in players),
+            "free_throws_made": sum(p["free_throws_made"] for p in players),
+            "free_throws_attempted": sum(p["free_throws_attempted"] for p in players),
+        }
+
+        # Calculate percentages
+        totals["field_goal_percentage"] = (
+            totals["field_goals_made"] / totals["field_goals_attempted"] * 100
+            if totals["field_goals_attempted"] > 0 else 0
+        )
+        totals["three_point_percentage"] = (
+            totals["three_pointers_made"] / totals["three_pointers_attempted"] * 100
+            if totals["three_pointers_attempted"] > 0 else 0
+        )
+        totals["free_throw_percentage"] = (
+            totals["free_throws_made"] / totals["free_throws_attempted"] * 100
+            if totals["free_throws_attempted"] > 0 else 0
+        )
+
+        return totals
+
+    home_totals = calculate_team_totals(home_players)
+    away_totals = calculate_team_totals(away_players)
+
+    return {
+        "game": {
+            "id": game.id,
+            "date": game.date,
+            "status": game.status,
+            "venue": game.venue,
+            "attendance": game.attendance,
+        },
+        "home_team": {
+            "id": game.home_team_id,
+            "name": home_team.display_name if home_team else "Unknown",
+            "abbreviation": home_team.abbreviation if home_team else "UNK",
+            "score": game.home_score,
+            "logo_url": home_team.logo_url if home_team else None,
+            "players": sorted(home_players, key=lambda x: (not x["is_starter"], x["player_name"])),
+            "totals": home_totals
+        },
+        "away_team": {
+            "id": game.away_team_id,
+            "name": away_team.display_name if away_team else "Unknown",
+            "abbreviation": away_team.abbreviation if away_team else "UNK",
+            "score": game.away_score,
+            "logo_url": away_team.logo_url if away_team else None,
+            "players": sorted(away_players, key=lambda x: (not x["is_starter"], x["player_name"])),
+            "totals": away_totals
+        },
+        "game_leaders": {
+            "points": max(stat_lines, key=lambda x: x.points, default=None),
+            "rebounds": max(stat_lines, key=lambda x: x.rebounds, default=None),
+            "assists": max(stat_lines, key=lambda x: x.assists, default=None),
+        } if stat_lines else {}
+    }
 
 
 @router.get("/{game_id}/comprehensive-stats", response_model=ComprehensiveGameStatsOut)

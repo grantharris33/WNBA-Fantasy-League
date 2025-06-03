@@ -13,6 +13,7 @@ import ConfirmationModal from '../components/common/ConfirmationModal';
 import DraftLogPanel from '../components/draft/DraftLogPanel';
 import PlayerQueuePanel from '../components/draft/PlayerQueuePanel';
 import MyTeamPanel from '../components/draft/MyTeamPanel';
+import OtherTeamsPanel from '../components/draft/OtherTeamsPanel';
 import CommissionerControls from '../components/draft/CommissionerControls';
 
 // Use LeagueOut directly instead of custom LeagueDetails
@@ -28,6 +29,7 @@ const DraftPage: React.FC = () => {
   const [initialDraftState, setInitialDraftState] = useState<DraftState | null>(null);
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [userTeams, setUserTeams] = useState<UserTeam[]>([]);
+  const [allLeagueTeams, setAllLeagueTeams] = useState<UserTeam[]>([]);
   const [leagueDetails, setLeagueDetails] = useState<LeagueDetails | null>(null); // Added for commissioner ID
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -220,11 +222,15 @@ const DraftPage: React.FC = () => {
 
         // 2. Fetch available players
         const playersData = await api.roster.getFreeAgents(parseInt(leagueId));
-        setAvailablePlayers(playersData.items || playersData); // Adjust based on actual API response structure
+        setAvailablePlayers(playersData);
 
         // 3. Fetch user's teams in this league
         const allUserTeams: UserTeam[] = await api.users.getMyTeams();
         setUserTeams(allUserTeams.filter(team => team.league_id?.toString() === leagueId));
+
+        // 4. Fetch all teams in this league for name mapping
+        const leagueTeams: UserTeam[] = await api.leagues.getTeams(parseInt(leagueId));
+        setAllLeagueTeams(leagueTeams);
 
       } catch (err) {
         console.error('Error fetching draft page data:', err);
@@ -416,7 +422,11 @@ const DraftPage: React.FC = () => {
         </div>
       </header>
 
-      <DraftStatusBanner draftState={currentDraftState} userTeamId={userTeamInThisDraft?.id} />
+      <DraftStatusBanner
+        draftState={currentDraftState}
+        userTeamId={userTeamInThisDraft?.id}
+        allTeams={allLeagueTeams}
+      />
 
       {user?.id && leagueDetails?.commissioner_id === user.id && (
         <CommissionerControls
@@ -436,6 +446,7 @@ const DraftPage: React.FC = () => {
           <DraftTimer
             secondsRemainingFromState={currentDraftState.seconds_remaining}
             draftStatus={currentDraftState.status}
+            draftDate={leagueDetails?.draft_date}
             onTimerExpire={handleTimerExpire}
           />
           {pickError && <div className="p-3 bg-red-100 text-red-700 border border-red-300 rounded">Pick Error: {pickError}</div>}
@@ -474,6 +485,15 @@ const DraftPage: React.FC = () => {
                <h2 className="text-xl font-semibold mb-3">My Team</h2>
                <p className="text-gray-500 italic">You do not appear to have a team in this league's draft.</p>
              </div>
+          )}
+
+          {/* Other Teams Panel */}
+          {currentDraftState && allLeagueTeams.length > 0 && (
+            <OtherTeamsPanel
+              allTeams={allLeagueTeams}
+              allPicks={currentDraftState.picks}
+              currentUserTeamId={userTeamInThisDraft?.id}
+            />
           )}
         </div>
       </main>
