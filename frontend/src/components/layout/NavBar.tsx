@@ -10,6 +10,7 @@ const NavBar: React.FC = () => {
   const navLinks = [
     { to: '/', label: 'Dashboard', icon: '🏠' },
     { to: '/scoreboard', label: 'Scoreboard', icon: '📊' },
+    { to: '/players', label: 'Players', icon: '👥' },
     { to: '/join', label: 'Join League', icon: '➕' },
   ];
 

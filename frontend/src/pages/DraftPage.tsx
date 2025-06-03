@@ -32,6 +32,7 @@ const DraftPage: React.FC = () => {
   const [allLeagueTeams, setAllLeagueTeams] = useState<UserTeam[]>([]);
   const [leagueDetails, setLeagueDetails] = useState<LeagueDetails | null>(null); // Added for commissioner ID
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPlayerStats, setIsLoadingPlayerStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const leagueId = leagueIdFromParams || null;
@@ -220,15 +221,66 @@ const DraftPage: React.FC = () => {
         const draftStateData: DraftState = await api.leagues.getDraftState(parseInt(leagueId));
         setInitialDraftState(draftStateData);
 
-        // 2. Fetch available players
+                // 2. Fetch available players
         const playersData = await api.roster.getFreeAgents(parseInt(leagueId));
-        setAvailablePlayers(playersData);
 
-        // 3. Fetch user's teams in this league
+        // Set initial players without stats first for immediate display
+        setAvailablePlayers(playersData.map(player => ({ ...player, stats_2024: null })));
+
+        // 3. Enrich players with 2024 stats for draft comparison
+        setIsLoadingPlayerStats(true);
+        const enrichedPlayers = await Promise.allSettled(
+          playersData.map(async (player) => {
+            try {
+              const stats2024 = await api.wnba.getPlayerStats(player.id, 2024);
+              return {
+                ...player,
+                stats_2024: {
+                  ppg: stats2024.ppg,
+                  rpg: stats2024.rpg,
+                  apg: stats2024.apg,
+                  spg: stats2024.spg,
+                  bpg: stats2024.bpg,
+                  fg_percentage: stats2024.fg_percentage,
+                  three_point_percentage: stats2024.three_point_percentage,
+                  ft_percentage: stats2024.ft_percentage,
+                  mpg: stats2024.mpg,
+                  fantasy_ppg: stats2024.fantasy_ppg,
+                  games_played: stats2024.games_played,
+                }
+              };
+            } catch (err) {
+              console.warn(`Failed to fetch 2024 stats for player ${player.full_name}:`, err);
+              return {
+                ...player,
+                stats_2024: null
+              };
+            }
+          })
+        );
+
+        // Extract successful results and fallback to original player data for failed requests
+        const playersWithStats = enrichedPlayers.map((result) => {
+          if (result.status === 'fulfilled') {
+            return result.value;
+          } else {
+            // For failed requests, find the original player and return without stats
+            const originalIndex = enrichedPlayers.indexOf(result);
+            return {
+              ...playersData[originalIndex],
+              stats_2024: null
+            };
+          }
+        });
+
+        setAvailablePlayers(playersWithStats);
+        setIsLoadingPlayerStats(false);
+
+        // 4. Fetch user's teams in this league
         const allUserTeams: UserTeam[] = await api.users.getMyTeams();
         setUserTeams(allUserTeams.filter(team => team.league_id?.toString() === leagueId));
 
-        // 4. Fetch all teams in this league for name mapping
+        // 5. Fetch all teams in this league for name mapping
         const leagueTeams: UserTeam[] = await api.leagues.getTeams(parseInt(leagueId));
         setAllLeagueTeams(leagueTeams);
 
@@ -457,6 +509,7 @@ const DraftPage: React.FC = () => {
             onPickPlayer={openPickConfirmationModal}
             queuedPlayerIds={queuedPlayerIds}
             onToggleQueuePlayer={handleToggleQueuePlayer}
+            isLoadingPlayerStats={isLoadingPlayerStats}
           />
         </div>
 

@@ -13,6 +13,8 @@ import LeagueDetailPage from './pages/LeagueDetailPage';
 import MyTeamsPage from './pages/MyTeamsPage';
 import ScoreboardPage from './pages/ScoreboardPage';
 import GameDetailPage from './pages/GameDetailPage';
+import PlayersPage from './pages/PlayersPage';
+import PlayerDetailPage from './pages/PlayerDetailPage';
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
             <Route path="/draft/:leagueId" element={<DraftPage />} />
             <Route path="/team/:teamId" element={<TeamPage />} />
             <Route path="/game/:gameId" element={<GameDetailPage />} />
+            <Route path="/players" element={<PlayersPage />} />
+            <Route path="/player/:playerId" element={<PlayerDetailPage />} />
           </Route>
 
           {/* Redirect to home for undefined routes */}

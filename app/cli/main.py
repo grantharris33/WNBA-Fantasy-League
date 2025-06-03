@@ -31,6 +31,8 @@ from app.models import (
 from app.services.backfill import BackfillService
 from app.services.scoring import update_weekly_team_scores
 from app.jobs.ingest import ingest_stat_lines
+from app.jobs.ingest_teams import ingest_wnba_teams
+from app.jobs.ingest_players import ingest_player_profiles
 from app.cli.admin import admin
 
 
@@ -212,6 +214,72 @@ def range(start_date: str, end_date: str):
         click.echo(f"\n📊 Summary: {success_count} successful, {error_count} failed")
 
     asyncio.run(run_ingest())
+
+
+@ingest.command()
+def teams():
+    """Ingest all WNBA team information."""
+    click.echo("🏀 Starting WNBA teams ingestion...")
+
+    init_db()
+
+    async def run_teams_ingest():
+        try:
+            await ingest_wnba_teams()
+            click.echo("✅ Teams ingestion completed successfully")
+        except Exception as e:
+            click.echo(f"❌ Error during teams ingestion: {e}")
+            raise
+
+    asyncio.run(run_teams_ingest())
+
+
+@ingest.command()
+def players():
+    """Ingest all WNBA player profiles and biographical data."""
+    click.echo("👥 Starting WNBA players ingestion...")
+    click.echo("⚠️  This may take several minutes due to API rate limits...")
+
+    init_db()
+
+    async def run_players_ingest():
+        try:
+            await ingest_player_profiles()
+            click.echo("✅ Players ingestion completed successfully")
+        except Exception as e:
+            click.echo(f"❌ Error during players ingestion: {e}")
+            raise
+
+    asyncio.run(run_players_ingest())
+
+
+@ingest.command()
+def all():
+    """Ingest all WNBA teams and player data (not stat lines)."""
+    click.echo("🏀 Starting complete WNBA teams and players ingestion...")
+    click.echo("⚠️  This may take several minutes due to API rate limits...")
+
+    init_db()
+
+    async def run_all_ingest():
+        try:
+            # First ingest teams
+            click.echo("\n1️⃣ Ingesting teams...")
+            await ingest_wnba_teams()
+            click.echo("✅ Teams ingestion completed")
+
+            # Then ingest players
+            click.echo("\n2️⃣ Ingesting players...")
+            await ingest_player_profiles()
+            click.echo("✅ Players ingestion completed")
+
+            click.echo("\n🎉 All teams and players data ingestion completed successfully!")
+
+        except Exception as e:
+            click.echo(f"❌ Error during ingestion: {e}")
+            raise
+
+    asyncio.run(run_all_ingest())
 
 
 # =============================================================================

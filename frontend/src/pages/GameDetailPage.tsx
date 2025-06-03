@@ -5,6 +5,7 @@ import api from '../lib/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
 
+// Using the new interfaces from api.ts
 interface PlayByPlayEvent {
   clock: string;
   description: string;
@@ -60,19 +61,45 @@ interface PlayerStats {
   is_home_game: boolean;
 }
 
-interface ComprehensiveStatsResponse {
+interface EnhancedGameTeam {
+  id: number;
+  name: string;
+  abbreviation: string;
+  logo_url?: string;
+  score: number;
+  players: PlayerStats[];
+  totals: {
+    points: number;
+    rebounds: number;
+    assists: number;
+    field_goal_percentage: number;
+    three_point_percentage: number;
+    free_throw_percentage: number;
+  };
+}
+
+interface GameLeader {
+  stat: string;
+  player_name: string;
+  team_name: string;
+  value: number;
+}
+
+interface EnhancedGameResponse {
   game: GameInfo;
-  player_stats: PlayerStats[];
+  home_team: EnhancedGameTeam;
+  away_team: EnhancedGameTeam;
+  game_leaders: GameLeader[];
 }
 
 const GameDetailPage: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
-  const [gameStats, setGameStats] = useState<ComprehensiveStatsResponse | null>(null);
+  const [gameData, setGameData] = useState<EnhancedGameResponse | null>(null);
   const [playByPlay, setPlayByPlay] = useState<PlayByPlayResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'stats' | 'playbyplay'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'leaders' | 'playbyplay'>('stats');
 
   const fetchGameData = useCallback(async () => {
     if (!gameId) return;
@@ -80,12 +107,12 @@ const GameDetailPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, playByPlayData] = await Promise.all([
-        api.games.getComprehensiveStats(gameId),
+      const [enhancedData, playByPlayData] = await Promise.all([
+        api.games.getEnhanced(gameId),
         api.games.getPlayByPlay(gameId)
       ]);
 
-      setGameStats(statsData);
+      setGameData(enhancedData);
       setPlayByPlay(playByPlayData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch game data');
@@ -121,7 +148,7 @@ const GameDetailPage: React.FC = () => {
     );
   }
 
-  if (!gameStats || !playByPlay) {
+  if (!gameData || !playByPlay) {
     return (
       <div className="max-w-4xl mx-auto p-6 text-center">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Game Not Found</h1>
@@ -136,11 +163,7 @@ const GameDetailPage: React.FC = () => {
     );
   }
 
-  const { game, player_stats } = gameStats;
-
-  // Group players by team
-  const homeTeamPlayers = player_stats.filter(p => p.team_id === game.home_team_id);
-  const awayTeamPlayers = player_stats.filter(p => p.team_id === game.away_team_id);
+  const { game, home_team, away_team, game_leaders } = gameData;
 
   // Group events by period for play-by-play
   const eventsByPeriod = playByPlay.events.reduce((acc, event) => {
@@ -155,6 +178,106 @@ const GameDetailPage: React.FC = () => {
     const ft = `${player.free_throws_made}/${player.free_throws_attempted}`;
     return { fg, threePt, ft };
   };
+
+  const renderTeamStats = (team: EnhancedGameTeam) => (
+    <section>
+      <div className="flex items-center gap-4 mb-4">
+        {team.logo_url && (
+          <img
+            src={team.logo_url}
+            alt={`${team.name} logo`}
+            className="w-8 h-8 object-contain"
+          />
+        )}
+        <h2 className="text-xl font-bold text-gray-900">
+          {team.name} ({team.abbreviation}) - {team.score}
+        </h2>
+      </div>
+
+      {/* Team Totals */}
+      <div className="bg-gray-50 p-4 rounded-lg mb-4">
+        <h3 className="font-semibold text-gray-700 mb-2">Team Totals</h3>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-sm">
+          <div className="text-center">
+            <div className="font-medium text-gray-900">{team.totals.points}</div>
+            <div className="text-gray-600">Points</div>
+          </div>
+          <div className="text-center">
+            <div className="font-medium text-gray-900">{team.totals.rebounds}</div>
+            <div className="text-gray-600">Rebounds</div>
+          </div>
+          <div className="text-center">
+            <div className="font-medium text-gray-900">{team.totals.assists}</div>
+            <div className="text-gray-600">Assists</div>
+          </div>
+                     <div className="text-center">
+             <div className="font-medium text-gray-900">{team.totals.field_goal_percentage.toFixed(1)}%</div>
+             <div className="text-gray-600">FG%</div>
+           </div>
+           <div className="text-center">
+             <div className="font-medium text-gray-900">{team.totals.three_point_percentage.toFixed(1)}%</div>
+             <div className="text-gray-600">3P%</div>
+           </div>
+           <div className="text-center">
+             <div className="font-medium text-gray-900">{team.totals.free_throw_percentage.toFixed(1)}%</div>
+             <div className="text-gray-600">FT%</div>
+           </div>
+        </div>
+      </div>
+
+      {/* Player Stats Table */}
+      <div className="card overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pts</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reb</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ast</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stl</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blk</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FG</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">3PT</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FT</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">+/-</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {team.players
+              .filter(p => !p.did_not_play)
+              .sort((a, b) => (b.is_starter ? 1 : 0) - (a.is_starter ? 1 : 0))
+              .map(player => {
+                const { fg, threePt, ft } = formatPlayerStats(player);
+                return (
+                  <tr key={player.player_id} className={player.is_starter ? 'bg-blue-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer"
+                             onClick={() => navigate(`/player/${player.player_id}`)}>
+                          {player.player_name}
+                        </div>
+                        <div className="text-sm text-gray-500">{player.position}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.minutes_played}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{player.points}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.rebounds}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.assists}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.steals}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.blocks}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{fg}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{threePt}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ft}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.plus_minus > 0 ? '+' : ''}{player.plus_minus}</td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
@@ -182,13 +305,31 @@ const GameDetailPage: React.FC = () => {
           <div className="text-sm text-gray-500 mb-2">Final Score</div>
           <div className="flex justify-center items-center gap-8">
             <div className="text-center">
-              <div className="text-lg font-medium text-gray-600">Away Team (ID: {game.away_team_id})</div>
-              <div className="text-4xl font-bold text-gray-900">{game.away_score}</div>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                {away_team.logo_url && (
+                  <img
+                    src={away_team.logo_url}
+                    alt={`${away_team.name} logo`}
+                    className="w-8 h-8 object-contain"
+                  />
+                )}
+                <div className="text-lg font-medium text-gray-600">{away_team.name}</div>
+              </div>
+              <div className="text-4xl font-bold text-gray-900">{away_team.score}</div>
             </div>
             <div className="text-2xl text-gray-400">-</div>
             <div className="text-center">
-              <div className="text-lg font-medium text-gray-600">Home Team (ID: {game.home_team_id})</div>
-              <div className="text-4xl font-bold text-gray-900">{game.home_score}</div>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                {home_team.logo_url && (
+                  <img
+                    src={home_team.logo_url}
+                    alt={`${home_team.name} logo`}
+                    className="w-8 h-8 object-contain"
+                  />
+                )}
+                <div className="text-lg font-medium text-gray-600">{home_team.name}</div>
+              </div>
+              <div className="text-4xl font-bold text-gray-900">{home_team.score}</div>
             </div>
           </div>
           <div className="mt-4 text-sm text-gray-500 capitalize">{game.status}</div>
@@ -209,6 +350,16 @@ const GameDetailPage: React.FC = () => {
             Player Statistics
           </button>
           <button
+            onClick={() => setActiveTab('leaders')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'leaders'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Game Leaders
+          </button>
+          <button
             onClick={() => setActiveTab('playbyplay')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'playbyplay'
@@ -224,105 +375,29 @@ const GameDetailPage: React.FC = () => {
       {/* Tab Content */}
       {activeTab === 'stats' && (
         <div className="space-y-8">
-          {/* Away Team Stats */}
-          <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Away Team (ID: {game.away_team_id}) - {game.away_score}
-            </h2>
-            <div className="card overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pts</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reb</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ast</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FG</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">3PT</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FT</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">+/-</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {awayTeamPlayers
-                    .filter(p => !p.did_not_play)
-                    .sort((a, b) => (b.is_starter ? 1 : 0) - (a.is_starter ? 1 : 0))
-                    .map(player => {
-                      const { fg, threePt, ft } = formatPlayerStats(player);
-                      return (
-                        <tr key={player.player_id} className={player.is_starter ? 'bg-blue-50' : ''}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="font-medium text-gray-900">{player.player_name}</div>
-                              <div className="text-sm text-gray-500">{player.position}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.minutes_played}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{player.points}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.rebounds}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.assists}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{fg}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{threePt}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ft}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.plus_minus > 0 ? '+' : ''}{player.plus_minus}</td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                    {/* Away Team Stats */}
+          {renderTeamStats(away_team)}
 
           {/* Home Team Stats */}
-          <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Home Team (ID: {game.home_team_id}) - {game.home_score}
-            </h2>
-            <div className="card overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pts</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reb</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ast</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FG</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">3PT</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FT</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">+/-</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {homeTeamPlayers
-                    .filter(p => !p.did_not_play)
-                    .sort((a, b) => (b.is_starter ? 1 : 0) - (a.is_starter ? 1 : 0))
-                    .map(player => {
-                      const { fg, threePt, ft } = formatPlayerStats(player);
-                      return (
-                        <tr key={player.player_id} className={player.is_starter ? 'bg-blue-50' : ''}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="font-medium text-gray-900">{player.player_name}</div>
-                              <div className="text-sm text-gray-500">{player.position}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.minutes_played}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{player.points}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.rebounds}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.assists}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{fg}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{threePt}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ft}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{player.plus_minus > 0 ? '+' : ''}{player.plus_minus}</td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+          {renderTeamStats(home_team)}
+        </div>
+      )}
+
+      {activeTab === 'leaders' && (
+        <div className="space-y-6">
+          <div className="card p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Game Leaders</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {game_leaders.map((leader, index) => (
+                <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 uppercase tracking-wider">{leader.stat}</div>
+                  <div className="font-bold text-lg text-gray-900">{leader.player_name}</div>
+                  <div className="text-sm text-gray-600">{leader.team_name}</div>
+                  <div className="text-xl font-bold text-blue-600">{leader.value}</div>
+                </div>
+              ))}
             </div>
-          </section>
+          </div>
         </div>
       )}
 

@@ -129,7 +129,7 @@ def _parse_birth_date(birth_str: str | None) -> dt.datetime | None:
 
 async def _upsert_player_from_roster(session, roster_player: Dict[str, Any]) -> models.Player:
     """Create or update a player record from roster data."""
-    player_id = int(roster_player["id"])
+    player_id = int(roster_player["playerId"])  # API uses "playerId" not "id"
     player = session.get(models.Player, player_id)
 
     if player is None:
@@ -146,13 +146,50 @@ async def _upsert_player_from_roster(session, roster_player: Dict[str, Any]) -> 
     # Update basic info from roster
     player.full_name = roster_player.get("displayName", player.full_name)
     player.position = roster_player.get("position", {}).get("abbreviation")
-    player.jersey_number = roster_player.get("jersey", {}).get("number")
+    player.jersey_number = roster_player.get("jersey")  # API returns jersey as string directly
 
     # Parse name components
     if roster_player.get("firstName"):
         player.first_name = roster_player["firstName"]
     if roster_player.get("lastName"):
         player.last_name = roster_player["lastName"]
+
+    # Add basic physical stats from roster if available
+    if roster_player.get("height"):
+        player.height = roster_player["height"]  # API returns height in inches
+    if roster_player.get("weight"):
+        player.weight = roster_player["weight"]  # API returns weight in lbs
+
+    # Add college info if available
+    if roster_player.get("college", {}).get("name"):
+        player.college = roster_player["college"]["name"]
+
+    # Add birth info if available
+    if roster_player.get("dateOfBirth"):
+        player.birth_date = _parse_birth_date(roster_player["dateOfBirth"])
+    if roster_player.get("birthPlace", {}).get("city"):
+        birth_place_parts = []
+        birth_place = roster_player["birthPlace"]
+        if birth_place.get("city"):
+            birth_place_parts.append(birth_place["city"])
+        if birth_place.get("state"):
+            birth_place_parts.append(birth_place["state"])
+        if birth_place.get("country"):
+            birth_place_parts.append(birth_place["country"])
+        player.birth_place = ", ".join(birth_place_parts)
+
+    # Add experience if available
+    if roster_player.get("experience", {}).get("years") is not None:
+        player.years_pro = roster_player["experience"]["years"]
+
+    # Add headshot if available
+    if roster_player.get("headshot"):
+        player.headshot_url = roster_player["headshot"]
+
+    # Add status if available
+    if roster_player.get("status"):
+        status = roster_player["status"].lower()
+        player.status = status if status in ["active", "injured", "inactive"] else "active"
 
     return player
 
@@ -230,7 +267,13 @@ async def ingest_player_profiles() -> None:
             _log_error(provider="rapidapi", msg="No teams data received")
             return
 
-        teams = teams_data.get("sports", [{}])[0].get("leagues", [{}])[0].get("teams", [])
+        # teams_data is a list of teams directly from the API
+        if isinstance(teams_data, list):
+            teams = teams_data
+        else:
+            # Fallback to old structure in case API changes
+            teams = teams_data.get("sports", [{}])[0].get("leagues", [{}])[0].get("teams", [])
+
         if not teams:
             _log_error(provider="rapidapi", msg="No teams found in API response")
             return
@@ -239,7 +282,7 @@ async def ingest_player_profiles() -> None:
 
         # Step 2: Process each team's roster
         for team in teams:
-            team_id = team.get("id")
+            team_id = team.get("teamId") or team.get("id")  # API returns teamId as string
             team_name = team.get("displayName", "Unknown")
 
             if not team_id:
@@ -255,7 +298,8 @@ async def ingest_player_profiles() -> None:
                     continue
 
                 # Extract athletes/players from roster
-                athletes = roster_data.get("team", {}).get("athletes", [])
+                # API returns players in "data" array, not nested in "team.athletes"
+                athletes = roster_data.get("data", [])
                 if not athletes:
                     _log_info(provider="rapidapi", msg=f"No players found for team {team_name}")
                     continue
@@ -272,15 +316,20 @@ async def ingest_player_profiles() -> None:
                             player = await _upsert_player_from_roster(session, athlete)
 
                             # Set team association
-                            # We need to find the corresponding Team record by some identifier
-                            # For now, we'll use team_abbr to match
-                            player.team_abbr = team.get("abbreviation")
+                            team_abbr = team.get("abbreviation")
+                            player.team_abbr = team_abbr
 
-                            # Add a small delay to respect rate limits
-                            await asyncio.sleep(0.5)
+                            # Also link to the WNBATeam record for proper relationships
+                            if team_abbr:
+                                wnba_team = session.query(models.WNBATeam).filter(
+                                    models.WNBATeam.abbreviation == team_abbr
+                                ).first()
+                                if wnba_team:
+                                    player.wnba_team_id = wnba_team.id
 
-                            # Enhance with biographical data
-                            await _enhance_player_with_bio(session, player)
+                            # Most biographical data is already in roster, so we don't need to call bio API
+                            # This avoids rate limiting issues and speeds up the process
+                            # await _enhance_player_with_bio(session, player)
 
                             processed_players += 1
 
@@ -295,7 +344,7 @@ async def ingest_player_profiles() -> None:
                         except Exception as e:
                             session.rollback()
                             failed_players += 1
-                            _log_error(provider="rapidapi", msg=f"Error processing player {athlete.get('id', 'unknown')}: {e}")
+                            _log_error(provider="rapidapi", msg=f"Error processing player {athlete.get('playerId', 'unknown')}: {e}")
                             continue
 
                 finally:
