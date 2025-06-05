@@ -1,0 +1,190 @@
+<html><head>
+    <meta charset="utf-8"/>
+    <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect"/>
+    <link as="style" href="https://fonts.googleapis.com/css2?display=swap&amp;family=Manrope%3Awght%40400%3B500%3B700%3B800&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900" onload="this.rel='stylesheet'" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <title>Stitch Design</title>
+    <link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    </head>
+    <body style='font-family: Manrope, "Noto Sans", sans-serif;'>
+    <div class="relative flex size-full min-h-screen flex-col bg-slate-50 group/design-root overflow-x-hidden text-[#0d141c]">
+    <div class="layout-container flex h-full grow flex-col">
+    <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 px-10 py-4 bg-white shadow-sm">
+    <div class="flex items-center gap-3 text-primary-600">
+    <span class="material-icons text-3xl text-[#0c7ff2]">sports_basketball</span>
+    <h2 class="text-xl font-bold leading-tight tracking-[-0.015em] text-[#0d141c]">WNBA Fantasy League</h2>
+    </div>
+    <nav class="flex flex-1 justify-center gap-8">
+    <a class="text-slate-700 hover:text-[#0c7ff2] text-sm font-medium leading-normal transition-colors" href="#">My Team</a>
+    <a class="text-slate-700 hover:text-[#0c7ff2] text-sm font-medium leading-normal transition-colors" href="#">Player Stats</a>
+    <a class="text-slate-700 hover:text-[#0c7ff2] text-sm font-medium leading-normal transition-colors" href="#">Draft Room</a>
+    </nav>
+    <div class="flex items-center gap-4">
+    <button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+    <span class="material-icons text-2xl">notifications</span>
+    </button>
+    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-slate-200 hover:border-[#0c7ff2] transition-all" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDlx5u1IEhdGjHw2PhYbtg4wF8a3NKcWMlkVPBej3zDOwGlaZDRZQCq3A2A9RVDv3s0-EnmAzEdcM9uhIa9alHO2HsT9mYX5sG8GnhiiMAyE553FbklsAQTBCOO5og628cLNOl9T8Eg0CrPeamMRajE0ltNRM8yyZCG38JFc2fohMkqReNV1H46s66hv4bL-3Qw7i6DgRH7oirARtnAbsYjkdBnQVheeD10AiUubH8Q8QdwjOi0RnEM_HRLq-Let8nHUOjrau8mw4tA");'></div>
+    </div>
+    </header>
+    <div class="flex flex-1">
+    <aside class="w-72 bg-white border-r border-slate-200 p-6 shadow-sm">
+    <nav class="flex flex-col gap-2">
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0c7ff2] text-white font-semibold shadow-md hover:bg-opacity-90 transition-all" href="#">
+    <span class="material-icons">dashboard</span>
+    <p class="text-sm leading-normal">Dashboard</p>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all" href="#">
+    <span class="material-icons">emoji_events</span>
+    <p class="text-sm font-medium leading-normal">League Standings</p>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all" href="#">
+    <span class="material-icons">bar_chart</span>
+    <p class="text-sm font-medium leading-normal">Team Stats</p>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all" href="#">
+    <span class="material-icons">history</span>
+    <p class="text-sm font-medium leading-normal">Recent Activity</p>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all" href="#">
+    <span class="material-icons">settings</span>
+    <p class="text-sm font-medium leading-normal">League Settings</p>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all mt-auto border-t border-slate-200 pt-4" href="#">
+    <span class="material-icons">help_outline</span>
+    <p class="text-sm font-medium leading-normal">Help</p>
+    </a>
+    </nav>
+    </aside>
+    <main class="flex-1 p-8 bg-slate-100 overflow-y-auto">
+    <div class="mb-8">
+    <h1 class="text-3xl font-bold leading-tight text-[#0d141c]">League Dashboard</h1>
+    <p class="text-slate-500 text-sm font-normal leading-normal">Welcome back, Sarah! Here's a snapshot of your league.</p>
+    </div>
+    <section class="mb-8">
+    <h2 class="text-2xl font-bold leading-tight tracking-[-0.015em] text-[#0d141c] mb-4">League Standings</h2>
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-[800px]">
+    <thead class="bg-slate-50 border-b border-slate-200">
+    <tr>
+    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Rank</th>
+    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Team</th>
+    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</th>
+    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Wins</th>
+    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Losses</th>
+    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Points</th>
+    </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-200">
+    <tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">1</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[#0c7ff2]">Dream Team</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">Emily Carter</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">10</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">2</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">1250</td>
+    </tr>
+    <tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">2</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[#0c7ff2]">Court Queens</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">Olivia Davis</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">9</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">3</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">1200</td>
+    </tr>
+    <tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">3</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[#0c7ff2]">Hoop Stars</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">Sophia Brown</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">8</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">4</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">1150</td>
+    </tr>
+    <tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">4</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[#0c7ff2]">Net Rippers</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">Chloe Wilson</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">7</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">5</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">1100</td>
+    </tr>
+    <tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">5</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[#0c7ff2]">Ball Busters</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">Ava Taylor</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">6</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">6</td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-800">1050</td>
+    </tr>
+    </tbody>
+    </table>
+    </div>
+    </div>
+    </section>
+    <section class="mb-8">
+    <h2 class="text-2xl font-bold leading-tight tracking-[-0.015em] text-[#0d141c] mb-4">Team Stats Snapshot</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+    <div class="flex items-center text-slate-500 mb-1">
+    <span class="material-icons text-lg mr-2">scoreboard</span>
+    <p class="text-sm font-medium">Points Scored</p>
+    </div>
+    <p class="text-[#0c7ff2] text-3xl font-bold">1250</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+    <div class="flex items-center text-slate-500 mb-1">
+    <span class="material-icons text-lg mr-2">sports_basketball</span>
+    <p class="text-sm font-medium">Rebounds</p>
+    </div>
+    <p class="text-[#0c7ff2] text-3xl font-bold">450</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200 hover:shadow-xl transition-shadow">
+    <div class="flex items-center text-slate-500 mb-1">
+    <span class="material-icons text-lg mr-2">assistant</span>
+    <p class="text-sm font-medium">Assists</p>
+    </div>
+    <p class="text-[#0c7ff2] text-3xl font-bold">300</p>
+    </div>
+    </div>
+    </section>
+    <section>
+    <h2 class="text-2xl font-bold leading-tight tracking-[-0.015em] text-[#0d141c] mb-4">Recent League Activity</h2>
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
+    <ul class="space-y-6">
+    <li class="flex items-start space-x-4">
+    <div class="flex-shrink-0 pt-1">
+    <span class="material-icons text-xl text-[#0c7ff2]">swap_horiz</span>
+    </div>
+    <div>
+    <p class="text-sm font-medium text-slate-800">Emily Carter traded Maya Thompson to Olivia Davis for Chloe Bennett</p>
+    <p class="text-xs text-slate-500">2 hours ago</p>
+    </div>
+    </li>
+    <li class="flex items-start space-x-4">
+    <div class="flex-shrink-0 pt-1">
+    <span class="material-icons text-xl text-green-500">person_add</span>
+    </div>
+    <div>
+    <p class="text-sm font-medium text-slate-800">Sophia Brown added Brianna Johnson to their roster</p>
+    <p class="text-xs text-slate-500">Yesterday</p>
+    </div>
+    </li>
+    <li class="flex items-start space-x-4">
+    <div class="flex-shrink-0 pt-1">
+    <span class="material-icons text-xl text-amber-500">emoji_events</span>
+    </div>
+    <div>
+    <p class="text-sm font-medium text-slate-800">Ava Taylor's team, Ball Busters, won their last matchup against Chloe Wilson's Net Rippers</p>
+    <p class="text-xs text-slate-500">2 days ago</p>
+    </div>
+    </li>
+    </ul>
+    </div>
+    </section>
+    </main>
+    </div>
+    </div>
+    </div>
+
+    </body></html>

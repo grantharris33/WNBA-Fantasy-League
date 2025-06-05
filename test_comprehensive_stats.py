@@ -107,7 +107,7 @@ async def test_comprehensive_stats():
                         """), {"game_id": game_id}).fetchone()
 
                         total, with_minutes, with_fg, with_3pt, with_ft, with_turnovers, dnp_count = comprehensive_stats
-                        print(f"  Comprehensive stats coverage:")
+                        print("  Comprehensive stats coverage:")
                         print(f"    Total players: {total}")
                         print(f"    With minutes: {with_minutes}")
                         print(f"    With field goals: {with_fg}")
