@@ -20,9 +20,15 @@ init_db()
 app = FastAPI()
 
 # Add CORS middleware
+# In production, nginx handles CORS, but keep for development
+allowed_origins = ["http://localhost:5173", "http://localhost:5174"]
+if os.getenv("ENVIRONMENT") == "production":
+    # In production, requests come through nginx proxy
+    allowed_origins.append("*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly list all methods
     allow_headers=["*"],
@@ -79,25 +85,20 @@ async def _startup() -> None:
             ingest_stat_lines, "cron", hour=hour, id="nightly_ingest", replace_existing=True, misfire_grace_time=3600
         )
 
-    # Schedule scoring engine 30 min after ingest by default (configurable via env).
-    if not scheduler.get_job("nightly_scoring"):
-        hour = int(os.getenv("INGEST_HOUR_UTC", "3"))
-        minute_offset = int(os.getenv("SCORING_MINUTE_OFFSET", "30"))
-
-        # Compute minute and hour adjusting for overflow > 59
-        scoring_hour = (hour + (minute_offset // 60)) % 24
-        scoring_minute = minute_offset % 60
-
+    # Schedule scoring engine hourly (configurable via env).
+    if not scheduler.get_job("hourly_scoring"):
         from app.jobs.score_engine import run_engine
-
+        
+        # Run every hour on the hour by default
+        scoring_interval_minutes = int(os.getenv("SCORING_INTERVAL_MINUTES", "60"))
+        
         scheduler.add_job(
             run_engine,
-            "cron",
-            hour=scoring_hour,
-            minute=scoring_minute,
-            id="nightly_scoring",
+            "interval",
+            minutes=scoring_interval_minutes,
+            id="hourly_scoring",
             replace_existing=True,
-            misfire_grace_time=3600,
+            misfire_grace_time=300,  # 5 minutes
         )
 
     # Schedule weekly reset job for Mondays at 05:00 UTC
@@ -209,23 +210,19 @@ def _schedule_nightly() -> None:
             ingest_stat_lines, "cron", hour=hour, id="nightly_ingest", replace_existing=True, misfire_grace_time=3600
         )
 
-    if not scheduler.get_job("nightly_scoring"):
-        hour = int(os.getenv("INGEST_HOUR_UTC", "3"))
-        minute_offset = int(os.getenv("SCORING_MINUTE_OFFSET", "30"))
-
-        scoring_hour = (hour + (minute_offset // 60)) % 24
-        scoring_minute = minute_offset % 60
-
+    if not scheduler.get_job("hourly_scoring"):
         from app.jobs.score_engine import run_engine
-
+        
+        # Run every hour on the hour by default
+        scoring_interval_minutes = int(os.getenv("SCORING_INTERVAL_MINUTES", "60"))
+        
         scheduler.add_job(
             run_engine,
-            "cron",
-            hour=scoring_hour,
-            minute=scoring_minute,
-            id="nightly_scoring",
+            "interval",
+            minutes=scoring_interval_minutes,
+            id="hourly_scoring",
             replace_existing=True,
-            misfire_grace_time=3600,
+            misfire_grace_time=300,  # 5 minutes
         )
 
     # Schedule weekly reset job for Mondays at 05:00 UTC

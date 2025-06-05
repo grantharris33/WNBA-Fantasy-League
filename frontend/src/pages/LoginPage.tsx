@@ -40,9 +40,9 @@ const LoginPage = () => {
                 <Link className="text-slate-700 hover:text-blue-600 text-sm font-medium transition-colors" to="#">Standings</Link>
               </nav>
               <div className="hidden md:flex items-center">
-                <button className="flex min-w-[90px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-blue-600 text-white text-sm font-semibold leading-normal tracking-wide shadow-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <Link to="/signup" className="flex min-w-[90px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-blue-600 text-white text-sm font-semibold leading-normal tracking-wide shadow-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                   <span className="truncate">Sign Up</span>
-                </button>
+                </Link>
               </div>
             </div>
           </header>
@@ -106,7 +106,7 @@ const LoginPage = () => {
                 </form>
                 <p className="mt-8 text-center text-sm text-slate-600">
                   Don't have an account?
-                  <Link className="font-medium text-blue-600 hover:text-blue-500" to="#"> Sign up here</Link>
+                  <Link className="font-medium text-blue-600 hover:text-blue-500" to="/signup"> Sign up here</Link>
                 </p>
               </div>
             </div>

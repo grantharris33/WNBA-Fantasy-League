@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-toastify';
 import api from '../lib/api';
 import type {
   CurrentScores,
@@ -44,6 +45,9 @@ const ScoreboardPage: React.FC = () => {
   const [leagueChampion, setLeagueChampion] = useState<LeagueChampion | null>(null);
   const [championLoading, setChampionLoading] = useState<boolean>(false);
   const [championError, setChampionError] = useState<string | null>(null);
+
+  // Manual update state
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/' },
@@ -115,6 +119,22 @@ const ScoreboardPage: React.FC = () => {
     setChampionLoading(false);
   }, []);
 
+  // Manual score update
+  const handleManualUpdate = useCallback(async () => {
+    setIsUpdating(true);
+    try {
+      const response = await api.post('/api/v1/scores/update');
+      toast.success(response.message || 'Scores updated successfully!');
+      // Refresh current scores
+      await fetchCurrentScores();
+    } catch (error) {
+      toast.error('Failed to update scores. Please try again.');
+      console.error('Score update error:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [fetchCurrentScores]);
+
   // Load initial data
   useEffect(() => {
     fetchCurrentScores();
@@ -162,7 +182,30 @@ const ScoreboardPage: React.FC = () => {
         if (!currentScores || currentScores.length === 0) {
           return <p className="text-gray-600">No scores available at the moment.</p>;
         }
-        return <StandingsTable scores={currentScores} />;
+        return (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <button
+                onClick={handleManualUpdate}
+                disabled={isUpdating}
+                className="btn-secondary flex items-center gap-2"
+              >
+                {isUpdating ? (
+                  <>
+                    <span className="animate-spin">⟳</span>
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    Update Scores
+                  </>
+                )}
+              </button>
+            </div>
+            <StandingsTable scores={currentScores} />
+          </div>
+        );
 
       case 'history':
         if (historyLoading) return <LoadingSpinner />;

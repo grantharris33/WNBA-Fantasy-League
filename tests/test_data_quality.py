@@ -1,6 +1,7 @@
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
+from sqlalchemy import text
 
 from app.services.data_quality import DataQualityService
 from app.models import DataQualityCheck, DataValidationRule, DataAnomalyLog, Player, StatLine
@@ -9,9 +10,9 @@ from app.models import DataQualityCheck, DataValidationRule, DataAnomalyLog, Pla
 class TestDataQualityService:
     """Test the DataQualityService class."""
     
-    def test_create_quality_check(self, db_session):
+    def test_create_quality_check(self, db):
         """Test creating a quality check."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         check = service.create_quality_check(
             check_name="Test Check",
@@ -28,9 +29,9 @@ class TestDataQualityService:
         assert check.status == "pending"
         assert check.is_active is True
     
-    def test_create_validation_rule(self, db_session):
+    def test_create_validation_rule(self, db):
         """Test creating a validation rule."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         rule = service.create_validation_rule(
             entity_type="stat_line",
@@ -45,9 +46,9 @@ class TestDataQualityService:
         assert rule.rule_config == {"min": 0, "max": 100}
         assert rule.is_active is True
     
-    def test_validate_entity_range_rule(self, db_session):
+    def test_validate_entity_range_rule(self, db):
         """Test entity validation with range rule."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create a range rule
         rule = service.create_validation_rule(
@@ -74,9 +75,9 @@ class TestDataQualityService:
         assert len(violations) == 1
         assert "below minimum" in violations[0]["message"]
     
-    def test_validate_entity_lookup_rule(self, db_session):
+    def test_validate_entity_lookup_rule(self, db):
         """Test entity validation with lookup rule."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create a lookup rule
         rule = service.create_validation_rule(
@@ -97,69 +98,65 @@ class TestDataQualityService:
         assert len(violations) == 1
         assert "not in allowed values" in violations[0]["message"]
     
-    def test_run_quality_check_success(self, db_session):
+    def test_run_quality_check_success(self, db):
         """Test running a quality check that passes."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create a simple check that should pass
         check = service.create_quality_check(
             check_name="Count Check",
             check_type="completeness",
             target_table="user",
-            check_query="SELECT COUNT(*) FROM user",
+            check_query="SELECT 5",  # Simple query that returns 5
             expected_result=None,  # Any result is fine
             failure_threshold=1
         )
+        db.commit()  # Commit to get the ID
         
-        # Mock the database execution
-        with patch.object(db_session, 'execute') as mock_execute:
-            mock_result = Mock()
-            mock_result.scalar.return_value = 5
-            mock_result.returns_rows = True
-            mock_execute.return_value = mock_result
-            
-            success = service.run_quality_check(check.id)
-            
-            assert success is True
-            assert check.status == "passed"
-            assert check.last_result == "5"
-            assert check.consecutive_failures == 0
+        # Run the check (it will actually execute against the test database)
+        success = service.run_quality_check(check.id)
+        
+        # Refresh the check to get updated values
+        db.refresh(check)
+        
+        assert success is True
+        assert check.status == "passed"
+        assert check.last_result == "5"
+        assert check.consecutive_failures == 0
     
-    def test_run_quality_check_failure(self, db_session):
+    def test_run_quality_check_failure(self, db):
         """Test running a quality check that fails."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create a check with specific expected result
         check = service.create_quality_check(
             check_name="Specific Count Check",
             check_type="completeness",
             target_table="user",
-            check_query="SELECT COUNT(*) FROM user WHERE is_admin = 1",
-            expected_result="0",
+            check_query="SELECT 2",  # Returns 2
+            expected_result="0",  # But we expect 0
             failure_threshold=1
         )
+        db.commit()  # Commit to get the ID
         
-        # Mock the database execution to return unexpected result
-        with patch.object(db_session, 'execute') as mock_execute:
-            mock_result = Mock()
-            mock_result.scalar.return_value = 2
-            mock_result.returns_rows = True
-            mock_execute.return_value = mock_result
-            
-            success = service.run_quality_check(check.id)
-            
-            assert success is False
-            assert check.status == "failed"
-            assert check.last_result == "2"
-            assert check.consecutive_failures == 1
+        # Run the check (it will fail because 2 != 0)
+        success = service.run_quality_check(check.id)
+        
+        # Refresh the check to get updated values
+        db.refresh(check)
+        
+        assert success is False
+        assert check.status == "failed"
+        assert check.last_result == "2"
+        assert check.consecutive_failures == 1
     
-    def test_detect_stat_anomalies(self, db_session):
+    def test_detect_stat_anomalies(self, db):
         """Test statistical anomaly detection."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create test data
         player = Player(id=1, full_name="Test Player", position="G")
-        db_session.add(player)
+        db.add(player)
         
         # Create stat line with extreme values
         extreme_stat = StatLine(
@@ -172,8 +169,8 @@ class TestDataQualityService:
             assists=20,  # Extreme value
             field_goal_percentage=1.5  # Invalid value > 100%
         )
-        db_session.add(extreme_stat)
-        db_session.commit()
+        db.add(extreme_stat)
+        db.commit()
         
         anomalies = service.detect_stat_anomalies()
         
@@ -186,14 +183,14 @@ class TestDataQualityService:
         assert "extreme_assists" in anomaly_types
         assert "invalid_percentage" in anomaly_types
     
-    def test_detect_data_completeness_issues(self, db_session):
+    def test_detect_data_completeness_issues(self, db):
         """Test data completeness issue detection."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create test data with missing information
         player = Player(id=1, full_name="Test Player", position=None)  # Missing position
-        db_session.add(player)
-        db_session.commit()
+        db.add(player)
+        db.commit()
         
         issues = service.detect_data_completeness_issues()
         
@@ -201,9 +198,9 @@ class TestDataQualityService:
         issue_types = [i["anomaly_type"] for i in issues]
         assert "missing_position" in issue_types
     
-    def test_resolve_anomaly(self, db_session):
+    def test_resolve_anomaly(self, db):
         """Test resolving an anomaly."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create an anomaly
         anomaly = service._log_anomaly(
@@ -224,9 +221,9 @@ class TestDataQualityService:
         assert anomaly.resolution_notes == "Resolved for testing"
         assert anomaly.resolved_at is not None
     
-    def test_get_quality_dashboard_data(self, db_session):
+    def test_get_quality_dashboard_data(self, db):
         """Test getting dashboard data."""
-        service = DataQualityService(db_session)
+        service = DataQualityService(db)
         
         # Create some test data
         check = service.create_quality_check(
