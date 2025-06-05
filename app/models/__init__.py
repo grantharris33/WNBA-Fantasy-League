@@ -582,6 +582,58 @@ class AdminMoveGrant(Base):
 
 
 # ---------------------------------------------------------------------------
+# Data Quality Models
+# ---------------------------------------------------------------------------
+
+
+class DataQualityCheck(Base):
+    __tablename__ = "data_quality_check"
+    
+    id: int = Column(Integer, primary_key=True)
+    check_name: str = Column(String, nullable=False)
+    check_type: str = Column(String, nullable=False)  # completeness, accuracy, consistency
+    target_table: str = Column(String, nullable=False)
+    check_query: str = Column(Text, nullable=False)
+    expected_result: str | None = Column(String)
+    last_run: datetime | None = Column(DateTime)
+    last_result: str | None = Column(String)
+    status: str = Column(String, default="pending")  # pending, passed, failed
+    failure_threshold: int = Column(Integer, default=1)
+    consecutive_failures: int = Column(Integer, default=0)
+    is_active: bool = Column(Boolean, default=True)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class DataValidationRule(Base):
+    __tablename__ = "data_validation_rule"
+    
+    id: int = Column(Integer, primary_key=True)
+    entity_type: str = Column(String, nullable=False)  # player, game, stat_line
+    field_name: str = Column(String, nullable=False)
+    rule_type: str = Column(String, nullable=False)  # range, regex, lookup, custom
+    rule_config: dict = Column(JSON, nullable=False)
+    is_active: bool = Column(Boolean, default=True)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class DataAnomalyLog(Base):
+    __tablename__ = "data_anomaly_log"
+    
+    id: int = Column(Integer, primary_key=True)
+    detected_at: datetime = Column(DateTime, default=datetime.utcnow)
+    entity_type: str = Column(String, nullable=False)
+    entity_id: str = Column(String, nullable=False)
+    anomaly_type: str = Column(String, nullable=False)
+    description: str = Column(Text, nullable=False)
+    severity: str = Column(String, nullable=False)  # low, medium, high, critical
+    is_resolved: bool = Column(Boolean, default=False)
+    resolved_at: datetime | None = Column(DateTime)
+    resolution_notes: str | None = Column(Text)
+
+
+# ---------------------------------------------------------------------------
 # Analytics Models
 # ---------------------------------------------------------------------------
 
