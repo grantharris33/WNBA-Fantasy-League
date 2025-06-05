@@ -54,6 +54,7 @@ class CacheService:
 
         except Exception as e:
             logger.error(f"Error getting cache entry for key {key}: {e}")
+            self.db.rollback()
             return None
 
     def set(self, key: str, data: Dict[str, Any], ttl_seconds: int = 3600, endpoint: Optional[str] = None) -> bool:
@@ -198,11 +199,19 @@ class CacheService:
 
     def _record_cache_hit(self, key: str, endpoint: Optional[str] = None):
         """Record a cache hit in daily statistics."""
-        self._update_daily_stats(cache_hit=True, endpoint=endpoint)
+        try:
+            self._update_daily_stats(cache_hit=True, endpoint=endpoint)
+        except Exception:
+            # Don't let statistics tracking interfere with cache operations
+            pass
 
     def _record_cache_miss(self, key: str, endpoint: Optional[str] = None):
         """Record a cache miss in daily statistics."""
-        self._update_daily_stats(cache_hit=False, endpoint=endpoint)
+        try:
+            self._update_daily_stats(cache_hit=False, endpoint=endpoint)
+        except Exception:
+            # Don't let statistics tracking interfere with cache operations
+            pass
 
     def _update_daily_stats(self, cache_hit: bool, endpoint: Optional[str] = None):
         """Update daily cache statistics."""
@@ -213,13 +222,14 @@ class CacheService:
             if not stats:
                 stats = CacheStatistics(date=today)
                 self.db.add(stats)
+                self.db.flush()  # Make sure the stats record exists
 
-            stats.total_requests += 1
+            stats.total_requests = (stats.total_requests or 0) + 1
             if cache_hit:
-                stats.cache_hits += 1
+                stats.cache_hits = (stats.cache_hits or 0) + 1
+                stats.api_calls_saved = (stats.api_calls_saved or 0) + 1
             else:
-                stats.cache_misses += 1
-                stats.api_calls_saved += 1 if cache_hit else 0
+                stats.cache_misses = (stats.cache_misses or 0) + 1
 
             # Update endpoint-specific stats
             if endpoint:
