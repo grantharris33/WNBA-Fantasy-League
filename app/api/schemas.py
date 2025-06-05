@@ -745,3 +745,12 @@ class DetailedPlayerStatsOut(BaseModel):
     consistency_score: float = 0.0
     ceiling: float = 0.0
     floor: float = 0.0
+
+
+class ScoreUpdateResponse(BaseModel):
+    """Response for manual score update endpoint."""
+
+    success: bool
+    message: str
+    updated_at: datetime
+    week_updated: int

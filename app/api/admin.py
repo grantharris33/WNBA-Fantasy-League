@@ -7,6 +7,7 @@ from app.api.deps import get_admin_user
 from app.core.database import get_db
 from app.models import User
 from app.services.admin import AdminService
+from app.services.data_quality import DataQualityService
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -84,6 +85,68 @@ class LineupHistoryEntry(BaseModel):
     admin_modified: bool
     modification_count: int
     last_modified: Optional[str] = None
+
+
+# Data Quality Schemas
+class CreateQualityCheckRequest(BaseModel):
+    check_name: str
+    check_type: str  # completeness, accuracy, consistency
+    target_table: str
+    check_query: str
+    expected_result: Optional[str] = None
+    failure_threshold: int = 1
+
+
+class CreateValidationRuleRequest(BaseModel):
+    entity_type: str  # player, game, stat_line
+    field_name: str
+    rule_type: str  # range, regex, lookup, custom
+    rule_config: Dict
+
+
+class QualityCheckResponse(BaseModel):
+    id: int
+    check_name: str
+    check_type: str
+    target_table: str
+    status: str
+    last_run: Optional[str] = None
+    last_result: Optional[str] = None
+    consecutive_failures: int
+    is_active: bool
+
+
+class ValidationRuleResponse(BaseModel):
+    id: int
+    entity_type: str
+    field_name: str
+    rule_type: str
+    rule_config: Dict
+    is_active: bool
+
+
+class AnomalyResponse(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: str
+    anomaly_type: str
+    description: str
+    severity: str
+    detected_at: str
+    is_resolved: bool
+    resolved_at: Optional[str] = None
+    resolution_notes: Optional[str] = None
+
+
+class QualityDashboardResponse(BaseModel):
+    checks_summary: Dict[str, int]
+    recent_anomalies: List[Dict]
+    severity_breakdown: Dict[str, int]
+    total_unresolved_anomalies: int
+
+
+class ResolveAnomalyRequest(BaseModel):
+    resolution_notes: str
 
 
 @router.put("/teams/{team_id}/lineups/{week_id}")
@@ -384,5 +447,122 @@ async def force_set_team_roster(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# Data Quality Management Endpoints
+
+
+@router.get("/data-quality/dashboard")
+async def get_data_quality_dashboard(
+    current_user: Annotated[User, Depends(get_admin_user)] = None, db: Annotated[Session, Depends(get_db)] = None
+) -> QualityDashboardResponse:
+    """
+    Get data quality dashboard overview.
+    Requires admin privileges.
+    """
+    try:
+        quality_service = DataQualityService(db)
+        dashboard_data = quality_service.get_quality_dashboard_data()
+        return QualityDashboardResponse(**dashboard_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/data-quality/checks")
+async def create_quality_check(
+    request: CreateQualityCheckRequest = Body(...),
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+) -> QualityCheckResponse:
+    """
+    Create a new data quality check.
+    Requires admin privileges.
+    """
+    try:
+        quality_service = DataQualityService(db)
+        check = quality_service.create_quality_check(
+            check_name=request.check_name,
+            check_type=request.check_type,
+            target_table=request.target_table,
+            check_query=request.check_query,
+            expected_result=request.expected_result,
+            failure_threshold=request.failure_threshold,
+        )
+
+        return QualityCheckResponse(
+            id=check.id,
+            check_name=check.check_name,
+            check_type=check.check_type,
+            target_table=check.target_table,
+            status=check.status,
+            last_run=check.last_run.isoformat() if check.last_run else None,
+            last_result=check.last_result,
+            consecutive_failures=check.consecutive_failures,
+            is_active=check.is_active,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/data-quality/checks")
+async def list_quality_checks(
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    active_only: bool = Query(True, description="Filter to active checks only"),
+) -> List[QualityCheckResponse]:
+    """
+    List all data quality checks.
+    Requires admin privileges.
+    """
+    try:
+        from app.models import DataQualityCheck
+
+        query = db.query(DataQualityCheck)
+        if active_only:
+            query = query.filter(DataQualityCheck.is_active == True)
+
+        checks = query.all()
+
+        return [
+            QualityCheckResponse(
+                id=check.id,
+                check_name=check.check_name,
+                check_type=check.check_type,
+                target_table=check.target_table,
+                status=check.status,
+                last_run=check.last_run.isoformat() if check.last_run else None,
+                last_result=check.last_result,
+                consecutive_failures=check.consecutive_failures,
+                is_active=check.is_active,
+            )
+            for check in checks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/data-quality/checks/{check_id}/run")
+async def run_quality_check(
+    check_id: int = Path(..., description="Quality check ID"),
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+) -> AdminActionResponse:
+    """
+    Run a specific data quality check.
+    Requires admin privileges.
+    """
+    try:
+        quality_service = DataQualityService(db)
+        success = quality_service.run_quality_check(check_id)
+
+        return AdminActionResponse(
+            success=success,
+            message=f"Quality check {check_id} executed successfully"
+            if success
+            else f"Quality check {check_id} failed",
+            data={"check_id": check_id},
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

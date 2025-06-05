@@ -8,6 +8,7 @@ import type { DraftState } from '../../types/draft';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import CreateLeagueModal from '../common/CreateLeagueModal';
+import WelcomeCard from './WelcomeCard';
 
 interface LeagueWithDraft extends LeagueWithRole {
   draftState?: DraftState | null;
@@ -140,6 +141,8 @@ const MyLeaguesDashboard: React.FC = () => {
 
   return (
     <div>
+      <WelcomeCard hasTeams={leagues.length > 0} />
+      
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
         <h2 className="text-2xl font-bold text-gray-900">My Leagues</h2>
         <div className="flex gap-3">

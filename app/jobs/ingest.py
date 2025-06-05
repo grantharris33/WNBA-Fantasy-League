@@ -46,6 +46,7 @@ from app import models
 from app.core.database import SessionLocal
 from app.external_apis.rapidapi_client import ApiKeyError, RapidApiError, RateLimitError, RetryableError, wnba_client
 from app.models import IngestLog
+from app.services.data_quality import DataQualityService
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -447,6 +448,16 @@ async def _process_box_score(
                             }
                         )
 
+                        # Validate stat line data
+                        try:
+                            _validate_stat_line_data(session, stat_vals, player.id)
+                        except Exception as validation_exc:
+                            _log_error(
+                                provider="rapidapi",
+                                msg=f"Validation failed for player {player.id} in game {game_id}: {validation_exc}",
+                            )
+                            # Continue processing despite validation warnings
+
                         # Upsert StatLine
                         existing = (
                             session.query(models.StatLine).filter_by(player_id=player.id, game_id=game_id).one_or_none()
@@ -509,3 +520,85 @@ def _log_info(provider: str, msg: str) -> None:
         session.rollback()
     finally:
         session.close()
+
+
+def _validate_stat_line_data(session, stat_vals: dict, player_id: int) -> None:
+    """Validate stat line data using data quality service."""
+    try:
+        quality_service = DataQualityService(session)
+
+        # Prepare entity data for validation
+        entity_data = {"player_id": player_id, **stat_vals}
+
+        # Run validation rules
+        violations = quality_service.validate_entity("stat_line", entity_data)
+
+        if violations:
+            # Log violations but don't fail the ingestion
+            for violation in violations:
+                quality_service._log_anomaly(
+                    entity_type="stat_line",
+                    entity_id=f"{player_id}_{stat_vals.get('game_id', 'unknown')}",
+                    anomaly_type="validation_rule_violation",
+                    description=f"Validation rule violation: {violation['message']}",
+                    severity="medium",
+                )
+
+        # Check for common data anomalies
+        points = stat_vals.get("points", 0)
+        rebounds = stat_vals.get("rebounds", 0)
+        assists = stat_vals.get("assists", 0)
+        minutes = stat_vals.get("minutes_played", 0)
+
+        # Flag extreme values
+        if points > 50:
+            quality_service._log_anomaly(
+                entity_type="stat_line",
+                entity_id=f"{player_id}_{stat_vals.get('game_id', 'unknown')}",
+                anomaly_type="extreme_points",
+                description=f"Player scored {points} points - unusually high",
+                severity="medium",
+            )
+
+        if rebounds > 20:
+            quality_service._log_anomaly(
+                entity_type="stat_line",
+                entity_id=f"{player_id}_{stat_vals.get('game_id', 'unknown')}",
+                anomaly_type="extreme_rebounds",
+                description=f"Player had {rebounds} rebounds - unusually high",
+                severity="medium",
+            )
+
+        if assists > 15:
+            quality_service._log_anomaly(
+                entity_type="stat_line",
+                entity_id=f"{player_id}_{stat_vals.get('game_id', 'unknown')}",
+                anomaly_type="extreme_assists",
+                description=f"Player had {assists} assists - unusually high",
+                severity="medium",
+            )
+
+        # Check for impossible stats (positive stats with zero minutes)
+        if minutes == 0 and (points > 0 or rebounds > 0 or assists > 0):
+            quality_service._log_anomaly(
+                entity_type="stat_line",
+                entity_id=f"{player_id}_{stat_vals.get('game_id', 'unknown')}",
+                anomaly_type="impossible_stats",
+                description="Player has positive stats with 0 minutes played",
+                severity="high",
+            )
+
+        # Check shooting percentages
+        fg_pct = stat_vals.get("field_goal_percentage", 0)
+        if fg_pct > 1.0:
+            quality_service._log_anomaly(
+                entity_type="stat_line",
+                entity_id=f"{player_id}_{stat_vals.get('game_id', 'unknown')}",
+                anomaly_type="invalid_percentage",
+                description=f"Field goal percentage > 100%: {fg_pct}",
+                severity="high",
+            )
+
+    except Exception as e:
+        # Don't fail ingestion due to validation errors
+        _log_error(provider="data_quality", msg=f"Validation error for player {player_id}: {str(e)}")

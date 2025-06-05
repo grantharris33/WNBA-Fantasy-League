@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # Backend API with SQLite
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: wnba-backend-mvp
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:///app/data/mvp.db
+      SECRET_KEY: ${SECRET_KEY:-your-mvp-secret-key-here}
+      RAPIDAPI_KEY: ${RAPIDAPI_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      ACCESS_TOKEN_EXPIRE_SECONDS: ${ACCESS_TOKEN_EXPIRE_SECONDS:-86400}
+      # Disable some production features for MVP
+      DISABLE_SCHEDULED_JOBS: ${DISABLE_SCHEDULED_JOBS:-false}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "
+        mkdir -p /app/data &&
+        alembic upgrade head &&
+        python scripts/seed_mvp.py --force &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: wnba-frontend-mvp
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+
+  # Simple nginx proxy for MVP (no SSL needed for local)
+  nginx:
+    image: nginx:alpine
+    container_name: wnba-nginx-mvp
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./nginx.mvp.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  mvp_data:
