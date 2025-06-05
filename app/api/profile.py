@@ -192,7 +192,22 @@ async def get_preferences(current_user: User = Depends(get_current_user), db: Se
         db.commit()
         db.refresh(preferences)
 
-    return preferences
+    return PreferencesResponse(
+        theme=preferences.theme,
+        accent_color=preferences.accent_color,
+        email_notifications=preferences.email_notifications,
+        email_draft_reminders=preferences.email_draft_reminders,
+        email_trade_offers=preferences.email_trade_offers,
+        email_league_updates=preferences.email_league_updates,
+        email_weekly_summary=preferences.email_weekly_summary,
+        dashboard_layout=preferences.dashboard_layout,
+        default_league_id=preferences.default_league_id,
+        show_player_photos=preferences.show_player_photos,
+        favorite_team_ids=preferences.favorite_team_ids,
+        profile_visibility=preferences.profile_visibility,
+        show_email=preferences.show_email,
+        show_stats=preferences.show_stats,
+    )
 
 
 @router.put("/api/v1/profile/preferences", response_model=PreferencesResponse)
@@ -222,7 +237,22 @@ async def update_preferences(
     db.commit()
     db.refresh(preferences)
 
-    return preferences
+    return PreferencesResponse(
+        theme=preferences.theme,
+        accent_color=preferences.accent_color,
+        email_notifications=preferences.email_notifications,
+        email_draft_reminders=preferences.email_draft_reminders,
+        email_trade_offers=preferences.email_trade_offers,
+        email_league_updates=preferences.email_league_updates,
+        email_weekly_summary=preferences.email_weekly_summary,
+        dashboard_layout=preferences.dashboard_layout,
+        default_league_id=preferences.default_league_id,
+        show_player_photos=preferences.show_player_photos,
+        favorite_team_ids=preferences.favorite_team_ids,
+        profile_visibility=preferences.profile_visibility,
+        show_email=preferences.show_email,
+        show_stats=preferences.show_stats,
+    )
 
 
 @router.post("/api/v1/profile/avatar", response_model=ProfileResponse)
@@ -306,7 +336,7 @@ async def update_email(
     if profile:
         profile.email_verified = False
         profile.email_verification_token = create_access_token(
-            data={"sub": current_user.email}, expires_delta=timedelta(days=1)
+            subject=current_user.email, expires_delta=timedelta(days=1)
         )
         profile.email_verification_sent_at = datetime.utcnow()
         db.commit()
@@ -367,7 +397,7 @@ async def resend_verification(current_user: User = Depends(get_current_user), db
 
     # Generate new token
     profile.email_verification_token = create_access_token(
-        data={"sub": current_user.email}, expires_delta=timedelta(days=1)
+        subject=current_user.email, expires_delta=timedelta(days=1)
     )
     profile.email_verification_sent_at = datetime.utcnow()
     db.commit()

@@ -28,13 +28,15 @@ def auth_headers(test_user: User, db: Session):
     """Get auth headers for test user."""
     from app.core.security import create_access_token
 
-    token = create_access_token(data={"sub": test_user.email})
+    token = create_access_token(subject=test_user.id)
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 def client(db: Session):
     """Create test client with database override."""
+    import os
+    os.environ["TESTING"] = "true"  # This prevents scheduler from starting
     app.dependency_overrides[get_db] = lambda: db
     with TestClient(app) as c:
         yield c
