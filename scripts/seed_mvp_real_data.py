@@ -15,7 +15,7 @@ import argparse
 import asyncio
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from sqlalchemy import text
 
@@ -37,7 +37,7 @@ def create_demo_users(db) -> list[models.User]:
         {"email": "bob@example.com", "password": "bob123", "is_admin": False},
         {"email": "charlie@example.com", "password": "charlie123", "is_admin": False},
     ]
-    
+
     users = []
     for data in users_data:
         # Check if user already exists
@@ -46,13 +46,11 @@ def create_demo_users(db) -> list[models.User]:
             users.append(existing)
         else:
             user = models.User(
-                email=data["email"],
-                hashed_password=hash_password(data["password"]),
-                is_admin=data["is_admin"]
+                email=data["email"], hashed_password=hash_password(data["password"]), is_admin=data["is_admin"]
             )
             db.add(user)
             users.append(user)
-    
+
     db.flush()
     return users
 
@@ -60,7 +58,7 @@ def create_demo_users(db) -> list[models.User]:
 def create_demo_leagues(db, users) -> list[models.League]:
     """Create demo fantasy leagues."""
     leagues = []
-    
+
     # Active league
     league1 = models.League(
         name="MVP Demo League 2025",
@@ -74,12 +72,12 @@ def create_demo_leagues(db, users) -> list[models.League]:
             "min_teams": 4,
             "draft_rounds": 10,
             "seconds_per_pick": 90,
-            "season_year": 2025
-        }
+            "season_year": 2025,
+        },
     )
     db.add(league1)
     leagues.append(league1)
-    
+
     # Another league
     league2 = models.League(
         name="Test League 2024",
@@ -93,12 +91,12 @@ def create_demo_leagues(db, users) -> list[models.League]:
             "min_teams": 3,
             "draft_rounds": 8,
             "seconds_per_pick": 60,
-            "season_year": 2024
-        }
+            "season_year": 2024,
+        },
     )
     db.add(league2)
     leagues.append(league2)
-    
+
     db.flush()
     return leagues
 
@@ -107,27 +105,19 @@ def create_teams(db, leagues, users) -> list[models.Team]:
     """Create fantasy teams."""
     teams = []
     team_names = ["Warriors", "Dynasty", "All-Stars", "Champions", "Legends"]
-    
+
     # Teams for league 1
     for i, (user, team_name) in enumerate(zip(users[:5], team_names)):
-        team = models.Team(
-            name=team_name,
-            owner=user,
-            league=leagues[0]
-        )
+        team = models.Team(name=team_name, owner=user, league=leagues[0])
         db.add(team)
         teams.append(team)
-    
+
     # Teams for league 2
     for user, team_name in zip(users[1:4], ["Team Alpha", "Team Beta", "Team Gamma"]):
-        team = models.Team(
-            name=team_name,
-            owner=user,
-            league=leagues[1]
-        )
+        team = models.Team(name=team_name, owner=user, league=leagues[1])
         db.add(team)
         teams.append(team)
-    
+
     db.flush()
     return teams
 
@@ -135,17 +125,17 @@ def create_teams(db, leagues, users) -> list[models.Team]:
 async def fetch_and_store_wnba_data(db, year: int) -> Dict[str, Any]:
     """Fetch real WNBA data from RapidAPI."""
     print(f"Fetching WNBA data for {year}...")
-    
+
     # Check if API key is configured
     api_key = os.getenv("RAPIDAPI_KEY") or os.getenv("WNBA_API_KEY")
     if not api_key:
         print("⚠️  No RapidAPI key found. Skipping real data import.")
         print("   Set RAPIDAPI_KEY in your .env file to enable real WNBA data.")
         return {"teams": 0, "players": 0, "games": 0}
-    
+
     wnba_service = WNBAService(db)
     stats = {"teams": 0, "players": 0, "games": 0}
-    
+
     try:
         # Fetch and store teams
         print("  Fetching teams...")
@@ -160,15 +150,15 @@ async def fetch_and_store_wnba_data(db, year: int) -> Dict[str, Any]:
                             name=team_data.get("name", "Unknown"),
                             abbreviation=team_data.get("abbreviation", "UNK"),
                             city=team_data.get("city", ""),
-                            logo_url=team_data.get("logo", "")
+                            logo_url=team_data.get("logo", ""),
                         )
                         db.add(team)
                         stats["teams"] += 1
-        
+
         # Fetch standings to get current teams
         print(f"  Fetching {year} standings...")
         standings_data = await wnba_client.fetch_standings(str(year))
-        
+
         # Process each team's roster
         team_ids = []
         if isinstance(standings_data, dict):
@@ -177,7 +167,7 @@ async def fetch_and_store_wnba_data(db, year: int) -> Dict[str, Any]:
                     for team_info in conf_data:
                         if isinstance(team_info, dict) and "teamId" in team_info:
                             team_ids.append(str(team_info["teamId"]))
-        
+
         # Fetch rosters for each team
         print(f"  Fetching rosters for {len(team_ids)} teams...")
         for team_id in team_ids[:12]:  # Limit to 12 teams for MVP
@@ -204,28 +194,26 @@ async def fetch_and_store_wnba_data(db, year: int) -> Dict[str, Any]:
                                         years_pro=player_data.get("exp", 0),
                                         status="active",
                                         headshot_url=player_data.get("headshot", ""),
-                                        team_abbr=player_data.get("team", "")
+                                        team_abbr=player_data.get("team", ""),
                                     )
                                     db.add(player)
                                     stats["players"] += 1
             except Exception as e:
                 print(f"    Error fetching roster for team {team_id}: {e}")
                 continue
-        
+
         # Fetch recent games and stats
         print("  Fetching recent games...")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=14)  # Last 2 weeks
-        
+
         current = start_date
         while current <= end_date:
             try:
                 schedule = await wnba_client.fetch_schedule(
-                    str(current.year),
-                    f"{current.month:02d}",
-                    f"{current.day:02d}"
+                    str(current.year), f"{current.month:02d}", f"{current.day:02d}"
                 )
-                
+
                 for game_info in schedule:
                     if isinstance(game_info, dict):
                         game_id = game_info.get("gameId")
@@ -240,31 +228,31 @@ async def fetch_and_store_wnba_data(db, year: int) -> Dict[str, Any]:
                                     away_team_id=game_info.get("awayTeam", {}).get("teamId"),
                                     home_score=game_info.get("homeTeam", {}).get("score", 0),
                                     away_score=game_info.get("awayTeam", {}).get("score", 0),
-                                    status="Final"
+                                    status="Final",
                                 )
                                 db.add(game)
                                 stats["games"] += 1
-                                
+
                                 # Fetch box score for player stats
                                 try:
                                     box_score = await wnba_client.fetch_box_score(game_id)
                                     await wnba_service._process_box_score(game_id, box_score)
                                 except Exception as e:
                                     print(f"    Error fetching box score for game {game_id}: {e}")
-                
+
             except Exception as e:
                 print(f"    Error fetching schedule for {current.date()}: {e}")
-            
+
             current += timedelta(days=1)
-        
+
         db.commit()
-        
+
     except Exception as e:
         print(f"  Error fetching WNBA data: {e}")
         db.rollback()
     finally:
         await wnba_client.close()
-    
+
     return stats
 
 
@@ -272,26 +260,24 @@ def assign_players_to_teams(db, teams: List[models.Team]) -> None:
     """Assign some players to fantasy teams for demo purposes."""
     # Get available players
     players = db.query(models.Player).filter_by(status="active").limit(50).all()
-    
+
     if not players:
         print("  No players available to assign to teams")
         return
-    
+
     # Assign players to first 3 teams in league 1
     player_idx = 0
     for team in teams[:3]:
         for i in range(7):  # 7 players per team
             if player_idx >= len(players):
                 break
-            
+
             roster_slot = models.RosterSlot(
-                team=team,
-                player=players[player_idx],
-                is_starter=(i < 5)  # First 5 are starters
+                team=team, player=players[player_idx], is_starter=(i < 5)  # First 5 are starters
             )
             db.add(roster_slot)
             player_idx += 1
-    
+
     db.commit()
 
 
@@ -366,11 +352,11 @@ async def main() -> None:
         print("\nLeagues:")
         print("- MVP Demo League 2025 (6 teams max)")
         print("- Test League 2024 (4 teams max)")
-        
+
         if stats["players"] > 0:
-            print(f"\nReal WNBA Data:")
+            print("\nReal WNBA Data:")
             print(f"- {stats['teams']} teams")
-            print(f"- {stats['players']} players") 
+            print(f"- {stats['players']} players")
             print(f"- {stats['games']} games with stats")
         else:
             print("\n⚠️  No real WNBA data imported (API key not configured)")

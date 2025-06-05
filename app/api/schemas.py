@@ -749,6 +749,7 @@ class DetailedPlayerStatsOut(BaseModel):
 
 class ScoreUpdateResponse(BaseModel):
     """Response for manual score update endpoint."""
+
     success: bool
     message: str
     updated_at: datetime

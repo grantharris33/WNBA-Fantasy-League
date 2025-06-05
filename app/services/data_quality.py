@@ -3,15 +3,12 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import and_, desc, func, text
 from sqlalchemy.orm import Session
-from sqlalchemy import text, func, desc, and_
 
-from app.models import (
-    DataQualityCheck, DataValidationRule, DataAnomalyLog,
-    Player, Game, StatLine, WNBATeam, Standings
-)
+from app.models import DataAnomalyLog, DataQualityCheck, DataValidationRule, Game, Player, Standings, StatLine, WNBATeam
 
 
 class DataQualityService:
@@ -28,7 +25,7 @@ class DataQualityService:
         target_table: str,
         check_query: str,
         expected_result: Optional[str] = None,
-        failure_threshold: int = 1
+        failure_threshold: int = 1,
     ) -> DataQualityCheck:
         """Create a new data quality check."""
         check = DataQualityCheck(
@@ -37,7 +34,7 @@ class DataQualityService:
             target_table=target_table,
             check_query=check_query,
             expected_result=expected_result,
-            failure_threshold=failure_threshold
+            failure_threshold=failure_threshold,
         )
         self.db.add(check)
         self.db.commit()
@@ -53,7 +50,7 @@ class DataQualityService:
             # Execute the check query
             result = self.db.execute(text(check.check_query))
             actual_result = str(result.scalar()) if result.returns_rows else "executed"
-            
+
             # Determine if check passed
             check_passed = True
             if check.expected_result is not None:
@@ -62,14 +59,14 @@ class DataQualityService:
             # Update check status
             check.last_run = datetime.now(timezone.utc)
             check.last_result = actual_result
-            
+
             if check_passed:
                 check.status = "passed"
                 check.consecutive_failures = 0
             else:
                 check.status = "failed"
                 check.consecutive_failures += 1
-                
+
                 # Log anomaly if failure threshold exceeded
                 if check.consecutive_failures >= check.failure_threshold:
                     self._log_anomaly(
@@ -77,7 +74,7 @@ class DataQualityService:
                         entity_id=str(check.id),
                         anomaly_type="quality_check_failure",
                         description=f"Quality check '{check.check_name}' failed {check.consecutive_failures} consecutive times. Expected: {check.expected_result}, Got: {actual_result}",
-                        severity="high" if check.consecutive_failures > 3 else "medium"
+                        severity="high" if check.consecutive_failures > 3 else "medium",
                     )
 
             self.db.commit()
@@ -89,65 +86,51 @@ class DataQualityService:
             check.status = "failed"
             check.consecutive_failures += 1
             self.db.commit()
-            
+
             self._log_anomaly(
                 entity_type="data_quality_check",
                 entity_id=str(check.id),
                 anomaly_type="check_execution_error",
                 description=f"Quality check '{check.check_name}' execution failed: {str(e)}",
-                severity="critical"
+                severity="critical",
             )
             return False
 
     def run_all_active_checks(self) -> Dict[str, Any]:
         """Run all active quality checks."""
         checks = self.db.query(DataQualityCheck).filter(DataQualityCheck.is_active == True).all()
-        results = {
-            "total_checks": len(checks),
-            "passed": 0,
-            "failed": 0,
-            "errors": 0,
-            "check_results": []
-        }
+        results = {"total_checks": len(checks), "passed": 0, "failed": 0, "errors": 0, "check_results": []}
 
         for check in checks:
             try:
                 passed = self.run_quality_check(check.id)
-                results["check_results"].append({
-                    "id": check.id,
-                    "name": check.check_name,
-                    "status": "passed" if passed else "failed",
-                    "last_result": check.last_result
-                })
+                results["check_results"].append(
+                    {
+                        "id": check.id,
+                        "name": check.check_name,
+                        "status": "passed" if passed else "failed",
+                        "last_result": check.last_result,
+                    }
+                )
                 if passed:
                     results["passed"] += 1
                 else:
                     results["failed"] += 1
             except Exception as e:
                 results["errors"] += 1
-                results["check_results"].append({
-                    "id": check.id,
-                    "name": check.check_name,
-                    "status": "error",
-                    "error": str(e)
-                })
+                results["check_results"].append(
+                    {"id": check.id, "name": check.check_name, "status": "error", "error": str(e)}
+                )
 
         return results
 
     # Validation Rules Management
     def create_validation_rule(
-        self,
-        entity_type: str,
-        field_name: str,
-        rule_type: str,
-        rule_config: Dict[str, Any]
+        self, entity_type: str, field_name: str, rule_type: str, rule_config: Dict[str, Any]
     ) -> DataValidationRule:
         """Create a new data validation rule."""
         rule = DataValidationRule(
-            entity_type=entity_type,
-            field_name=field_name,
-            rule_type=rule_type,
-            rule_config=rule_config
+            entity_type=entity_type, field_name=field_name, rule_type=rule_type, rule_config=rule_config
         )
         self.db.add(rule)
         self.db.commit()
@@ -157,10 +140,7 @@ class DataQualityService:
         """Validate an entity against all applicable rules."""
         rules = (
             self.db.query(DataValidationRule)
-            .filter(
-                DataValidationRule.entity_type == entity_type,
-                DataValidationRule.is_active == True
-            )
+            .filter(DataValidationRule.entity_type == entity_type, DataValidationRule.is_active == True)
             .all()
         )
 
@@ -218,7 +198,7 @@ class DataQualityService:
             "field_name": rule.field_name,
             "rule_type": rule.rule_type,
             "message": message,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     # Anomaly Detection
@@ -236,41 +216,49 @@ class DataQualityService:
         for stat_line in stat_lines:
             # Check for extreme values
             if stat_line.points > 50:  # Unusually high points
-                anomalies.append(self._create_anomaly_record(
-                    entity_type="stat_line",
-                    entity_id=str(stat_line.id),
-                    anomaly_type="extreme_points",
-                    description=f"Player {stat_line.player.full_name} scored {stat_line.points} points in game {stat_line.game_id}",
-                    severity="medium"
-                ))
+                anomalies.append(
+                    self._create_anomaly_record(
+                        entity_type="stat_line",
+                        entity_id=str(stat_line.id),
+                        anomaly_type="extreme_points",
+                        description=f"Player {stat_line.player.full_name} scored {stat_line.points} points in game {stat_line.game_id}",
+                        severity="medium",
+                    )
+                )
 
             if stat_line.rebounds > 20:  # Unusually high rebounds
-                anomalies.append(self._create_anomaly_record(
-                    entity_type="stat_line",
-                    entity_id=str(stat_line.id),
-                    anomaly_type="extreme_rebounds",
-                    description=f"Player {stat_line.player.full_name} had {stat_line.rebounds} rebounds in game {stat_line.game_id}",
-                    severity="medium"
-                ))
+                anomalies.append(
+                    self._create_anomaly_record(
+                        entity_type="stat_line",
+                        entity_id=str(stat_line.id),
+                        anomaly_type="extreme_rebounds",
+                        description=f"Player {stat_line.player.full_name} had {stat_line.rebounds} rebounds in game {stat_line.game_id}",
+                        severity="medium",
+                    )
+                )
 
             if stat_line.assists > 15:  # Unusually high assists
-                anomalies.append(self._create_anomaly_record(
-                    entity_type="stat_line",
-                    entity_id=str(stat_line.id),
-                    anomaly_type="extreme_assists",
-                    description=f"Player {stat_line.player.full_name} had {stat_line.assists} assists in game {stat_line.game_id}",
-                    severity="medium"
-                ))
+                anomalies.append(
+                    self._create_anomaly_record(
+                        entity_type="stat_line",
+                        entity_id=str(stat_line.id),
+                        anomaly_type="extreme_assists",
+                        description=f"Player {stat_line.player.full_name} had {stat_line.assists} assists in game {stat_line.game_id}",
+                        severity="medium",
+                    )
+                )
 
             # Check for impossible shooting percentages
             if stat_line.field_goal_percentage > 1.0:
-                anomalies.append(self._create_anomaly_record(
-                    entity_type="stat_line",
-                    entity_id=str(stat_line.id),
-                    anomaly_type="invalid_percentage",
-                    description=f"Player {stat_line.player.full_name} has field goal percentage > 100%: {stat_line.field_goal_percentage}",
-                    severity="high"
-                ))
+                anomalies.append(
+                    self._create_anomaly_record(
+                        entity_type="stat_line",
+                        entity_id=str(stat_line.id),
+                        anomaly_type="invalid_percentage",
+                        description=f"Player {stat_line.player.full_name} has field goal percentage > 100%: {stat_line.field_goal_percentage}",
+                        severity="high",
+                    )
+                )
 
         return anomalies
 
@@ -281,59 +269,48 @@ class DataQualityService:
         # Check for players without positions
         players_no_position = self.db.query(Player).filter(Player.position.is_(None)).count()
         if players_no_position > 0:
-            issues.append(self._create_anomaly_record(
-                entity_type="player",
-                entity_id="multiple",
-                anomaly_type="missing_position",
-                description=f"{players_no_position} players missing position data",
-                severity="medium"
-            ))
+            issues.append(
+                self._create_anomaly_record(
+                    entity_type="player",
+                    entity_id="multiple",
+                    anomaly_type="missing_position",
+                    description=f"{players_no_position} players missing position data",
+                    severity="medium",
+                )
+            )
 
         # Check for games without scores
         games_no_scores = (
-            self.db.query(Game)
-            .filter(
-                Game.status == "final",
-                and_(Game.home_score == 0, Game.away_score == 0)
-            )
-            .count()
+            self.db.query(Game).filter(Game.status == "final", and_(Game.home_score == 0, Game.away_score == 0)).count()
         )
         if games_no_scores > 0:
-            issues.append(self._create_anomaly_record(
-                entity_type="game",
-                entity_id="multiple",
-                anomaly_type="missing_scores",
-                description=f"{games_no_scores} completed games missing final scores",
-                severity="high"
-            ))
+            issues.append(
+                self._create_anomaly_record(
+                    entity_type="game",
+                    entity_id="multiple",
+                    anomaly_type="missing_scores",
+                    description=f"{games_no_scores} completed games missing final scores",
+                    severity="high",
+                )
+            )
 
         # Check for stat lines with zero minutes but positive stats
-        impossible_stats = (
-            self.db.query(StatLine)
-            .filter(
-                StatLine.minutes_played == 0,
-                StatLine.points > 0
-            )
-            .count()
-        )
+        impossible_stats = self.db.query(StatLine).filter(StatLine.minutes_played == 0, StatLine.points > 0).count()
         if impossible_stats > 0:
-            issues.append(self._create_anomaly_record(
-                entity_type="stat_line",
-                entity_id="multiple",
-                anomaly_type="impossible_stats",
-                description=f"{impossible_stats} stat lines with 0 minutes but positive stats",
-                severity="high"
-            ))
+            issues.append(
+                self._create_anomaly_record(
+                    entity_type="stat_line",
+                    entity_id="multiple",
+                    anomaly_type="impossible_stats",
+                    description=f"{impossible_stats} stat lines with 0 minutes but positive stats",
+                    severity="high",
+                )
+            )
 
         return issues
 
     def _create_anomaly_record(
-        self,
-        entity_type: str,
-        entity_id: str,
-        anomaly_type: str,
-        description: str,
-        severity: str
+        self, entity_type: str, entity_id: str, anomaly_type: str, description: str, severity: str
     ) -> Dict[str, Any]:
         """Create an anomaly record for logging."""
         return {
@@ -342,16 +319,11 @@ class DataQualityService:
             "anomaly_type": anomaly_type,
             "description": description,
             "severity": severity,
-            "detected_at": datetime.now(timezone.utc).isoformat()
+            "detected_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def _log_anomaly(
-        self,
-        entity_type: str,
-        entity_id: str,
-        anomaly_type: str,
-        description: str,
-        severity: str
+        self, entity_type: str, entity_id: str, anomaly_type: str, description: str, severity: str
     ) -> DataAnomalyLog:
         """Log an anomaly to the database."""
         anomaly = DataAnomalyLog(
@@ -359,7 +331,7 @@ class DataQualityService:
             entity_id=entity_id,
             anomaly_type=anomaly_type,
             description=description,
-            severity=severity
+            severity=severity,
         )
         self.db.add(anomaly)
         self.db.commit()
@@ -370,10 +342,7 @@ class DataQualityService:
         """Get comprehensive data quality dashboard information."""
         # Quality checks summary
         checks_summary = (
-            self.db.query(
-                DataQualityCheck.status,
-                func.count(DataQualityCheck.id).label('count')
-            )
+            self.db.query(DataQualityCheck.status, func.count(DataQualityCheck.id).label('count'))
             .filter(DataQualityCheck.is_active == True)
             .group_by(DataQualityCheck.status)
             .all()
@@ -390,10 +359,7 @@ class DataQualityService:
 
         # Severity breakdown
         severity_breakdown = (
-            self.db.query(
-                DataAnomalyLog.severity,
-                func.count(DataAnomalyLog.id).label('count')
-            )
+            self.db.query(DataAnomalyLog.severity, func.count(DataAnomalyLog.id).label('count'))
             .filter(DataAnomalyLog.is_resolved == False)
             .group_by(DataAnomalyLog.severity)
             .all()
@@ -408,12 +374,12 @@ class DataQualityService:
                     "anomaly_type": anomaly.anomaly_type,
                     "description": anomaly.description,
                     "severity": anomaly.severity,
-                    "detected_at": anomaly.detected_at.isoformat()
+                    "detected_at": anomaly.detected_at.isoformat(),
                 }
                 for anomaly in recent_anomalies
             ],
             "severity_breakdown": {row.severity: row.count for row in severity_breakdown},
-            "total_unresolved_anomalies": sum(row.count for row in severity_breakdown)
+            "total_unresolved_anomalies": sum(row.count for row in severity_breakdown),
         }
 
     def resolve_anomaly(self, anomaly_id: int, resolution_notes: str) -> bool:
@@ -431,14 +397,13 @@ class DataQualityService:
     def get_quality_trends(self, days: int = 30) -> Dict[str, Any]:
         """Get quality trends over the specified number of days."""
         from datetime import timedelta
-        
+
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-        
+
         # Daily anomaly counts
         daily_anomalies = (
             self.db.query(
-                func.date(DataAnomalyLog.detected_at).label('date'),
-                func.count(DataAnomalyLog.id).label('count')
+                func.date(DataAnomalyLog.detected_at).label('date'), func.count(DataAnomalyLog.id).label('count')
             )
             .filter(DataAnomalyLog.detected_at >= cutoff_date)
             .group_by(func.date(DataAnomalyLog.detected_at))
@@ -448,26 +413,15 @@ class DataQualityService:
 
         # Check success rates
         check_success_rates = (
-            self.db.query(
-                DataQualityCheck.check_name,
-                DataQualityCheck.status,
-                DataQualityCheck.consecutive_failures
-            )
+            self.db.query(DataQualityCheck.check_name, DataQualityCheck.status, DataQualityCheck.consecutive_failures)
             .filter(DataQualityCheck.is_active == True)
             .all()
         )
 
         return {
-            "daily_anomaly_counts": [
-                {"date": row.date.isoformat(), "count": row.count}
-                for row in daily_anomalies
-            ],
+            "daily_anomaly_counts": [{"date": row.date.isoformat(), "count": row.count} for row in daily_anomalies],
             "check_success_rates": [
-                {
-                    "name": check.check_name,
-                    "status": check.status,
-                    "consecutive_failures": check.consecutive_failures
-                }
+                {"name": check.check_name, "status": check.status, "consecutive_failures": check.consecutive_failures}
                 for check in check_success_rates
-            ]
+            ],
         }

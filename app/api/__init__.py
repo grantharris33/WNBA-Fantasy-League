@@ -73,10 +73,12 @@ async def health():
 @router.get("/health/detailed")
 async def detailed_health():
     """Detailed health check with database and external service verification."""
-    from sqlalchemy import text
-    from app.external_apis.rapidapi_client import wnba_client
     import os
-    
+
+    from sqlalchemy import text
+
+    from app.external_apis.rapidapi_client import wnba_client
+
     health_status = {
         "status": "ok",
         "timestamp": _dt.utcnow().isoformat(),
@@ -85,10 +87,10 @@ async def detailed_health():
             "database": {"status": "unknown", "message": ""},
             "rapidapi": {"status": "unknown", "message": ""},
             "scheduler": {"status": "unknown", "message": ""},
-            "disk_space": {"status": "unknown", "message": ""}
-        }
+            "disk_space": {"status": "unknown", "message": ""},
+        },
     }
-    
+
     # Check database
     session = SessionLocal()
     try:
@@ -101,16 +103,14 @@ async def detailed_health():
         health_status["checks"]["database"] = {"status": "unhealthy", "message": str(e)}
     finally:
         session.close()
-    
+
     # Check RapidAPI connectivity (if key is configured)
     if os.getenv("RAPIDAPI_KEY"):
         try:
             # Just check if we can reach the API
             test_date = _dt.now()
             await wnba_client.fetch_schedule(
-                test_date.strftime("%Y"),
-                test_date.strftime("%m"), 
-                test_date.strftime("%d")
+                test_date.strftime("%Y"), test_date.strftime("%m"), test_date.strftime("%d")
             )
             health_status["checks"]["rapidapi"] = {"status": "healthy", "message": "API accessible"}
         except Exception as e:
@@ -120,45 +120,44 @@ async def detailed_health():
             await wnba_client.close()
     else:
         health_status["checks"]["rapidapi"] = {"status": "unconfigured", "message": "No API key"}
-    
+
     # Check scheduler
     from app.core.scheduler import scheduler
+
     if scheduler and scheduler.running:
         job_count = len(scheduler.get_jobs())
-        health_status["checks"]["scheduler"] = {
-            "status": "healthy", 
-            "message": f"Running with {job_count} jobs"
-        }
+        health_status["checks"]["scheduler"] = {"status": "healthy", "message": f"Running with {job_count} jobs"}
     else:
         health_status["status"] = "degraded"
         health_status["checks"]["scheduler"] = {"status": "unhealthy", "message": "Not running"}
-    
+
     # Check disk space
     try:
         import shutil
+
         usage = shutil.disk_usage("/")
-        free_gb = usage.free / (1024 ** 3)
+        free_gb = usage.free / (1024**3)
         percent_used = (usage.used / usage.total) * 100
-        
+
         if free_gb < 1:  # Less than 1GB free
             health_status["status"] = "degraded"
             health_status["checks"]["disk_space"] = {
                 "status": "critical",
-                "message": f"Only {free_gb:.2f}GB free ({percent_used:.1f}% used)"
+                "message": f"Only {free_gb:.2f}GB free ({percent_used:.1f}% used)",
             }
         elif free_gb < 5:  # Less than 5GB free
             health_status["checks"]["disk_space"] = {
                 "status": "warning",
-                "message": f"{free_gb:.2f}GB free ({percent_used:.1f}% used)"
+                "message": f"{free_gb:.2f}GB free ({percent_used:.1f}% used)",
             }
         else:
             health_status["checks"]["disk_space"] = {
                 "status": "healthy",
-                "message": f"{free_gb:.2f}GB free ({percent_used:.1f}% used)"
+                "message": f"{free_gb:.2f}GB free ({percent_used:.1f}% used)",
             }
     except Exception as e:
         health_status["checks"]["disk_space"] = {"status": "unknown", "message": str(e)}
-    
+
     return health_status
 
 

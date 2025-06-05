@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user
 from app.core.database import get_db
-from app.models import TransactionLog, IngestLog, User
+from app.models import IngestLog, TransactionLog, User
 
 router = APIRouter(prefix="/api/v1", tags=["logs"])
 
@@ -61,10 +61,10 @@ async def get_ingest_logs(
     Requires admin privileges.
     """
     query = db.query(IngestLog).order_by(desc(IngestLog.timestamp))
-    
+
     if provider:
         query = query.filter(IngestLog.provider == provider)
-    
+
     logs = query.offset(offset).limit(limit).all()
 
     return [log.as_dict() for log in logs]

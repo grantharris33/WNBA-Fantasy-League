@@ -88,10 +88,10 @@ async def _startup() -> None:
     # Schedule scoring engine hourly (configurable via env).
     if not scheduler.get_job("hourly_scoring"):
         from app.jobs.score_engine import run_engine
-        
+
         # Run every hour on the hour by default
         scoring_interval_minutes = int(os.getenv("SCORING_INTERVAL_MINUTES", "60"))
-        
+
         scheduler.add_job(
             run_engine,
             "interval",
@@ -212,10 +212,10 @@ def _schedule_nightly() -> None:
 
     if not scheduler.get_job("hourly_scoring"):
         from app.jobs.score_engine import run_engine
-        
+
         # Run every hour on the hour by default
         scoring_interval_minutes = int(os.getenv("SCORING_INTERVAL_MINUTES", "60"))
-        
+
         scheduler.add_job(
             run_engine,
             "interval",

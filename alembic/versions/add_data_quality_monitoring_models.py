@@ -5,9 +5,9 @@ Revises: f148c9022616
 Create Date: 2025-01-06 12:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'add_data_quality_monitoring_models'
@@ -34,7 +34,7 @@ def upgrade():
         sa.Column('is_active', sa.Boolean(), nullable=True, default=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
     )
 
     # Create data_validation_rule table
@@ -48,7 +48,7 @@ def upgrade():
         sa.Column('is_active', sa.Boolean(), nullable=True, default=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
     )
 
     # Create data_anomaly_log table
@@ -64,7 +64,7 @@ def upgrade():
         sa.Column('is_resolved', sa.Boolean(), nullable=True, default=False),
         sa.Column('resolved_at', sa.DateTime(), nullable=True),
         sa.Column('resolution_notes', sa.Text(), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
     )
 
 

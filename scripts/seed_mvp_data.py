@@ -39,7 +39,7 @@ def create_demo_users(db) -> list[models.User]:
         {"email": "eve@example.com", "password": "eve123", "is_admin": False},
         {"email": "frank@example.com", "password": "frank123", "is_admin": False},
     ]
-    
+
     users = []
     for data in users_data:
         # Check if user already exists
@@ -48,13 +48,11 @@ def create_demo_users(db) -> list[models.User]:
             users.append(existing)
         else:
             user = models.User(
-                email=data["email"],
-                hashed_password=hash_password(data["password"]),
-                is_admin=data["is_admin"]
+                email=data["email"], hashed_password=hash_password(data["password"]), is_admin=data["is_admin"]
             )
             db.add(user)
             users.append(user)
-    
+
     db.flush()
     return users
 
@@ -72,8 +70,7 @@ def create_demo_players(db) -> list[models.Player]:
         {"full_name": "Arike Ogunbowale", "position": "G", "team_abbr": "DAL", "jersey_number": "24"},
         {"full_name": "Jackie Young", "position": "G", "team_abbr": "LV", "jersey_number": "0"},
         {"full_name": "Skylar Diggins-Smith", "position": "G", "team_abbr": "SEA", "jersey_number": "4"},
-        
-        # Forwards  
+        # Forwards
         {"full_name": "A'ja Wilson", "position": "F", "team_abbr": "LV", "jersey_number": "22"},
         {"full_name": "Breanna Stewart", "position": "F", "team_abbr": "NY", "jersey_number": "30"},
         {"full_name": "Nneka Ogwumike", "position": "F", "team_abbr": "SEA", "jersey_number": "30"},
@@ -82,13 +79,11 @@ def create_demo_players(db) -> list[models.Player]:
         {"full_name": "Candace Parker", "position": "F", "team_abbr": "LV", "jersey_number": "3"},
         {"full_name": "Kahleah Copper", "position": "F", "team_abbr": "CHI", "jersey_number": "2"},
         {"full_name": "DeWanna Bonner", "position": "F", "team_abbr": "CONN", "jersey_number": "24"},
-        
         # Centers
         {"full_name": "Brittney Griner", "position": "C", "team_abbr": "PHX", "jersey_number": "42"},
         {"full_name": "Jonquel Jones", "position": "C", "team_abbr": "NY", "jersey_number": "35"},
         {"full_name": "Sylvia Fowles", "position": "C", "team_abbr": "MIN", "jersey_number": "34"},
         {"full_name": "Tina Charles", "position": "C", "team_abbr": "SEA", "jersey_number": "31"},
-        
         # Additional players for depth
         {"full_name": "Rhyne Howard", "position": "G", "team_abbr": "ATL", "jersey_number": "10"},
         {"full_name": "Marina Mabrey", "position": "G", "team_abbr": "CONN", "jersey_number": "13"},
@@ -101,7 +96,7 @@ def create_demo_players(db) -> list[models.Player]:
         {"full_name": "Azura Stevens", "position": "C", "team_abbr": "LA", "jersey_number": "23"},
         {"full_name": "Teaira McCowan", "position": "C", "team_abbr": "DAL", "jersey_number": "7"},
     ]
-    
+
     players = []
     for i, data in enumerate(players_data, start=1):
         # Check if player already exists
@@ -115,11 +110,11 @@ def create_demo_players(db) -> list[models.Player]:
                 position=data["position"],
                 team_abbr=data["team_abbr"],
                 jersey_number=data["jersey_number"],
-                status="active"
+                status="active",
             )
             db.add(player)
             players.append(player)
-    
+
     db.flush()
     return players
 
@@ -127,7 +122,7 @@ def create_demo_players(db) -> list[models.Player]:
 def create_demo_leagues(db, users) -> list[models.League]:
     """Create demo leagues in different states."""
     leagues = []
-    
+
     # Active league ready for draft
     league1 = models.League(
         name="Championship League 2025",
@@ -141,12 +136,12 @@ def create_demo_leagues(db, users) -> list[models.League]:
             "min_teams": 4,
             "draft_rounds": 12,
             "seconds_per_pick": 90,
-            "season_year": 2025
-        }
+            "season_year": 2025,
+        },
     )
     db.add(league1)
     leagues.append(league1)
-    
+
     # League currently drafting
     league2 = models.League(
         name="Elite Fantasy League",
@@ -160,12 +155,12 @@ def create_demo_leagues(db, users) -> list[models.League]:
             "min_teams": 4,
             "draft_rounds": 10,
             "seconds_per_pick": 60,
-            "season_year": 2025
-        }
+            "season_year": 2025,
+        },
     )
     db.add(league2)
     leagues.append(league2)
-    
+
     # Completed league with history
     league3 = models.League(
         name="Legends League 2024",
@@ -179,12 +174,12 @@ def create_demo_leagues(db, users) -> list[models.League]:
             "min_teams": 6,
             "draft_rounds": 12,
             "seconds_per_pick": 120,
-            "season_year": 2024
-        }
+            "season_year": 2024,
+        },
     )
     db.add(league3)
     leagues.append(league3)
-    
+
     db.flush()
     return leagues
 
@@ -192,51 +187,49 @@ def create_demo_leagues(db, users) -> list[models.League]:
 def create_teams_and_rosters(db, leagues, users, players):
     """Create teams and assign players to rosters."""
     teams = []
-    
+
     # Championship League teams
-    team_names = ["Sky Hoopers", "Court Queens", "Rim Rockers", "Net Ninjas", 
-                  "Ball Hawks", "Dunk Dynasty", "Triple Threats", "Fast Breakers"]
-    
+    team_names = [
+        "Sky Hoopers",
+        "Court Queens",
+        "Rim Rockers",
+        "Net Ninjas",
+        "Ball Hawks",
+        "Dunk Dynasty",
+        "Triple Threats",
+        "Fast Breakers",
+    ]
+
     for i, (user, team_name) in enumerate(zip(users[:8], team_names)):
-        team = models.Team(
-            name=team_name,
-            owner=user,
-            league=leagues[0]
-        )
+        team = models.Team(name=team_name, owner=user, league=leagues[0])
         db.add(team)
         teams.append(team)
-    
+
     # Elite League teams
     elite_names = ["Elite Squad", "Dream Team", "All Stars", "Champions", "Warriors", "Phoenix"]
     for i, (user, team_name) in enumerate(zip(users[2:8], elite_names)):
-        team = models.Team(
-            name=team_name,
-            owner=user,
-            league=leagues[1]
-        )
+        team = models.Team(name=team_name, owner=user, league=leagues[1])
         db.add(team)
         teams.append(team)
-    
+
     db.flush()
-    
+
     # Assign players to teams in Elite League (currently drafting)
     # Simulate a partial draft
     draft_teams = [t for t in teams if t.league_id == leagues[1].id]
     available_players = players.copy()
     random.shuffle(available_players)
-    
+
     # Each team gets 3-4 players (partial draft)
     for round_num in range(4):
         for team in draft_teams:
             if available_players:
                 player = available_players.pop(0)
                 roster_slot = models.RosterSlot(
-                    team=team,
-                    player=player,
-                    is_starter=round_num < 3  # First 2 rounds are starters
+                    team=team, player=player, is_starter=round_num < 3  # First 2 rounds are starters
                 )
                 db.add(roster_slot)
-    
+
     # Create draft state for drafting league
     draft_order = []
     # Snake draft order - alternate each round
@@ -245,16 +238,16 @@ def create_teams_and_rosters(db, leagues, users, players):
             draft_order.extend([t.id for t in draft_teams])
         else:  # Even rounds - reverse
             draft_order.extend([t.id for t in reversed(draft_teams)])
-    
+
     draft_state = models.DraftState(
         league=leagues[1],
         current_round=5,
         current_pick_index=24,  # 4 rounds * 6 teams = 24 picks done
         status="active",
-        pick_order=",".join(map(str, draft_order))
+        pick_order=",".join(map(str, draft_order)),
     )
     db.add(draft_state)
-    
+
     db.flush()
     return teams
 
@@ -263,10 +256,10 @@ def create_sample_stats(db, players, teams):
     """Create sample game stats for players."""
     # Create some recent games
     game_dates = [datetime.now(timezone.utc) - timedelta(days=d) for d in range(1, 8)]
-    
+
     # WNBA team abbreviations for games
     wnba_teams = ["NY", "LA", "CHI", "PHX", "SEA", "LV", "CONN", "ATL", "MIN", "DAL", "IND", "WSH"]
-    
+
     for date in game_dates:
         # Create 4-6 games per day
         num_games = random.randint(4, 6)
@@ -274,7 +267,7 @@ def create_sample_stats(db, players, teams):
             # Pick two teams for the game
             home_team, away_team = random.sample(wnba_teams, 2)
             game_id = f"{date.strftime('%Y%m%d')}-{home_team}-{away_team}"
-            
+
             # Create the game
             game = models.Game(
                 id=game_id,
@@ -284,13 +277,13 @@ def create_sample_stats(db, players, teams):
                 home_score=random.randint(65, 95),
                 away_score=random.randint(65, 95),
                 status="Final",
-                season=date.year
+                season=date.year,
             )
             db.add(game)
-            
+
             # Pick 8-10 random players for this game
             game_players = random.sample(players, k=random.randint(8, 10))
-            
+
             for player in game_players:
                 # Generate realistic stats based on position
                 if player.position == "G":
@@ -311,7 +304,7 @@ def create_sample_stats(db, players, teams):
                     assists = random.randint(0, 3)
                     steals = random.randint(0, 1)
                     blocks = random.randint(1, 4)
-                
+
                 # Calculate other stats
                 fgm = points // 2
                 fga = fgm + random.randint(2, 6)
@@ -319,7 +312,7 @@ def create_sample_stats(db, players, teams):
                 fta = ftm + random.randint(0, 2)
                 three_pm = random.randint(0, min(4, points // 3))
                 three_pa = three_pm + random.randint(0, 3)
-                
+
                 stat_line = models.StatLine(
                     player_id=player.id,
                     game_id=game_id,
@@ -338,10 +331,10 @@ def create_sample_stats(db, players, teams):
                     free_throws_made=ftm,
                     free_throws_attempted=fta,
                     personal_fouls=random.randint(0, 4),
-                    is_starter=random.choice([True, True, True, False])  # 75% starters
+                    is_starter=random.choice([True, True, True, False]),  # 75% starters
                 )
                 db.add(stat_line)
-    
+
     db.flush()
 
 
@@ -350,36 +343,33 @@ def create_league_settings(db, leagues):
     for league in leagues:
         # Update settings with scoring configuration
         league.settings = league.settings or {}
-        
-        league.settings.update({
-            "scoring": {
-                "points": 1.0,
-                "rebounds": 1.2,
-                "assists": 1.5,
-                "steals": 3.0,
-                "blocks": 3.0,
-                "turnovers": -1.0,
-                "field_goals_made": 0.5,
-                "field_goals_missed": -0.5,
-                "free_throws_made": 1.0,
-                "free_throws_missed": -0.5,
-                "three_pointers_made": 1.0,
-                "double_double_bonus": 5.0,
-                "triple_double_bonus": 10.0
-            },
-            "roster": {
-                "roster_size": league.settings.get("draft_rounds", 12),
-                "starting_lineup": {
-                    "G": 2,
-                    "F": 2,
-                    "C": 1,
-                    "UTIL": 2
+
+        league.settings.update(
+            {
+                "scoring": {
+                    "points": 1.0,
+                    "rebounds": 1.2,
+                    "assists": 1.5,
+                    "steals": 3.0,
+                    "blocks": 3.0,
+                    "turnovers": -1.0,
+                    "field_goals_made": 0.5,
+                    "field_goals_missed": -0.5,
+                    "free_throws_made": 1.0,
+                    "free_throws_missed": -0.5,
+                    "three_pointers_made": 1.0,
+                    "double_double_bonus": 5.0,
+                    "triple_double_bonus": 10.0,
                 },
-                "bench_size": league.settings.get("draft_rounds", 12) - 7,
-                "ir_slots": 1
+                "roster": {
+                    "roster_size": league.settings.get("draft_rounds", 12),
+                    "starting_lineup": {"G": 2, "F": 2, "C": 1, "UTIL": 2},
+                    "bench_size": league.settings.get("draft_rounds", 12) - 7,
+                    "ir_slots": 1,
+                },
             }
-        })
-    
+        )
+
     db.flush()
 
 

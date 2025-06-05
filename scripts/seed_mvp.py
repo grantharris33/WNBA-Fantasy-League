@@ -60,16 +60,14 @@ def main() -> None:
         # Create users
         print("Creating users...")
         users = []
-        
+
         # Admin user
         admin = models.User(
-            email="me@grantharris.tech",
-            hashed_password=hash_password("Thisisapassword1"),
-            is_admin=True
+            email="me@grantharris.tech", hashed_password=hash_password("Thisisapassword1"), is_admin=True
         )
         db.add(admin)
         users.append(admin)
-        
+
         # Demo users
         demo_users = [
             ("demo@example.com", "demo123"),
@@ -77,16 +75,12 @@ def main() -> None:
             ("bob@example.com", "bob123"),
             ("charlie@example.com", "charlie123"),
         ]
-        
+
         for email, password in demo_users:
-            user = models.User(
-                email=email,
-                hashed_password=hash_password(password),
-                is_admin=False
-            )
+            user = models.User(email=email, hashed_password=hash_password(password), is_admin=False)
             db.add(user)
             users.append(user)
-        
+
         db.flush()
         print(f"  Created {len(users)} users")
 
@@ -114,24 +108,19 @@ def main() -> None:
             ("DeWanna Bonner", "F"),
             ("Tina Charles", "C"),
         ]
-        
+
         players = []
         for i, (name, position) in enumerate(player_names, start=1):
-            player = models.Player(
-                id=i,
-                full_name=name,
-                position=position,
-                status="active"
-            )
+            player = models.Player(id=i, full_name=name, position=position, status="active")
             db.add(player)
             players.append(player)
-        
+
         db.flush()
         print(f"  Created {len(players)} players")
 
         # Create leagues
         print("Creating leagues...")
-        
+
         # Active league
         league1 = models.League(
             name="MVP Demo League",
@@ -139,66 +128,44 @@ def main() -> None:
             commissioner=admin,
             max_teams=6,
             draft_date=datetime.now(timezone.utc),
-            settings={
-                "draft_type": "snake",
-                "scoring_type": "h2h",
-                "draft_rounds": 10,
-                "roster_size": 10
-            }
+            settings={"draft_type": "snake", "scoring_type": "h2h", "draft_rounds": 10, "roster_size": 10},
         )
         db.add(league1)
-        
+
         # Another league
         league2 = models.League(
             name="Test League",
             invite_code="TEST-123",
             commissioner=users[1],  # demo user
             max_teams=4,
-            settings={
-                "draft_type": "snake",
-                "scoring_type": "roto",
-                "draft_rounds": 8,
-                "roster_size": 8
-            }
+            settings={"draft_type": "snake", "scoring_type": "roto", "draft_rounds": 8, "roster_size": 8},
         )
         db.add(league2)
-        
+
         db.flush()
         print("  Created 2 leagues")
 
         # Create teams
         print("Creating teams...")
         team_names = ["Warriors", "Dynasty", "All-Stars", "Champions", "Legends", "Elite"]
-        
+
         # Teams for league 1
         for i, (user, team_name) in enumerate(zip(users[:5], team_names[:5])):
-            team = models.Team(
-                name=team_name,
-                owner=user,
-                league=league1
-            )
+            team = models.Team(name=team_name, owner=user, league=league1)
             db.add(team)
-            
+
             # Add some players to rosters
             if i < 3:  # Only first 3 teams get players
                 for j in range(3):
                     player_idx = (i * 3 + j) % len(players)
-                    roster_slot = models.RosterSlot(
-                        team=team,
-                        player=players[player_idx],
-                        is_starter=(j < 2)
-                    )
+                    roster_slot = models.RosterSlot(team=team, player=players[player_idx], is_starter=(j < 2))
                     db.add(roster_slot)
-        
+
         # Teams for league 2
         for user, team_name in zip(users[1:4], ["Team A", "Team B", "Team C"]):
-            team = models.Team(
-                name=team_name,
-                owner=user,
-                league=league2
-            )
+            team = models.Team(name=team_name, owner=user, league=league2)
             db.add(team)
-        
+
         db.flush()
         print("  Created teams and sample rosters")
 

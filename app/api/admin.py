@@ -449,12 +449,14 @@ async def force_set_team_roster(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 # Data Quality Management Endpoints
+
 
 @router.get("/data-quality/dashboard")
 async def get_data_quality_dashboard(
-    current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    current_user: Annotated[User, Depends(get_admin_user)] = None, db: Annotated[Session, Depends(get_db)] = None
 ) -> QualityDashboardResponse:
     """
     Get data quality dashboard overview.
@@ -472,7 +474,7 @@ async def get_data_quality_dashboard(
 async def create_quality_check(
     request: CreateQualityCheckRequest = Body(...),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> QualityCheckResponse:
     """
     Create a new data quality check.
@@ -486,9 +488,9 @@ async def create_quality_check(
             target_table=request.target_table,
             check_query=request.check_query,
             expected_result=request.expected_result,
-            failure_threshold=request.failure_threshold
+            failure_threshold=request.failure_threshold,
         )
-        
+
         return QualityCheckResponse(
             id=check.id,
             check_name=check.check_name,
@@ -498,7 +500,7 @@ async def create_quality_check(
             last_run=check.last_run.isoformat() if check.last_run else None,
             last_result=check.last_result,
             consecutive_failures=check.consecutive_failures,
-            is_active=check.is_active
+            is_active=check.is_active,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -508,7 +510,7 @@ async def create_quality_check(
 async def list_quality_checks(
     current_user: Annotated[User, Depends(get_admin_user)] = None,
     db: Annotated[Session, Depends(get_db)] = None,
-    active_only: bool = Query(True, description="Filter to active checks only")
+    active_only: bool = Query(True, description="Filter to active checks only"),
 ) -> List[QualityCheckResponse]:
     """
     List all data quality checks.
@@ -516,13 +518,13 @@ async def list_quality_checks(
     """
     try:
         from app.models import DataQualityCheck
-        
+
         query = db.query(DataQualityCheck)
         if active_only:
             query = query.filter(DataQualityCheck.is_active == True)
-        
+
         checks = query.all()
-        
+
         return [
             QualityCheckResponse(
                 id=check.id,
@@ -533,7 +535,7 @@ async def list_quality_checks(
                 last_run=check.last_run.isoformat() if check.last_run else None,
                 last_result=check.last_result,
                 consecutive_failures=check.consecutive_failures,
-                is_active=check.is_active
+                is_active=check.is_active,
             )
             for check in checks
         ]
@@ -545,7 +547,7 @@ async def list_quality_checks(
 async def run_quality_check(
     check_id: int = Path(..., description="Quality check ID"),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> AdminActionResponse:
     """
     Run a specific data quality check.
@@ -554,11 +556,13 @@ async def run_quality_check(
     try:
         quality_service = DataQualityService(db)
         success = quality_service.run_quality_check(check_id)
-        
+
         return AdminActionResponse(
             success=success,
-            message=f"Quality check {check_id} executed successfully" if success else f"Quality check {check_id} failed",
-            data={"check_id": check_id}
+            message=f"Quality check {check_id} executed successfully"
+            if success
+            else f"Quality check {check_id} failed",
+            data={"check_id": check_id},
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

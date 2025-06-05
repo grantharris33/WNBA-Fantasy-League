@@ -588,7 +588,7 @@ class AdminMoveGrant(Base):
 
 class DataQualityCheck(Base):
     __tablename__ = "data_quality_check"
-    
+
     id: int = Column(Integer, primary_key=True)
     check_name: str = Column(String, nullable=False)
     check_type: str = Column(String, nullable=False)  # completeness, accuracy, consistency
@@ -607,7 +607,7 @@ class DataQualityCheck(Base):
 
 class DataValidationRule(Base):
     __tablename__ = "data_validation_rule"
-    
+
     id: int = Column(Integer, primary_key=True)
     entity_type: str = Column(String, nullable=False)  # player, game, stat_line
     field_name: str = Column(String, nullable=False)
@@ -620,7 +620,7 @@ class DataValidationRule(Base):
 
 class DataAnomalyLog(Base):
     __tablename__ = "data_anomaly_log"
-    
+
     id: int = Column(Integer, primary_key=True)
     detected_at: datetime = Column(DateTime, default=datetime.utcnow)
     entity_type: str = Column(String, nullable=False)
