@@ -26,12 +26,7 @@ router = APIRouter(prefix="/api/v1/leagues", tags=["league-management"])
 
 def log_transaction(db: Session, user: User, action: str, path: str, method: str) -> None:
     """Log a transaction for audit purposes."""
-    transaction = TransactionLog(
-        user_id=user.id,
-        action=action,
-        path=path,
-        method=method,
-    )
+    transaction = TransactionLog(user_id=user.id, action=action, path=path, method=method)
     db.add(transaction)
     db.commit()
 
@@ -50,10 +45,7 @@ async def options_league_team(league_id: int, team_id: int):
 
 @router.post("", response_model=LeagueOut, status_code=status.HTTP_201_CREATED)
 def create_league(
-    *,
-    data: LeagueCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    *, data: LeagueCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ) -> LeagueOut:
     """
     Create a new league with the requesting user as commissioner.
@@ -125,20 +117,13 @@ def delete_league(
 
 @router.post("/join", response_model=TeamOut, status_code=status.HTTP_201_CREATED)
 def join_league(
-    *,
-    data: JoinLeagueRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    *, data: JoinLeagueRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ) -> TeamOut:
     """
     Join a league using invite code and create a team.
     """
     service = LeagueService(db)
-    team = service.join_league(
-        invite_code=data.invite_code,
-        team_name=data.team_name,
-        user=current_user,
-    )
+    team = service.join_league(invite_code=data.invite_code, team_name=data.team_name, user=current_user)
 
     # Log transaction
     log_transaction(db, current_user, "JOIN_LEAGUE", "/api/v1/leagues/join", "POST")
@@ -148,9 +133,7 @@ def join_league(
 
 @router.get("/mine", response_model=List[LeagueWithRole])
 def get_my_leagues(
-    *,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    *, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ) -> List[LeagueWithRole]:
     """
     Get all leagues where user has a team or is commissioner.
@@ -212,6 +195,7 @@ def leave_league(
 
     # Get the team to determine if it's the user's own team
     from app.models import Team
+
     team = db.query(Team).filter(Team.id == team_id, Team.league_id == league_id).first()
 
     service.leave_league(league_id=league_id, team_id=team_id, user=current_user)

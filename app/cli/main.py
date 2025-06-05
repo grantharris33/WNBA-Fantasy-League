@@ -8,9 +8,9 @@ and the new backfill system.
 
 import asyncio
 import datetime as dt
+import sys
 from datetime import date, datetime
 from pathlib import Path
-import sys
 from typing import Optional
 
 import click
@@ -21,19 +21,28 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
+from app.cli.admin import admin
 from app.core.database import SessionLocal, init_db
 from app.core.security import hash_password
+from app.jobs.ingest import ingest_stat_lines
+from app.jobs.ingest_players import ingest_player_profiles
+from app.jobs.ingest_teams import ingest_wnba_teams
 from app.models import (
-    User, League, Team, Player, StatLine, IngestLog,
-    DraftState, RosterSlot, TeamScore, WeeklyBonus,
-    IngestionRun, IngestionQueue
+    DraftState,
+    IngestionQueue,
+    IngestionRun,
+    IngestLog,
+    League,
+    Player,
+    RosterSlot,
+    StatLine,
+    Team,
+    TeamScore,
+    User,
+    WeeklyBonus,
 )
 from app.services.backfill import BackfillService
 from app.services.scoring import update_weekly_team_scores
-from app.jobs.ingest import ingest_stat_lines
-from app.jobs.ingest_teams import ingest_wnba_teams
-from app.jobs.ingest_players import ingest_player_profiles
-from app.cli.admin import admin
 
 
 @click.group()
@@ -45,6 +54,7 @@ def cli():
 # =============================================================================
 # BACKFILL COMMANDS
 # =============================================================================
+
 
 @cli.group()
 def backfill():
@@ -72,10 +82,7 @@ def season(season: int, start_date: Optional[datetime], end_date: Optional[datet
     async def run_backfill():
         async with BackfillService() as service:
             run = await service.backfill_season(
-                year=season,
-                start_date=start_date_obj,
-                end_date=end_date_obj,
-                dry_run=dry_run
+                year=season, start_date=start_date_obj, end_date=end_date_obj, dry_run=dry_run
             )
 
             click.echo("\n📊 Backfill Summary:")
@@ -167,6 +174,7 @@ def reprocess_game(game_id: str, force: bool):
 # =============================================================================
 # DATA INGESTION COMMANDS
 # =============================================================================
+
 
 @cli.group()
 def ingest():
@@ -286,6 +294,7 @@ def all():
 # USER MANAGEMENT COMMANDS
 # =============================================================================
 
+
 @cli.group()
 def users():
     """User management commands."""
@@ -311,11 +320,7 @@ def add(email: str, password: str, admin: bool, league_name: Optional[str], team
 
         # Create user
         hashed_password = hash_password(password)
-        user = User(
-            email=email,
-            hashed_password=hashed_password,
-            is_admin=admin
-        )
+        user = User(email=email, hashed_password=hashed_password, is_admin=admin)
         db.add(user)
         db.flush()
 
@@ -327,21 +332,14 @@ def add(email: str, password: str, admin: bool, league_name: Optional[str], team
 
             if not league:
                 import uuid
-                league = League(
-                    name=league_name,
-                    commissioner=user,
-                    invite_code=str(uuid.uuid4())[:8].upper()
-                )
+
+                league = League(name=league_name, commissioner=user, invite_code=str(uuid.uuid4())[:8].upper())
                 db.add(league)
                 db.flush()
                 click.echo(f"✅ Created league: {league_name}")
 
             if team_name:
-                team = Team(
-                    name=team_name,
-                    owner=user,
-                    league=league
-                )
+                team = Team(name=team_name, owner=user, league=league)
                 db.add(team)
                 click.echo(f"✅ Created team: {team_name}")
 
@@ -412,6 +410,7 @@ def list():
 # LINEUP MANAGEMENT COMMANDS
 # =============================================================================
 
+
 @cli.group()
 def lineup():
     """Weekly lineup management commands."""
@@ -454,10 +453,12 @@ def lock(week_id: Optional[int], current: bool, dry_run: bool):
             for team in teams:
                 # Check if already locked
                 from app.models import WeeklyLineup
-                existing = db.query(WeeklyLineup).filter(
-                    WeeklyLineup.team_id == team.id,
-                    WeeklyLineup.week_id == week_id
-                ).first()
+
+                existing = (
+                    db.query(WeeklyLineup)
+                    .filter(WeeklyLineup.team_id == team.id, WeeklyLineup.week_id == week_id)
+                    .first()
+                )
 
                 status = "already locked" if existing else "would lock"
                 click.echo(f"  - {team.name}: {status}")
@@ -507,10 +508,10 @@ def status(week_id: Optional[int], team_id: Optional[int]):
 
         for team in teams:
             from app.models import WeeklyLineup
-            lineup = db.query(WeeklyLineup).filter(
-                WeeklyLineup.team_id == team.id,
-                WeeklyLineup.week_id == week_id
-            ).first()
+
+            lineup = (
+                db.query(WeeklyLineup).filter(WeeklyLineup.team_id == team.id, WeeklyLineup.week_id == week_id).first()
+            )
 
             if lineup:
                 click.echo(f"🔒 {team.name}: LOCKED (at {lineup.locked_at})")
@@ -531,6 +532,7 @@ def status(week_id: Optional[int], team_id: Optional[int]):
 # =============================================================================
 # DATABASE COMMANDS
 # =============================================================================
+
 
 @cli.group()
 def db():
@@ -678,9 +680,7 @@ def stats():
             click.echo(f"{key.replace('_', ' ').title()}: {value}")
 
         # Recent activity
-        recent_stats = db.query(StatLine).filter(
-            StatLine.game_date >= datetime.utcnow() - dt.timedelta(days=7)
-        ).count()
+        recent_stats = db.query(StatLine).filter(StatLine.game_date >= datetime.utcnow() - dt.timedelta(days=7)).count()
 
         click.echo("\n🕒 Recent Activity (7 days)")
         click.echo(f"New stat lines: {recent_stats}")

@@ -59,11 +59,13 @@ async def test_update_weekly_team_scores(monkeypatch, tmp_path: Path):
 
     # Roster slots (mark as starters)
     session.add_all(
-        [models.RosterSlot(team_id=t1.id, player_id=p1.id, is_starter=True),
-         models.RosterSlot(team_id=t2.id, player_id=p2.id, is_starter=True)]
+        [
+            models.RosterSlot(team_id=t1.id, player_id=p1.id, is_starter=True),
+            models.RosterSlot(team_id=t2.id, player_id=p2.id, is_starter=True),
+        ]
     )
 
-        # Stat lines on same week (use current date to ensure it's treated as current week)
+    # Stat lines on same week (use current date to ensure it's treated as current week)
     today = dt.date.today()
     # Find the Monday of this week
     monday = today - dt.timedelta(days=today.weekday())
@@ -73,8 +75,12 @@ async def test_update_weekly_team_scores(monkeypatch, tmp_path: Path):
     game = models.Game(id="test-game-1", date=game_dt)
     session.add(game)
     session.flush()
-    sl1 = models.StatLine(player_id=p1.id, game_id=game.id, game_date=game_dt, points=10, rebounds=5, assists=0, steals=0, blocks=0)
-    sl2 = models.StatLine(player_id=p2.id, game_id=game.id, game_date=game_dt, points=5, rebounds=5, assists=5, steals=0, blocks=0)
+    sl1 = models.StatLine(
+        player_id=p1.id, game_id=game.id, game_date=game_dt, points=10, rebounds=5, assists=0, steals=0, blocks=0
+    )
+    sl2 = models.StatLine(
+        player_id=p2.id, game_id=game.id, game_date=game_dt, points=5, rebounds=5, assists=5, steals=0, blocks=0
+    )
     session.add_all([sl1, sl2])
     session.commit()
 

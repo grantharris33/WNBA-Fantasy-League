@@ -10,13 +10,14 @@ automatically set as starters for each team.
 import os
 import sys
 from datetime import datetime
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 # Add the app directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '.'))
 
-from app.models import Base, League, Player, RosterSlot, Team, User, DraftState, DraftPick
+from app.models import Base, DraftPick, DraftState, League, Player, RosterSlot, Team, User
 from app.services.draft import DraftService
 
 
@@ -76,11 +77,7 @@ def setup_demo_data(db):
     # Create draft state
     pick_order = ",".join([str(t.id) for t in teams] + [str(t.id) for t in reversed(teams)])
     draft = DraftState(
-        league_id=league.id,
-        current_round=1,
-        current_pick_index=0,
-        status="active",
-        pick_order=pick_order
+        league_id=league.id, current_round=1, current_pick_index=0, status="active", pick_order=pick_order
     )
     db.add(draft)
     db.flush()
@@ -114,16 +111,11 @@ def simulate_draft(db, draft, teams, players):
                 player_id=player.id,
                 round=round_num,
                 pick_number=pick_number,
-                is_auto=False
+                is_auto=False,
             )
 
             # Create roster slot (no starters initially)
-            roster_slot = RosterSlot(
-                team_id=team.id,
-                player_id=player.id,
-                position=player.position,
-                is_starter=False
-            )
+            roster_slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=False)
 
             db.add(pick)
             db.add(roster_slot)
@@ -164,10 +156,7 @@ def show_rosters_before_auto_starters(db, teams):
             print(f"  {i:2d}. {player.full_name:<20} ({player.position:>3}) - {starter_status}")
 
         # Show position counts
-        positions = [
-            db.query(Player).filter(Player.id == slot.player_id).first().position
-            for slot in roster_slots
-        ]
+        positions = [db.query(Player).filter(Player.id == slot.player_id).first().position for slot in roster_slots]
         guard_count = sum(1 for pos in positions if pos and 'G' in pos)
         forward_center_count = sum(1 for pos in positions if pos and ('F' in pos or 'C' in pos))
 

@@ -93,7 +93,9 @@ def _map_injuries(raw: dict[str, Any]) -> LeagueInjuryReportOut:
 
             # Get injury details
             status = injury.get("status", "Unknown")
-            comment = injury.get("shortComment") or injury.get("longComment") or injury.get("details", {}).get("type", "")
+            comment = (
+                injury.get("shortComment") or injury.get("longComment") or injury.get("details", {}).get("type", "")
+            )
 
             players.append(
                 PlayerInjuryDetailOut(

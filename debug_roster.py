@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import asyncio
+
 from app.external_apis.rapidapi_client import wnba_client
+
 
 async def test_roster():
     try:
@@ -36,9 +38,11 @@ async def test_roster():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         await wnba_client.close()
+
 
 if __name__ == "__main__":
     asyncio.run(test_roster())

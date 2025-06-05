@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
 
@@ -9,6 +10,7 @@ from app.core.database import Base
 
 class PlayerSeasonStats(Base):
     """Aggregated season statistics for a player."""
+
     __tablename__ = "player_season_stats"
 
     id: int = Column(Integer, primary_key=True)
@@ -48,13 +50,12 @@ class PlayerSeasonStats(Base):
     # Relationships
     player = relationship("Player", backref="season_stats")
 
-    __table_args__ = (
-        UniqueConstraint("player_id", "season", name="uq_player_season"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "season", name="uq_player_season"),)
 
 
 class PlayerTrends(Base):
     """Recent performance trends for a player."""
+
     __tablename__ = "player_trends"
 
     id: int = Column(Integer, primary_key=True)
@@ -89,13 +90,12 @@ class PlayerTrends(Base):
     # Relationships
     player = relationship("Player", backref="trends")
 
-    __table_args__ = (
-        UniqueConstraint("player_id", "calculated_date", name="uq_player_trends_date"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "calculated_date", name="uq_player_trends_date"),)
 
 
 class MatchupAnalysis(Base):
     """Historical performance analysis against specific teams."""
+
     __tablename__ = "matchup_analysis"
 
     id: int = Column(Integer, primary_key=True)
@@ -133,6 +133,4 @@ class MatchupAnalysis(Base):
     player = relationship("Player", backref="matchup_analyses")
     opponent_team = relationship("WNBATeam", backref="matchup_analyses_against")
 
-    __table_args__ = (
-        UniqueConstraint("player_id", "opponent_team_id", "season", name="uq_player_opponent_season"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "opponent_team_id", "season", name="uq_player_opponent_season"),)

@@ -18,17 +18,18 @@ depends_on = None
 
 def upgrade():
     # Create weekly_lineup table
-    op.create_table('weekly_lineup',
+    op.create_table(
+        'weekly_lineup',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('team_id', sa.Integer(), nullable=False),
         sa.Column('player_id', sa.Integer(), nullable=False),
         sa.Column('week_id', sa.Integer(), nullable=False),
         sa.Column('is_starter', sa.Boolean(), nullable=False),
         sa.Column('locked_at', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['player_id'], ['player.id'], ),
-        sa.ForeignKeyConstraint(['team_id'], ['team.id'], ),
+        sa.ForeignKeyConstraint(['player_id'], ['player.id']),
+        sa.ForeignKeyConstraint(['team_id'], ['team.id']),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('team_id', 'week_id', 'player_id', name='uq_weekly_lineup_team_week_player')
+        sa.UniqueConstraint('team_id', 'week_id', 'player_id', name='uq_weekly_lineup_team_week_player'),
     )
     op.create_index(op.f('ix_weekly_lineup_id'), 'weekly_lineup', ['id'], unique=False)
 

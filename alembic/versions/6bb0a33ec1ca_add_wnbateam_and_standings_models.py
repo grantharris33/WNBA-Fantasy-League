@@ -5,9 +5,9 @@ Revises: 9ffa968cd683
 Create Date: 2024-12-30 12:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '6bb0a33ec1ca'
@@ -18,7 +18,8 @@ depends_on = None
 
 def upgrade():
     # Create wnba_team table
-    op.create_table('wnba_team',
+    op.create_table(
+        'wnba_team',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('location', sa.String(), nullable=False),
@@ -38,11 +39,12 @@ def upgrade():
         sa.Column('last_10', sa.String(), nullable=True),
         sa.Column('conference_rank', sa.Integer(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('abbreviation')
+        sa.UniqueConstraint('abbreviation'),
     )
 
     # Create standings table
-    op.create_table('standings',
+    op.create_table(
+        'standings',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('team_id', sa.Integer(), nullable=True),
         sa.Column('season', sa.Integer(), nullable=False),
@@ -62,9 +64,9 @@ def upgrade():
         sa.Column('points_for', sa.Float(), nullable=True, default=0.0),
         sa.Column('points_against', sa.Float(), nullable=True, default=0.0),
         sa.Column('point_differential', sa.Float(), nullable=True, default=0.0),
-        sa.ForeignKeyConstraint(['team_id'], ['wnba_team.id'], ),
+        sa.ForeignKeyConstraint(['team_id'], ['wnba_team.id']),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('team_id', 'season', 'date', name='uq_standings_team_season_date')
+        sa.UniqueConstraint('team_id', 'season', 'date', name='uq_standings_team_season_date'),
     )
 
     # Add wnba_team_id column to player table

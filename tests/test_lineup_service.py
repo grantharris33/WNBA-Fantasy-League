@@ -1,8 +1,9 @@
+from datetime import date, datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta, date
 from sqlalchemy.orm import Session
 
-from app.models import Team, Player, RosterSlot, WeeklyLineup, League, User
+from app.models import League, Player, RosterSlot, Team, User, WeeklyLineup
 from app.services.lineup import LineupService
 
 
@@ -29,11 +30,7 @@ def setup_lineup_test(db: Session):
     # Create players
     players = []
     for i in range(7):
-        player = Player(
-            full_name=f"Player {i+1}",
-            position="G" if i < 2 else ("F" if i < 5 else "C"),
-            team_abbr="TEST"
-        )
+        player = Player(full_name=f"Player {i+1}", position="G" if i < 2 else ("F" if i < 5 else "C"), team_abbr="TEST")
         players.append(player)
 
     db.add_all(players)
@@ -43,23 +40,14 @@ def setup_lineup_test(db: Session):
     roster_slots = []
     for i, player in enumerate(players):
         slot = RosterSlot(
-            team_id=team.id,
-            player_id=player.id,
-            position=player.position,
-            is_starter=i < 5  # First 5 are starters
+            team_id=team.id, player_id=player.id, position=player.position, is_starter=i < 5  # First 5 are starters
         )
         roster_slots.append(slot)
 
     db.add_all(roster_slots)
     db.commit()
 
-    return {
-        "user": user,
-        "league": league,
-        "team": team,
-        "players": players,
-        "roster_slots": roster_slots
-    }
+    return {"user": user, "league": league, "team": team, "players": players, "roster_slots": roster_slots}
 
 
 def test_week_bounds(lineup_service):
@@ -109,11 +97,7 @@ def test_can_modify_lineup_locked_week(lineup_service, setup_lineup_test, db):
     locked_at = datetime.now(timezone.utc)
     for i, player in enumerate(players[:5]):  # Lock first 5 players
         weekly_lineup = WeeklyLineup(
-            team_id=team.id,
-            player_id=player.id,
-            week_id=week_id,
-            is_starter=True,
-            locked_at=locked_at
+            team_id=team.id, player_id=player.id, week_id=week_id, is_starter=True, locked_at=locked_at
         )
         db.add(weekly_lineup)
     db.commit()
@@ -133,10 +117,7 @@ def test_lock_weekly_lineups(lineup_service, setup_lineup_test, db):
     assert teams_processed == 1
 
     # Verify lineups were created
-    lineups = db.query(WeeklyLineup).filter(
-        WeeklyLineup.team_id == team.id,
-        WeeklyLineup.week_id == week_id
-    ).all()
+    lineups = db.query(WeeklyLineup).filter(WeeklyLineup.team_id == team.id, WeeklyLineup.week_id == week_id).all()
 
     assert len(lineups) == 7  # All 7 players
 
@@ -153,11 +134,7 @@ def test_lock_weekly_lineups_already_locked(lineup_service, setup_lineup_test, d
 
     # Pre-lock one player
     weekly_lineup = WeeklyLineup(
-        team_id=team.id,
-        player_id=players[0].id,
-        week_id=week_id,
-        is_starter=True,
-        locked_at=datetime.now(timezone.utc)
+        team_id=team.id, player_id=players[0].id, week_id=week_id, is_starter=True, locked_at=datetime.now(timezone.utc)
     )
     db.add(weekly_lineup)
     db.commit()
@@ -243,11 +220,7 @@ def test_get_weekly_lineup_past_week_locked(lineup_service, setup_lineup_test, d
     locked_at = datetime.now(timezone.utc)
     for i, player in enumerate(players):
         weekly_lineup = WeeklyLineup(
-            team_id=team.id,
-            player_id=player.id,
-            week_id=week_id,
-            is_starter=i < 5,
-            locked_at=locked_at
+            team_id=team.id, player_id=player.id, week_id=week_id, is_starter=i < 5, locked_at=locked_at
         )
         db.add(weekly_lineup)
     db.commit()
@@ -287,11 +260,7 @@ def test_get_lineup_history(lineup_service, setup_lineup_test, db):
         locked_at = datetime.now(timezone.utc)
         for i, player in enumerate(players):
             weekly_lineup = WeeklyLineup(
-                team_id=team.id,
-                player_id=player.id,
-                week_id=week_id,
-                is_starter=i < 5,
-                locked_at=locked_at
+                team_id=team.id, player_id=player.id, week_id=week_id, is_starter=i < 5, locked_at=locked_at
             )
             db.add(weekly_lineup)
     db.commit()

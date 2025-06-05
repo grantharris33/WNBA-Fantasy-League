@@ -49,12 +49,25 @@ def _parse_comprehensive_stats(stats: List[str]) -> dict[str, Any]:
         # If stats array is incomplete, return zeros for safety
         return {
             "minutes_played": 0.0,
-            "field_goals_made": 0, "field_goals_attempted": 0, "field_goal_percentage": 0.0,
-            "three_pointers_made": 0, "three_pointers_attempted": 0, "three_point_percentage": 0.0,
-            "free_throws_made": 0, "free_throws_attempted": 0, "free_throw_percentage": 0.0,
-            "offensive_rebounds": 0, "defensive_rebounds": 0, "rebounds": 0.0,
-            "assists": 0.0, "steals": 0.0, "blocks": 0.0, "turnovers": 0,
-            "personal_fouls": 0, "plus_minus": 0, "points": 0.0,
+            "field_goals_made": 0,
+            "field_goals_attempted": 0,
+            "field_goal_percentage": 0.0,
+            "three_pointers_made": 0,
+            "three_pointers_attempted": 0,
+            "three_point_percentage": 0.0,
+            "free_throws_made": 0,
+            "free_throws_attempted": 0,
+            "free_throw_percentage": 0.0,
+            "offensive_rebounds": 0,
+            "defensive_rebounds": 0,
+            "rebounds": 0.0,
+            "assists": 0.0,
+            "steals": 0.0,
+            "blocks": 0.0,
+            "turnovers": 0,
+            "personal_fouls": 0,
+            "plus_minus": 0,
+            "points": 0.0,
         }
 
     # Parse shooting statistics
@@ -64,13 +77,25 @@ def _parse_comprehensive_stats(stats: List[str]) -> dict[str, Any]:
 
     return {
         "minutes_played": _to_float(stats[0]),
-        "field_goals_made": fg_made, "field_goals_attempted": fg_attempted, "field_goal_percentage": fg_percentage,
-        "three_pointers_made": threept_made, "three_pointers_attempted": threept_attempted, "three_point_percentage": threept_percentage,
-        "free_throws_made": ft_made, "free_throws_attempted": ft_attempted, "free_throw_percentage": ft_percentage,
-        "offensive_rebounds": _to_int(stats[4]), "defensive_rebounds": _to_int(stats[5]),
-        "rebounds": _to_float(stats[6]), "assists": _to_float(stats[7]), "steals": _to_float(stats[8]),
-        "blocks": _to_float(stats[9]), "turnovers": _to_int(stats[10]), "personal_fouls": _to_int(stats[11]),
-        "plus_minus": _to_int(stats[12]), "points": _to_float(stats[13]),
+        "field_goals_made": fg_made,
+        "field_goals_attempted": fg_attempted,
+        "field_goal_percentage": fg_percentage,
+        "three_pointers_made": threept_made,
+        "three_pointers_attempted": threept_attempted,
+        "three_point_percentage": threept_percentage,
+        "free_throws_made": ft_made,
+        "free_throws_attempted": ft_attempted,
+        "free_throw_percentage": ft_percentage,
+        "offensive_rebounds": _to_int(stats[4]),
+        "defensive_rebounds": _to_int(stats[5]),
+        "rebounds": _to_float(stats[6]),
+        "assists": _to_float(stats[7]),
+        "steals": _to_float(stats[8]),
+        "blocks": _to_float(stats[9]),
+        "turnovers": _to_int(stats[10]),
+        "personal_fouls": _to_int(stats[11]),
+        "plus_minus": _to_int(stats[12]),
+        "points": _to_float(stats[13]),
     }
 
 
@@ -135,19 +160,24 @@ async def standalone_ingest(test_date: dt.date):
                     away_score = int(competitor.get("score", 0))
 
             # Insert/update game record
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO game
                 (id, date, home_team_id, away_team_id, home_score, away_score, status, venue, attendance)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                game_id, game_datetime,
-                int(home_team_id) if home_team_id else None,
-                int(away_team_id) if away_team_id else None,
-                home_score, away_score,
-                competition.get("status", {}).get("type", {}).get("name", "scheduled"),
-                competition.get("venue", {}).get("fullName"),
-                competition.get("attendance")
-            ))
+            """,
+                (
+                    game_id,
+                    game_datetime,
+                    int(home_team_id) if home_team_id else None,
+                    int(away_team_id) if away_team_id else None,
+                    home_score,
+                    away_score,
+                    competition.get("status", {}).get("type", {}).get("name", "scheduled"),
+                    competition.get("venue", {}).get("fullName"),
+                    competition.get("attendance"),
+                ),
+            )
 
             # Process player stats
             players_blocks = box.get("players", [])
@@ -155,7 +185,9 @@ async def standalone_ingest(test_date: dt.date):
 
             for team_idx, team_block in enumerate(players_blocks):
                 team_info = competitors[team_idx] if team_idx < len(competitors) else {}
-                current_team_id = int(team_info.get("team", {}).get("id")) if team_info.get("team", {}).get("id") else None
+                current_team_id = (
+                    int(team_info.get("team", {}).get("id")) if team_info.get("team", {}).get("id") else None
+                )
                 is_home_team = team_info.get("homeAway") == "home"
                 opponent_team_id = away_team_id if is_home_team else home_team_id
 
@@ -170,14 +202,13 @@ async def standalone_ingest(test_date: dt.date):
                         player_id = int(athlete["id"])
 
                         # Upsert player
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT OR REPLACE INTO player (id, full_name, position)
                             VALUES (?, ?, ?)
-                        """, (
-                            player_id,
-                            athlete["displayName"],
-                            athlete.get("position", {}).get("abbreviation")
-                        ))
+                        """,
+                            (player_id, athlete["displayName"], athlete.get("position", {}).get("abbreviation")),
+                        )
 
                         # Handle DNP
                         did_not_play = athlete_block.get("didNotPlay", False)
@@ -185,7 +216,8 @@ async def standalone_ingest(test_date: dt.date):
 
                         if did_not_play:
                             # Insert DNP record
-                            cursor.execute("""
+                            cursor.execute(
+                                """
                                 INSERT OR REPLACE INTO stat_line
                                 (player_id, game_id, game_date, did_not_play, team_id, opponent_id, is_home_game, is_starter,
                                  points, rebounds, assists, steals, blocks, minutes_played,
@@ -194,7 +226,17 @@ async def standalone_ingest(test_date: dt.date):
                                  free_throws_made, free_throws_attempted, free_throw_percentage,
                                  offensive_rebounds, defensive_rebounds, turnovers, personal_fouls, plus_minus)
                                 VALUES (?, ?, ?, 1, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-                            """, (player_id, game_id, game_datetime, current_team_id, opponent_team_id, is_home_team, is_starter))
+                            """,
+                                (
+                                    player_id,
+                                    game_id,
+                                    game_datetime,
+                                    current_team_id,
+                                    opponent_team_id,
+                                    is_home_team,
+                                    is_starter,
+                                ),
+                            )
                             stats_processed += 1
                             continue
 
@@ -206,7 +248,8 @@ async def standalone_ingest(test_date: dt.date):
                         stat_vals = _parse_comprehensive_stats(stats_arr)
 
                         # Insert comprehensive stat line
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT OR REPLACE INTO stat_line
                             (player_id, game_id, game_date, team_id, opponent_id, is_home_game, is_starter, did_not_play,
                              points, rebounds, assists, steals, blocks, minutes_played,
@@ -215,15 +258,37 @@ async def standalone_ingest(test_date: dt.date):
                              free_throws_made, free_throws_attempted, free_throw_percentage,
                              offensive_rebounds, defensive_rebounds, turnovers, personal_fouls, plus_minus)
                             VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            player_id, game_id, game_datetime, current_team_id, opponent_team_id, is_home_team, is_starter,
-                            stat_vals["points"], stat_vals["rebounds"], stat_vals["assists"], stat_vals["steals"], stat_vals["blocks"],
-                            stat_vals["minutes_played"], stat_vals["field_goals_made"], stat_vals["field_goals_attempted"], stat_vals["field_goal_percentage"],
-                            stat_vals["three_pointers_made"], stat_vals["three_pointers_attempted"], stat_vals["three_point_percentage"],
-                            stat_vals["free_throws_made"], stat_vals["free_throws_attempted"], stat_vals["free_throw_percentage"],
-                            stat_vals["offensive_rebounds"], stat_vals["defensive_rebounds"], stat_vals["turnovers"],
-                            stat_vals["personal_fouls"], stat_vals["plus_minus"]
-                        ))
+                        """,
+                            (
+                                player_id,
+                                game_id,
+                                game_datetime,
+                                current_team_id,
+                                opponent_team_id,
+                                is_home_team,
+                                is_starter,
+                                stat_vals["points"],
+                                stat_vals["rebounds"],
+                                stat_vals["assists"],
+                                stat_vals["steals"],
+                                stat_vals["blocks"],
+                                stat_vals["minutes_played"],
+                                stat_vals["field_goals_made"],
+                                stat_vals["field_goals_attempted"],
+                                stat_vals["field_goal_percentage"],
+                                stat_vals["three_pointers_made"],
+                                stat_vals["three_pointers_attempted"],
+                                stat_vals["three_point_percentage"],
+                                stat_vals["free_throws_made"],
+                                stat_vals["free_throws_attempted"],
+                                stat_vals["free_throw_percentage"],
+                                stat_vals["offensive_rebounds"],
+                                stat_vals["defensive_rebounds"],
+                                stat_vals["turnovers"],
+                                stat_vals["personal_fouls"],
+                                stat_vals["plus_minus"],
+                            ),
+                        )
                         stats_processed += 1
 
             conn.commit()
@@ -233,7 +298,8 @@ async def standalone_ingest(test_date: dt.date):
         print(f"\n✅ Successfully processed {processed_games} games with comprehensive statistics")
 
         # Show sample results
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT p.full_name, s.points, s.rebounds, s.assists,
                    s.field_goals_made, s.field_goals_attempted, s.field_goal_percentage,
                    s.three_pointers_made, s.three_pointers_attempted, s.did_not_play, s.is_starter
@@ -241,19 +307,23 @@ async def standalone_ingest(test_date: dt.date):
             JOIN player p ON p.id = s.player_id
             WHERE s.game_id IS NOT NULL
             LIMIT 5
-        """)
+        """
+        )
         results = cursor.fetchall()
 
         if results:
             print("\nSample comprehensive statistics:")
             for row in results:
                 name, pts, reb, ast, fgm, fga, fgp, tpm, tpa, dnp, starter = row
-                print(f"  {name}: {pts}pts, {reb}reb, {ast}ast, FG: {fgm}/{fga} ({fgp:.1f}%), "
-                      f"3PT: {tpm}/{tpa}, DNP: {bool(dnp)}, Starter: {bool(starter)}")
+                print(
+                    f"  {name}: {pts}pts, {reb}reb, {ast}ast, FG: {fgm}/{fga} ({fgp:.1f}%), "
+                    f"3PT: {tpm}/{tpa}, DNP: {bool(dnp)}, Starter: {bool(starter)}"
+                )
 
     except Exception as e:
         print(f"Error during processing: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         conn.close()

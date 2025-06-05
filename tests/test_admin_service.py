@@ -1,22 +1,19 @@
 """Tests for admin service functionality."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy.orm import Session
 
-from app.models import User, Team, WeeklyLineup, TeamScore, TransactionLog, Player, RosterSlot
-from app.services.admin import AdminService
 from app.core.security import hash_password
+from app.models import Player, RosterSlot, Team, TeamScore, TransactionLog, User, WeeklyLineup
+from app.services.admin import AdminService
 
 
 @pytest.fixture
 def admin_user(db: Session):
     """Create an admin user for testing."""
-    admin = User(
-        email="admin@test.com",
-        hashed_password=hash_password("password"),
-        is_admin=True
-    )
+    admin = User(email="admin@test.com", hashed_password=hash_password("password"), is_admin=True)
     db.add(admin)
     db.commit()
     return admin
@@ -25,11 +22,7 @@ def admin_user(db: Session):
 @pytest.fixture
 def regular_user(db: Session):
     """Create a regular user for testing."""
-    user = User(
-        email="user@test.com",
-        hashed_password=hash_password("password"),
-        is_admin=False
-    )
+    user = User(email="user@test.com", hashed_password=hash_password("password"), is_admin=False)
     db.add(user)
     db.commit()
     return user
@@ -38,12 +31,7 @@ def regular_user(db: Session):
 @pytest.fixture
 def test_team(db: Session, regular_user: User):
     """Create a test team."""
-    team = Team(
-        name="Test Team",
-        owner_id=regular_user.id,
-        league_id=1,
-        moves_this_week=3
-    )
+    team = Team(name="Test Team", owner_id=regular_user.id, league_id=1, moves_this_week=3)
     db.add(team)
     db.commit()
     return team
@@ -54,12 +42,7 @@ def test_players(db: Session):
     """Create test players."""
     players = []
     for i in range(10):
-        player = Player(
-            full_name=f"Player {i}",
-            position="G" if i < 5 else "F",
-            team_abbr="TEST",
-            status="active"
-        )
+        player = Player(full_name=f"Player {i}", position="G" if i < 5 else "F", team_abbr="TEST", status="active")
         db.add(player)
         players.append(player)
 
@@ -78,10 +61,7 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
 
         # Add to roster
         roster_slot = RosterSlot(
-            team_id=test_team.id,
-            player_id=player.id,
-            position=player.position,
-            is_starter=is_starter
+            team_id=test_team.id, player_id=player.id, position=player.position, is_starter=is_starter
         )
         db.add(roster_slot)
 
@@ -91,7 +71,7 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
             player_id=player.id,
             week_id=week_id,
             is_starter=is_starter,
-            locked_at=datetime.now(timezone.utc)
+            locked_at=datetime.now(timezone.utc),
         )
         db.add(lineup_entry)
         lineup_entries.append(lineup_entry)
@@ -103,11 +83,7 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
 @pytest.fixture
 def test_team_score(db: Session, test_team: Team):
     """Create a test team score."""
-    score = TeamScore(
-        team_id=test_team.id,
-        week=202501,
-        score=85.5
-    )
+    score = TeamScore(team_id=test_team.id, week=202501, score=85.5)
     db.add(score)
     db.commit()
     return score
@@ -116,7 +92,9 @@ def test_team_score(db: Session, test_team: Team):
 class TestAdminService:
     """Test cases for AdminService."""
 
-    def test_modify_historical_lineup_success(self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list):
+    def test_modify_historical_lineup_success(
+        self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list
+    ):
         """Test successful historical lineup modification."""
         admin_service = AdminService(db)
 
@@ -128,16 +106,15 @@ class TestAdminService:
             week_id=202501,
             changes={"starter_ids": new_starter_ids},
             admin_user_id=admin_user.id,
-            justification="Testing lineup modification"
+            justification="Testing lineup modification",
         )
 
         assert result is True
 
         # Verify lineup was updated
-        updated_lineup = db.query(WeeklyLineup).filter(
-            WeeklyLineup.team_id == test_team.id,
-            WeeklyLineup.week_id == 202501
-        ).all()
+        updated_lineup = (
+            db.query(WeeklyLineup).filter(WeeklyLineup.team_id == test_team.id, WeeklyLineup.week_id == 202501).all()
+        )
 
         starters = [entry for entry in updated_lineup if entry.is_starter]
         starter_ids = [entry.player_id for entry in starters]
@@ -146,9 +123,7 @@ class TestAdminService:
         assert set(starter_ids) == set(new_starter_ids)
 
         # Verify audit log was created
-        audit_log = db.query(TransactionLog).filter(
-            TransactionLog.action == "MODIFY_HISTORICAL_LINEUP"
-        ).first()
+        audit_log = db.query(TransactionLog).filter(TransactionLog.action == "MODIFY_HISTORICAL_LINEUP").first()
 
         assert audit_log is not None
         assert audit_log.user_id == admin_user.id
@@ -163,7 +138,7 @@ class TestAdminService:
                 week_id=202501,
                 changes={"starter_ids": [1, 2, 3, 4, 5]},
                 admin_user_id=admin_user.id,
-                justification="Test"
+                justification="Test",
             )
 
     def test_modify_historical_lineup_no_lineup(self, db: Session, admin_user: User, test_team: Team):
@@ -176,10 +151,12 @@ class TestAdminService:
                 week_id=202502,  # Different week with no lineup
                 changes={"starter_ids": [1, 2, 3, 4, 5]},
                 admin_user_id=admin_user.id,
-                justification="Test"
+                justification="Test",
             )
 
-    def test_modify_historical_lineup_wrong_starter_count(self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list):
+    def test_modify_historical_lineup_wrong_starter_count(
+        self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list
+    ):
         """Test lineup modification with wrong number of starters."""
         admin_service = AdminService(db)
 
@@ -189,13 +166,14 @@ class TestAdminService:
                 week_id=202501,
                 changes={"starter_ids": [1, 2, 3]},  # Only 3 starters
                 admin_user_id=admin_user.id,
-                justification="Test"
+                justification="Test",
             )
 
-    def test_recalculate_team_week_score(self, db: Session, admin_user: User, test_team: Team, test_team_score: TeamScore):
+    def test_recalculate_team_week_score(
+        self, db: Session, admin_user: User, test_team: Team, test_team_score: TeamScore
+    ):
         """Test score recalculation."""
         admin_service = AdminService(db)
-
 
         # Mock the scoring calculation by directly updating the score
         # In a real scenario, this would trigger the actual scoring calculation
@@ -203,13 +181,11 @@ class TestAdminService:
             team_id=test_team.id,
             week_id=202501,
             admin_user_id=admin_user.id,
-            justification="Testing score recalculation"
+            justification="Testing score recalculation",
         )
 
         # Verify audit log was created
-        audit_log = db.query(TransactionLog).filter(
-            TransactionLog.action == "RECALCULATE_SCORE"
-        ).first()
+        audit_log = db.query(TransactionLog).filter(TransactionLog.action == "RECALCULATE_SCORE").first()
 
         assert audit_log is not None
         assert audit_log.user_id == admin_user.id
@@ -225,7 +201,7 @@ class TestAdminService:
             team_id=test_team.id,
             additional_moves=additional_moves,
             admin_user_id=admin_user.id,
-            justification="Testing move override"
+            justification="Testing move override",
         )
 
         assert result is True
@@ -236,9 +212,7 @@ class TestAdminService:
         assert test_team.moves_this_week == expected_moves
 
         # Verify audit log was created
-        audit_log = db.query(TransactionLog).filter(
-            TransactionLog.action == "OVERRIDE_WEEKLY_MOVES"
-        ).first()
+        audit_log = db.query(TransactionLog).filter(TransactionLog.action == "OVERRIDE_WEEKLY_MOVES").first()
 
         assert audit_log is not None
         assert audit_log.user_id == admin_user.id
@@ -249,13 +223,12 @@ class TestAdminService:
 
         with pytest.raises(ValueError, match="Team with ID 999 not found"):
             admin_service.override_weekly_moves(
-                team_id=999,
-                additional_moves=2,
-                admin_user_id=admin_user.id,
-                justification="Test"
+                team_id=999, additional_moves=2, admin_user_id=admin_user.id, justification="Test"
             )
 
-    def test_get_admin_audit_log(self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list):
+    def test_get_admin_audit_log(
+        self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list
+    ):
         """Test retrieving admin audit log."""
         admin_service = AdminService(db)
 
@@ -265,14 +238,11 @@ class TestAdminService:
             week_id=202501,
             changes={"starter_ids": [p.id for p in test_players[2:7]]},
             admin_user_id=admin_user.id,
-            justification="Test action 1"
+            justification="Test action 1",
         )
 
         admin_service.override_weekly_moves(
-            team_id=test_team.id,
-            additional_moves=1,
-            admin_user_id=admin_user.id,
-            justification="Test action 2"
+            team_id=test_team.id, additional_moves=1, admin_user_id=admin_user.id, justification="Test action 2"
         )
 
         # Get audit log
@@ -288,7 +258,9 @@ class TestAdminService:
             assert "action" in log
             assert "details" in log
 
-    def test_get_admin_audit_log_filtered_by_team(self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list):
+    def test_get_admin_audit_log_filtered_by_team(
+        self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list
+    ):
         """Test retrieving audit log filtered by team."""
         admin_service = AdminService(db)
 
@@ -298,7 +270,7 @@ class TestAdminService:
             week_id=202501,
             changes={"starter_ids": [p.id for p in test_players[2:7]]},
             admin_user_id=admin_user.id,
-            justification="Test action"
+            justification="Test action",
         )
 
         # Get audit log filtered by team
@@ -310,7 +282,9 @@ class TestAdminService:
         for log in logs:
             assert f"Team {test_team.id}" in log["details"]
 
-    def test_get_team_lineup_history(self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list):
+    def test_get_team_lineup_history(
+        self, db: Session, admin_user: User, test_team: Team, test_weekly_lineup: list, test_players: list
+    ):
         """Test retrieving team lineup history."""
         admin_service = AdminService(db)
 
@@ -320,7 +294,7 @@ class TestAdminService:
             week_id=202501,
             changes={"starter_ids": [p.id for p in test_players[2:7]]},
             admin_user_id=admin_user.id,
-            justification="Test modification"
+            justification="Test modification",
         )
 
         # Get lineup history
@@ -351,15 +325,13 @@ class TestAdminService:
             action="TEST_ACTION",
             details="Test details",
             before_state=before_state,
-            after_state=after_state
+            after_state=after_state,
         )
 
         db.commit()
 
         # Verify log was created
-        log = db.query(TransactionLog).filter(
-            TransactionLog.action == "TEST_ACTION"
-        ).first()
+        log = db.query(TransactionLog).filter(TransactionLog.action == "TEST_ACTION").first()
 
         assert log is not None
         assert log.user_id == admin_user.id
@@ -368,6 +340,7 @@ class TestAdminService:
 
         # Verify patch data contains before/after states
         import json
+
         patch_data = json.loads(log.patch)
         assert patch_data["before"] == before_state
         assert patch_data["after"] == after_state

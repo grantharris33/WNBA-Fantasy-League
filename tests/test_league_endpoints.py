@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.core.security import hash_password
 from app.main import app
-from app.models import User, League
+from app.models import League, User
 
 
 def create_auth_client(db: Session, user_id: int, email: str):
@@ -57,12 +57,7 @@ class TestLeagueEndpoints:
     def test_create_league(self, auth_client):
         """Test creating a league."""
         response = auth_client.post(
-            "/api/v1/leagues",
-            json={
-                "name": "Test League",
-                "max_teams": 8,
-                "settings": {"scoring": "standard"}
-            },
+            "/api/v1/leagues", json={"name": "Test League", "max_teams": 8, "settings": {"scoring": "standard"}}
         )
 
         assert response.status_code == 201
@@ -75,13 +70,7 @@ class TestLeagueEndpoints:
 
     def test_create_league_invalid_max_teams(self, auth_client):
         """Test creating league with invalid max_teams."""
-        response = auth_client.post(
-            "/api/v1/leagues",
-            json={
-                "name": "Test League",
-                "max_teams": 1,  # Too low
-            },
-        )
+        response = auth_client.post("/api/v1/leagues", json={"name": "Test League", "max_teams": 1})  # Too low
 
         assert response.status_code == 422  # Pydantic validation error
         assert "max_teams" in response.json()["detail"][0]["loc"]
@@ -90,23 +79,14 @@ class TestLeagueEndpoints:
         """Test joining a league."""
         # Create league with first user
         client1, user1 = create_auth_client(db, 1, "test1@example.com")
-        response = client1.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = client1.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         invite_code = response.json()["invite_code"]
         app.dependency_overrides.clear()
 
         # Join league with second user
         client2, user2 = create_auth_client(db, 2, "test2@example.com")
-        response = client2.post(
-            "/api/v1/leagues/join",
-            json={
-                "invite_code": invite_code,
-                "team_name": "Test Team"
-            },
-        )
+        response = client2.post("/api/v1/leagues/join", json={"invite_code": invite_code, "team_name": "Test Team"})
 
         assert response.status_code == 201
         data = response.json()
@@ -116,11 +96,7 @@ class TestLeagueEndpoints:
     def test_join_league_invalid_code(self, auth_client):
         """Test joining with invalid invite code."""
         response = auth_client.post(
-            "/api/v1/leagues/join",
-            json={
-                "invite_code": "INVALID-CODE",
-                "team_name": "Test Team"
-            },
+            "/api/v1/leagues/join", json={"invite_code": "INVALID-CODE", "team_name": "Test Team"}
         )
 
         assert response.status_code == 404
@@ -129,10 +105,7 @@ class TestLeagueEndpoints:
     def test_get_league_details_commissioner(self, auth_client, db):
         """Test that commissioner sees invite code."""
         # Create league
-        response = auth_client.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = auth_client.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         league_id = response.json()["id"]
         invite_code = response.json()["invite_code"]
@@ -147,10 +120,7 @@ class TestLeagueEndpoints:
         """Test that member does not see invite code."""
         # Create league with first user
         client1, user1 = create_auth_client(db, 1, "test1@example.com")
-        response = client1.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = client1.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         league_id = response.json()["id"]
         invite_code = response.json()["invite_code"]
@@ -158,13 +128,7 @@ class TestLeagueEndpoints:
 
         # Join as second user
         client2, user2 = create_auth_client(db, 2, "test2@example.com")
-        response = client2.post(
-            "/api/v1/leagues/join",
-            json={
-                "invite_code": invite_code,
-                "team_name": "Test Team"
-            },
-        )
+        response = client2.post("/api/v1/leagues/join", json={"invite_code": invite_code, "team_name": "Test Team"})
         assert response.status_code == 201
 
         # Member should not see invite code
@@ -177,18 +141,12 @@ class TestLeagueEndpoints:
     def test_update_league(self, auth_client):
         """Test updating league settings."""
         # Create league
-        response = auth_client.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = auth_client.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         league_id = response.json()["id"]
 
         # Update league
-        response = auth_client.put(
-            f"/api/v1/leagues/{league_id}",
-            json={"name": "Updated League", "max_teams": 10},
-        )
+        response = auth_client.put(f"/api/v1/leagues/{league_id}", json={"name": "Updated League", "max_teams": 10})
 
         assert response.status_code == 200
         data = response.json()
@@ -199,20 +157,14 @@ class TestLeagueEndpoints:
         """Test non-commissioner trying to update league."""
         # Create league with first user
         client1, user1 = create_auth_client(db, 1, "test1@example.com")
-        response = client1.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = client1.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         league_id = response.json()["id"]
         app.dependency_overrides.clear()
 
         # Try to update as non-commissioner with second user
         client2, user2 = create_auth_client(db, 2, "test2@example.com")
-        response = client2.put(
-            f"/api/v1/leagues/{league_id}",
-            json={"name": "Updated League"},
-        )
+        response = client2.put(f"/api/v1/leagues/{league_id}", json={"name": "Updated League"})
 
         assert response.status_code == 403
         assert "Only the commissioner can perform this action" in response.json()["detail"]
@@ -221,10 +173,7 @@ class TestLeagueEndpoints:
     def test_delete_league(self, auth_client):
         """Test deleting a league."""
         # Create league
-        response = auth_client.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = auth_client.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         league_id = response.json()["id"]
 
@@ -235,18 +184,13 @@ class TestLeagueEndpoints:
     def test_generate_new_invite_code(self, auth_client):
         """Test generating new invite code."""
         # Create league
-        response = auth_client.post(
-            "/api/v1/leagues",
-            json={"name": "Test League"},
-        )
+        response = auth_client.post("/api/v1/leagues", json={"name": "Test League"})
         assert response.status_code == 201
         league_id = response.json()["id"]
         old_code = response.json()["invite_code"]
 
         # Generate new invite code
-        response = auth_client.post(
-            f"/api/v1/leagues/{league_id}/invite-code",
-        )
+        response = auth_client.post(f"/api/v1/leagues/{league_id}/invite-code")
 
         assert response.status_code == 200
         new_code = response.json()["invite_code"]
@@ -257,33 +201,21 @@ class TestLeagueEndpoints:
         """Test getting user's leagues."""
         # Create league as commissioner with first user
         client1, user1 = create_auth_client(db, 1, "test1@example.com")
-        response = client1.post(
-            "/api/v1/leagues",
-            json={"name": "Owned League"},
-        )
+        response = client1.post("/api/v1/leagues", json={"name": "Owned League"})
         assert response.status_code == 201
         response.json()["invite_code"]
         app.dependency_overrides.clear()
 
         # Create another league with second user
         client2, user2 = create_auth_client(db, 2, "test2@example.com")
-        response = client2.post(
-            "/api/v1/leagues",
-            json={"name": "Member League"},
-        )
+        response = client2.post("/api/v1/leagues", json={"name": "Member League"})
         assert response.status_code == 201
         invite_code2 = response.json()["invite_code"]
         app.dependency_overrides.clear()
 
         # Join second league as member with first user
         client1, user1 = create_auth_client(db, 1, "test1@example.com")
-        response = client1.post(
-            "/api/v1/leagues/join",
-            json={
-                "invite_code": invite_code2,
-                "team_name": "Test Team"
-            },
-        )
+        response = client1.post("/api/v1/leagues/join", json={"invite_code": invite_code2, "team_name": "Test Team"})
         assert response.status_code == 201
 
         # Get user leagues with first user

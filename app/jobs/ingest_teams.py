@@ -49,7 +49,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from app import models
 from app.core.database import SessionLocal
-from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RateLimitError, ApiKeyError, RetryableError
+from app.external_apis.rapidapi_client import ApiKeyError, RapidApiError, RateLimitError, RetryableError, wnba_client
 from app.models import IngestLog
 
 
@@ -126,14 +126,14 @@ async def ingest_wnba_teams() -> None:
         teams_processed = 0
         teams_failed = 0
 
-                # teams_data might be a dict with team info nested, or a list
+        # teams_data might be a dict with team info nested, or a list
         if isinstance(teams_data, dict):
             # Look for teams in various possible keys
             teams_list = (
-                teams_data.get("teams", []) or
-                teams_data.get("data", []) or
-                teams_data.get("results", []) or
-                [teams_data]  # Single team object
+                teams_data.get("teams", [])
+                or teams_data.get("data", [])
+                or teams_data.get("results", [])
+                or [teams_data]  # Single team object
             )
         else:
             teams_list = teams_data
@@ -152,7 +152,9 @@ async def ingest_wnba_teams() -> None:
                 continue
 
         session.commit()
-        _log_info(provider="rapidapi", msg=f"Teams ingest complete: {teams_processed} teams processed, {teams_failed} failed")
+        _log_info(
+            provider="rapidapi", msg=f"Teams ingest complete: {teams_processed} teams processed, {teams_failed} failed"
+        )
 
     except Exception as exc:
         session.rollback()

@@ -3,6 +3,7 @@
 from app.core.database import SessionLocal, init_db
 from app.models import Player, WNBATeam
 
+
 def check_data():
     init_db()
     db = SessionLocal()
@@ -39,6 +40,7 @@ def check_data():
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     check_data()

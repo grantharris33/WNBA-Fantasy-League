@@ -49,7 +49,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from app import models
 from app.core.database import SessionLocal
-from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RateLimitError, ApiKeyError, RetryableError
+from app.external_apis.rapidapi_client import ApiKeyError, RapidApiError, RateLimitError, RetryableError, wnba_client
 from app.models import IngestLog
 
 
@@ -105,7 +105,7 @@ def _parse_standings_entry(standings_data: dict[str, Any], season: int, date: dt
     home_record = _get_record_stat(stats, "33")  # Home record
     away_record = _get_record_stat(stats, "34")  # Away record
     conf_record = _get_record_stat(stats, "61")  # Conference record
-    div_record = _get_record_stat(stats, "60")   # Division record
+    div_record = _get_record_stat(stats, "60")  # Division record
 
     home_wins, home_losses = _parse_record(home_record)
     away_wins, away_losses = _parse_record(away_record)
@@ -139,11 +139,7 @@ def _upsert_standings_entry(session, standings_data: dict[str, Any]) -> models.S
     # Check if entry already exists for this team/season/date
     existing = (
         session.query(models.Standings)
-        .filter_by(
-            team_id=standings_data["team_id"],
-            season=standings_data["season"],
-            date=standings_data["date"]
-        )
+        .filter_by(team_id=standings_data["team_id"], season=standings_data["season"], date=standings_data["date"])
         .one_or_none()
     )
 
@@ -209,7 +205,10 @@ async def ingest_standings(year: str | None = None) -> None:
                 continue
 
         session.commit()
-        _log_info(provider="rapidapi", msg=f"Standings ingest complete for {year}: {entries_processed} entries processed, {entries_failed} failed")
+        _log_info(
+            provider="rapidapi",
+            msg=f"Standings ingest complete for {year}: {entries_processed} entries processed, {entries_failed} failed",
+        )
 
     except Exception as exc:
         session.rollback()

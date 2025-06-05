@@ -8,22 +8,22 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.database import SessionLocal
 from app.jobs.ingest import ingest_stat_lines as _ingest_stat_lines
-from app.models import IngestLog, IngestionRun, IngestionQueue
-from app.services.scoring import update_weekly_team_scores as _update_weekly_team_scores
+from app.models import IngestionQueue, IngestionRun, IngestLog
 from app.services.backfill import BackfillService
+from app.services.scoring import update_weekly_team_scores as _update_weekly_team_scores
 
+from .admin import router as admin_router
+from .analytics import router as analytics_router
 from .auth import router as auth_router
 from .draft import router as draft_router
 from .endpoints_v1 import router as v1_router
 from .game_router import router as game_router
-from .league_router import router as league_router
 from .league_management import router as league_management_router
+from .league_router import router as league_router
 from .logs import router as logs_router
-from .users import router as users_router
-from .analytics import router as analytics_router
-from .admin import router as admin_router
-from .wnba import router as wnba_router
 from .lookup import router as lookup_router
+from .users import router as users_router
+from .wnba import router as wnba_router
 
 router = APIRouter()
 
@@ -130,14 +130,15 @@ async def run_ingest(date: _Optional[str] = None):  # noqa: D401
 @router.get("/admin/ingest/test")
 async def test_ingest_connectivity():
     """Test ingest system connectivity and configuration."""
-    from app.external_apis.rapidapi_client import wnba_client
     import os
+
+    from app.external_apis.rapidapi_client import wnba_client
 
     diagnostics = {
         "api_key_configured": bool(os.getenv("WNBA_API_KEY") or os.getenv("RAPIDAPI_KEY")),
         "api_key_partial": None,
         "connectivity_test": None,
-        "sample_date_test": None
+        "sample_date_test": None,
     }
 
     # Show partial API key for verification
@@ -156,12 +157,9 @@ async def test_ingest_connectivity():
     try:
         # Test today's date (might have no games, but should not error)
         from datetime import datetime
+
         today = datetime.now()
-        today_games = await wnba_client.fetch_schedule(
-            today.strftime("%Y"),
-            today.strftime("%m"),
-            today.strftime("%d")
-        )
+        today_games = await wnba_client.fetch_schedule(today.strftime("%Y"), today.strftime("%m"), today.strftime("%d"))
         diagnostics["sample_date_test"] = "SUCCESS"
         diagnostics["today_games_found"] = len(today_games) if today_games else 0
     except Exception as e:
@@ -194,7 +192,9 @@ async def recompute_scores(date: _Optional[str] = None):  # noqa: D401
 
 
 @router.post("/admin/backfill/season/{year}")
-async def backfill_season(year: int, start_date: _Optional[str] = None, end_date: _Optional[str] = None, dry_run: bool = False):
+async def backfill_season(
+    year: int, start_date: _Optional[str] = None, end_date: _Optional[str] = None, dry_run: bool = False
+):
     """Trigger season backfill via API."""
     start_date_obj = None
     end_date_obj = None
@@ -213,10 +213,7 @@ async def backfill_season(year: int, start_date: _Optional[str] = None, end_date
 
     async with BackfillService() as service:
         run_dict = await service.backfill_season(
-            year=year,
-            start_date=start_date_obj,
-            end_date=end_date_obj,
-            dry_run=dry_run
+            year=year, start_date=start_date_obj, end_date=end_date_obj, dry_run=dry_run
         )
         return run_dict
 
@@ -294,6 +291,6 @@ async def find_missing_games(start_date: str, end_date: str):
             "start_date": start_date,
             "end_date": end_date,
             "missing_games": missing_games,
-            "count": len(missing_games)
+            "count": len(missing_games),
         }
         return result

@@ -55,13 +55,25 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.append(str(_PROJECT_ROOT))
 
 import asyncio
+
 from sqlalchemy import func
 
-from app.services.scoring import update_weekly_team_scores  # noqa: E402  pylint: disable=wrong-import-position
-from app.models import User, League, Team, Player, StatLine, IngestLog, DraftState, RosterSlot, TeamScore, WeeklyBonus  # noqa: E402  pylint: disable=wrong-import-position
 from app.core.database import SessionLocal, init_db  # noqa: E402  pylint: disable=wrong-import-position
 from app.core.security import hash_password  # noqa: E402  pylint: disable=wrong-import-position
 from app.jobs.ingest import ingest_stat_lines  # noqa: E402  pylint: disable=wrong-import-position
+from app.models import (  # noqa: E402  pylint: disable=wrong-import-position
+    DraftState,
+    IngestLog,
+    League,
+    Player,
+    RosterSlot,
+    StatLine,
+    Team,
+    TeamScore,
+    User,
+    WeeklyBonus,
+)
+from app.services.scoring import update_weekly_team_scores  # noqa: E402  pylint: disable=wrong-import-position
 
 
 def backfill_season(season: int):
@@ -99,7 +111,7 @@ def backfill_season(season: int):
     ingested_days = 0
     failed_days = 0
 
-            # Create a single event loop for all async operations
+    # Create a single event loop for all async operations
     async def ingest_all_dates():
         nonlocal ingested_days, failed_days, current_date
         while current_date <= end_date:
@@ -123,13 +135,16 @@ def backfill_season(season: int):
     try:
         final_players = db.query(Player).count()
         final_stat_lines = db.query(StatLine).count()
-        season_stat_lines = db.query(StatLine).filter(
-            StatLine.game_date >= dt.datetime(season, 1, 1),
-            StatLine.game_date < dt.datetime(season + 1, 1, 1)
-        ).count()
+        season_stat_lines = (
+            db.query(StatLine)
+            .filter(StatLine.game_date >= dt.datetime(season, 1, 1), StatLine.game_date < dt.datetime(season + 1, 1, 1))
+            .count()
+        )
 
-        print(f"After ingestion: {final_players} players (+{final_players - initial_players}), "
-              f"{final_stat_lines} total stat lines (+{final_stat_lines - initial_stat_lines})")
+        print(
+            f"After ingestion: {final_players} players (+{final_players - initial_players}), "
+            f"{final_stat_lines} total stat lines (+{final_stat_lines - initial_stat_lines})"
+        )
         print(f"Stat lines for {season}: {season_stat_lines}")
 
         # Show some example players for verification
@@ -181,9 +196,13 @@ def backfill_season(season: int):
     # Show any recent ingest errors
     db = SessionLocal()
     try:
-        recent_errors = db.query(IngestLog).filter(
-            IngestLog.message.like("ERROR:%")
-        ).order_by(IngestLog.timestamp.desc()).limit(5).all()
+        recent_errors = (
+            db.query(IngestLog)
+            .filter(IngestLog.message.like("ERROR:%"))
+            .order_by(IngestLog.timestamp.desc())
+            .limit(5)
+            .all()
+        )
 
         if recent_errors:
             print("\nRecent ingest errors (showing last 5):")
@@ -365,10 +384,7 @@ def show_stats():
             print("\n📈 GAME STATS")
 
             # Date range
-            date_range = db.query(
-                func.min(StatLine.game_date),
-                func.max(StatLine.game_date)
-            ).first()
+            date_range = db.query(func.min(StatLine.game_date), func.max(StatLine.game_date)).first()
             if date_range[0] and date_range[1]:
                 print(f"Date range: {date_range[0].strftime('%Y-%m-%d')} to {date_range[1].strftime('%Y-%m-%d')}")
 
@@ -392,14 +408,19 @@ def show_stats():
         recent_users = db.query(User).filter(User.created_at >= dt.datetime.utcnow() - dt.timedelta(days=7)).count()
         print(f"New users (last 7 days): {recent_users}")
 
-        recent_stat_lines = db.query(StatLine).filter(StatLine.game_date >= dt.datetime.utcnow() - dt.timedelta(days=7)).count()
+        recent_stat_lines = (
+            db.query(StatLine).filter(StatLine.game_date >= dt.datetime.utcnow() - dt.timedelta(days=7)).count()
+        )
         print(f"New stat lines (last 7 days): {recent_stat_lines}")
 
         # Ingest errors
-        recent_errors = db.query(IngestLog).filter(
-            IngestLog.message.like("ERROR:%"),
-            IngestLog.timestamp >= dt.datetime.utcnow() - dt.timedelta(days=7)
-        ).count()
+        recent_errors = (
+            db.query(IngestLog)
+            .filter(
+                IngestLog.message.like("ERROR:%"), IngestLog.timestamp >= dt.datetime.utcnow() - dt.timedelta(days=7)
+            )
+            .count()
+        )
         if recent_errors > 0:
             print(f"⚠️  Recent ingest errors (last 7 days): {recent_errors}")
 
@@ -437,12 +458,16 @@ def show_players(position: str = None, limit: int = 20, search: str = None):
 
         # Get stats for these players
         player_ids = [p.id for p in players]
-        stats_query = db.query(
-            StatLine.player_id,
-            func.count(StatLine.id).label('games'),
-            func.avg(StatLine.points).label('avg_points'),
-            func.sum(StatLine.points).label('total_points')
-        ).filter(StatLine.player_id.in_(player_ids)).group_by(StatLine.player_id)
+        stats_query = (
+            db.query(
+                StatLine.player_id,
+                func.count(StatLine.id).label('games'),
+                func.avg(StatLine.points).label('avg_points'),
+                func.sum(StatLine.points).label('total_points'),
+            )
+            .filter(StatLine.player_id.in_(player_ids))
+            .group_by(StatLine.player_id)
+        )
 
         stats_dict = {stat.player_id: stat for stat in stats_query.all()}
 
@@ -523,7 +548,9 @@ def show_games(limit: int = 20, player_name: str = None):
             name = stat.player.full_name[:19]
             pos = stat.player.position or "N/A"
 
-            print(f"{date:<12} {name:<20} {pos:<4} {stat.points:<4.0f} {stat.rebounds:<4.0f} {stat.assists:<4.0f} {stat.steals:<4.0f} {stat.blocks:<4.0f}")
+            print(
+                f"{date:<12} {name:<20} {pos:<4} {stat.points:<4.0f} {stat.rebounds:<4.0f} {stat.assists:<4.0f} {stat.steals:<4.0f} {stat.blocks:<4.0f}"
+            )
 
     except Exception as e:
         print(f"❌ Error querying games: {e}")
@@ -586,9 +613,12 @@ def verify_data():
             issues_found += 1
 
         # Check 7: Duplicate roster assignments
-        duplicate_rosters = db.query(RosterSlot.team_id, RosterSlot.player_id, func.count()).group_by(
-            RosterSlot.team_id, RosterSlot.player_id
-        ).having(func.count() > 1).count()
+        duplicate_rosters = (
+            db.query(RosterSlot.team_id, RosterSlot.player_id, func.count())
+            .group_by(RosterSlot.team_id, RosterSlot.player_id)
+            .having(func.count() > 1)
+            .count()
+        )
 
         if duplicate_rosters > 0:
             print(f"⚠️  {duplicate_rosters} duplicate player-team roster assignments")
@@ -693,7 +723,7 @@ def ingest_data_range(start_date: str, end_date: str):
     ingested_days = 0
     failed_days = 0
 
-        # Create a single event loop for all async operations
+    # Create a single event loop for all async operations
     async def ingest_range_dates():
         nonlocal current_date, ingested_days, failed_days
         while current_date <= end:
@@ -715,13 +745,19 @@ def ingest_data_range(start_date: str, end_date: str):
     try:
         final_players = db.query(Player).count()
         final_stat_lines = db.query(StatLine).count()
-        range_stat_lines = db.query(StatLine).filter(
-            StatLine.game_date >= dt.datetime.combine(start, dt.time()),
-            StatLine.game_date < dt.datetime.combine(end + dt.timedelta(days=1), dt.time())
-        ).count()
+        range_stat_lines = (
+            db.query(StatLine)
+            .filter(
+                StatLine.game_date >= dt.datetime.combine(start, dt.time()),
+                StatLine.game_date < dt.datetime.combine(end + dt.timedelta(days=1), dt.time()),
+            )
+            .count()
+        )
 
-        print(f"\nFinal state: {final_players} players (+{final_players - initial_players}), "
-              f"{final_stat_lines} total stat lines (+{final_stat_lines - initial_stat_lines})")
+        print(
+            f"\nFinal state: {final_players} players (+{final_players - initial_players}), "
+            f"{final_stat_lines} total stat lines (+{final_stat_lines - initial_stat_lines})"
+        )
         print(f"Stat lines in range: {range_stat_lines}")
 
         # Show some example players
@@ -736,7 +772,9 @@ def ingest_data_range(start_date: str, end_date: str):
     print(f"\nIngest complete: {ingested_days} days processed, {failed_days} failed")
 
 
-def add_user(email: str, password: str = "password", is_admin: bool = False, league_name: str = None, team_name: str = None):
+def add_user(
+    email: str, password: str = "password", is_admin: bool = False, league_name: str = None, team_name: str = None
+):
     """Add a new user to the database.
 
     Args:
@@ -758,11 +796,7 @@ def add_user(email: str, password: str = "password", is_admin: bool = False, lea
 
         # Create new user
         hashed_password = hash_password(password)
-        new_user = User(
-            email=email,
-            hashed_password=hashed_password,
-            is_admin=is_admin
-        )
+        new_user = User(email=email, hashed_password=hashed_password, is_admin=is_admin)
         db.add(new_user)
         db.flush()  # Get the user ID
 
@@ -775,11 +809,7 @@ def add_user(email: str, password: str = "password", is_admin: bool = False, lea
             if not league:
                 # Create new league with this user as commissioner
                 invite_code = str(uuid.uuid4())[:8].upper()
-                league = League(
-                    name=league_name,
-                    commissioner=new_user,
-                    invite_code=invite_code
-                )
+                league = League(name=league_name, commissioner=new_user, invite_code=invite_code)
                 db.add(league)
                 db.flush()
                 print(f"✓ Created league: {league_name} (ID: {league.id}, Commissioner: {email})")
@@ -793,13 +823,11 @@ def add_user(email: str, password: str = "password", is_admin: bool = False, lea
             # Check if team name already exists in this league
             existing_team = db.query(Team).filter(Team.league_id == league.id, Team.name == team_name).first()
             if existing_team:
-                print(f"⚠ Warning: Team '{team_name}' already exists in league '{league_name}'. Skipping team creation.")
-            else:
-                team = Team(
-                    name=team_name,
-                    owner=new_user,
-                    league=league
+                print(
+                    f"⚠ Warning: Team '{team_name}' already exists in league '{league_name}'. Skipping team creation."
                 )
+            else:
+                team = Team(name=team_name, owner=new_user, league=league)
                 db.add(team)
                 db.flush()
                 print(f"✓ Created team: {team_name} (ID: {team.id}) in league '{league_name}'")
@@ -872,7 +900,9 @@ def list_users():
             leagues_count = len(user.leagues_owned)
             created_str = user.created_at.strftime("%Y-%m-%d %H:%M:%S") if user.created_at else "N/A"
 
-            print(f"{user.id:<4} {user.email:<30} {'Yes' if user.is_admin else 'No':<6} {teams_count:<6} {leagues_count:<8} {created_str:<20}")
+            print(
+                f"{user.id:<4} {user.email:<30} {'Yes' if user.is_admin else 'No':<6} {teams_count:<6} {leagues_count:<8} {created_str:<20}"
+            )
 
     except Exception as e:
         print(f"Error listing users: {e}")
@@ -902,7 +932,9 @@ def list_leagues():
             commissioner_email = league.commissioner.email if league.commissioner else "None"
             created_str = league.created_at.strftime("%Y-%m-%d %H:%M:%S") if league.created_at else "N/A"
 
-            print(f"{league.id:<4} {league.name:<25} {commissioner_email:<25} {teams_count:<6} {league.max_teams:<4} {'Yes' if league.is_active else 'No':<7} {created_str:<20}")
+            print(
+                f"{league.id:<4} {league.name:<25} {commissioner_email:<25} {teams_count:<6} {league.max_teams:<4} {'Yes' if league.is_active else 'No':<7} {created_str:<20}"
+            )
 
     except Exception as e:
         print(f"Error listing leagues: {e}")
@@ -915,7 +947,9 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Backfill command
-    backfill_parser = subparsers.add_parser("backfill", help="Ingest player data and recompute team scores for a whole season.")
+    backfill_parser = subparsers.add_parser(
+        "backfill", help="Ingest player data and recompute team scores for a whole season."
+    )
     backfill_parser.add_argument("season", type=int, help="The calendar year of the season to backfill (e.g., 2025).")
 
     # Ingest range command
@@ -961,7 +995,9 @@ def main():
 
     subparsers.add_parser("verify-data", help="Run data integrity checks.")
 
-    clear_data_parser = subparsers.add_parser("clear-data", help="Clear data from a specific table (with confirmation).")
+    clear_data_parser = subparsers.add_parser(
+        "clear-data", help="Clear data from a specific table (with confirmation)."
+    )
     clear_data_parser.add_argument("table", help="Table to clear (statlines, ingestlogs, teamscores, etc.)")
     clear_data_parser.add_argument("--confirm", action="store_true", help="Skip confirmation prompt")
 
@@ -977,7 +1013,7 @@ def main():
             password=args.password,
             is_admin=args.admin,
             league_name=args.league_name,
-            team_name=args.team_name
+            team_name=args.team_name,
         )
     elif args.command == "remove-user":
         remove_user(args.email)

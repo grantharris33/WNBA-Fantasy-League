@@ -44,7 +44,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 from app import models
 from app.core.database import SessionLocal
-from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RateLimitError, ApiKeyError, RetryableError
+from app.external_apis.rapidapi_client import ApiKeyError, RapidApiError, RateLimitError, RetryableError, wnba_client
 from app.models import IngestLog
 
 # ---------------------------------------------------------------------------
@@ -98,9 +98,7 @@ def _upsert_player(session, athlete: dict[str, Any]) -> models.Player:
     player = session.get(models.Player, player_id)
     if player is None:
         player = models.Player(
-            id=player_id,
-            full_name=athlete["displayName"],
-            position=athlete.get("position", {}).get("abbreviation")
+            id=player_id, full_name=athlete["displayName"], position=athlete.get("position", {}).get("abbreviation")
         )
         session.add(player)
     else:
@@ -116,6 +114,7 @@ def _parse_comprehensive_stats(stats: List[str], athlete_data: dict) -> dict[str
     Stats array format: [MIN, FG, 3PT, FT, OREB, DREB, REB, AST, STL, BLK, TO, PF, +/-, PTS]
     Indices:             [0,   1,  2,   3,  4,    5,    6,   7,   8,   9,   10, 11, 12,  13]
     """
+
     def _to_float(val: str) -> float:
         try:
             if "-" in val:
@@ -190,7 +189,7 @@ def _parse_comprehensive_stats(stats: List[str], athlete_data: dict) -> dict[str
         "free_throw_percentage": ft_percentage,
         "offensive_rebounds": _to_int(stats[4]),
         "defensive_rebounds": _to_int(stats[5]),
-        "rebounds": _to_float(stats[6]),      # Total rebounds
+        "rebounds": _to_float(stats[6]),  # Total rebounds
         "assists": _to_float(stats[7]),
         "steals": _to_float(stats[8]),
         "blocks": _to_float(stats[9]),
@@ -209,6 +208,7 @@ def _parse_stat_line(stats: List[str]) -> dict[str, float]:
     stats array format: [MIN, FG, 3PT, FT, OREB, DREB, REB, AST, STL, BLK, TO, PF, +/-, PTS]
     Indices:             [0,   1,  2,   3,  4,    5,    6,   7,   8,   9,   10, 11, 12,  13]
     """
+
     def _to_float(val: str) -> float:
         try:
             # Handle cases like "2-7" for field goals by extracting the made shots
@@ -220,20 +220,14 @@ def _parse_stat_line(stats: List[str]) -> dict[str, float]:
 
     if len(stats) < 14:
         # If stats array is incomplete, return zeros for safety
-        return {
-            "points": 0.0,
-            "rebounds": 0.0,
-            "assists": 0.0,
-            "steals": 0.0,
-            "blocks": 0.0,
-        }
+        return {"points": 0.0, "rebounds": 0.0, "assists": 0.0, "steals": 0.0, "blocks": 0.0}
 
     return {
-        "points": _to_float(stats[13]),      # PTS - last element
-        "rebounds": _to_float(stats[6]),     # REB - total rebounds
-        "assists": _to_float(stats[7]),      # AST
-        "steals": _to_float(stats[8]),       # STL
-        "blocks": _to_float(stats[9]),       # BLK
+        "points": _to_float(stats[13]),  # PTS - last element
+        "rebounds": _to_float(stats[6]),  # REB - total rebounds
+        "assists": _to_float(stats[7]),  # AST
+        "steals": _to_float(stats[8]),  # STL
+        "blocks": _to_float(stats[9]),  # BLK
     }
 
 
@@ -283,13 +277,18 @@ async def ingest_stat_lines(target_date: dt.date | None = None) -> None:
             continue
 
     # Log summary
-    _log_info(provider="rapidapi", msg=f"Ingest complete for {date_iso}: {processed_games} games processed, {failed_games} failed")
+    _log_info(
+        provider="rapidapi",
+        msg=f"Ingest complete for {date_iso}: {processed_games} games processed, {failed_games} failed",
+    )
 
     # Close the client after we're done
     await wnba_client.close()
 
 
-async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_id: str, schedule_game: dict[str, Any]) -> None:
+async def _process_box_score(
+    box: dict[str, Any], game_date: dt.datetime, game_id: str, schedule_game: dict[str, Any]
+) -> None:
     """Process a single box score and upsert player stats."""
     session = SessionLocal()
     try:
@@ -362,7 +361,7 @@ async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_i
                 away_score=away_score,
                 status=status,
                 venue=venue,
-                attendance=None  # Attendance not available in current API
+                attendance=None,  # Attendance not available in current API
             )
             session.add(new_game)
 
@@ -405,9 +404,7 @@ async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_i
                     if did_not_play:
                         # Create DNP record
                         existing = (
-                            session.query(models.StatLine)
-                            .filter_by(player_id=player.id, game_id=game_id)
-                            .one_or_none()
+                            session.query(models.StatLine).filter_by(player_id=player.id, game_id=game_id).one_or_none()
                         )
 
                         if existing:
@@ -424,7 +421,7 @@ async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_i
                                 did_not_play=True,
                                 team_id=current_team_id,
                                 opponent_id=opponent_team_id,
-                                is_home_game=is_home_team
+                                is_home_game=is_home_team,
                             )
                             session.add(dnp_stats)
 
@@ -439,20 +436,20 @@ async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_i
                         stat_vals = _parse_comprehensive_stats(stats_arr, athlete)
 
                         # Add game context
-                        stat_vals.update({
-                            "game_id": game_id,
-                            "game_date": game_date,
-                            "team_id": current_team_id,
-                            "opponent_id": opponent_team_id,
-                            "is_home_game": is_home_team,
-                            "is_starter": athlete_block.get("starter", False)
-                        })
+                        stat_vals.update(
+                            {
+                                "game_id": game_id,
+                                "game_date": game_date,
+                                "team_id": current_team_id,
+                                "opponent_id": opponent_team_id,
+                                "is_home_game": is_home_team,
+                                "is_starter": athlete_block.get("starter", False),
+                            }
+                        )
 
                         # Upsert StatLine
                         existing = (
-                            session.query(models.StatLine)
-                            .filter_by(player_id=player.id, game_id=game_id)
-                            .one_or_none()
+                            session.query(models.StatLine).filter_by(player_id=player.id, game_id=game_id).one_or_none()
                         )
 
                         if existing:
@@ -463,11 +460,17 @@ async def _process_box_score(box: dict[str, Any], game_date: dt.datetime, game_i
 
                         stats_processed += 1
                     except Exception as exc:
-                        _log_error(provider="rapidapi", msg=f"Error processing player {athlete.get('id', 'unknown')} in game {game_id}: {exc}")
+                        _log_error(
+                            provider="rapidapi",
+                            msg=f"Error processing player {athlete.get('id', 'unknown')} in game {game_id}: {exc}",
+                        )
                         continue
 
         session.commit()
-        _log_info(provider="rapidapi", msg=f"Processed game {game_id}: {stats_processed} stat lines, {dnp_processed} DNP records")
+        _log_info(
+            provider="rapidapi",
+            msg=f"Processed game {game_id}: {stats_processed} stat lines, {dnp_processed} DNP records",
+        )
 
     except Exception as exc:
         # Guard idempotency: ignore unique constraint duplicate inserts

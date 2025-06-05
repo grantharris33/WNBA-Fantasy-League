@@ -1,10 +1,10 @@
-from datetime import datetime, timezone, timedelta, date
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy import and_, exists, func, not_, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import League, Player, RosterSlot, Team, TransactionLog, User, AdminMoveGrant, WeeklyLineup
+from app.models import AdminMoveGrant, League, Player, RosterSlot, Team, TransactionLog, User, WeeklyLineup
 
 
 class RosterService:
@@ -28,11 +28,7 @@ class RosterService:
         )
 
         # Find players that are not in the roster_subquery
-        query = (
-            select(Player)
-            .where(not_(Player.id.in_(select(roster_subquery))))
-            .order_by(Player.full_name)
-        )
+        query = select(Player).where(not_(Player.id.in_(select(roster_subquery)))).order_by(Player.full_name)
 
         return list(self.db.execute(query).scalars().all())
 
@@ -110,7 +106,9 @@ class RosterService:
 
             # Verify that we haven't reached the weekly move cap
             if team.moves_this_week >= total_available_moves:
-                raise ValueError(f"Weekly move limit reached ({team.moves_this_week}/{total_available_moves} moves used)")
+                raise ValueError(
+                    f"Weekly move limit reached ({team.moves_this_week}/{total_available_moves} moves used)"
+                )
 
         # Verify player exists
         player = self.db.get(Player, player_id)
@@ -209,7 +207,8 @@ class RosterService:
         admin_grants = (
             self.db.query(func.sum(AdminMoveGrant.moves_granted))
             .filter(AdminMoveGrant.team_id == team_id, AdminMoveGrant.week_id == week_id)
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
         return base_moves + admin_grants
@@ -224,7 +223,8 @@ class RosterService:
         admin_grants = (
             self.db.query(func.sum(AdminMoveGrant.moves_granted))
             .filter(AdminMoveGrant.team_id == team_id, AdminMoveGrant.week_id == week_id)
-            .scalar() or 0
+            .scalar()
+            or 0
         )
         total_available = base_moves + admin_grants
         moves_used = team.moves_this_week
@@ -254,16 +254,11 @@ class RosterService:
                     "admin_user_id": grant.admin_user_id,
                 }
                 for grant in admin_grant_records
-            ]
+            ],
         }
 
     def grant_admin_moves(
-        self,
-        team_id: int,
-        week_id: int,
-        moves_to_grant: int,
-        reason: str,
-        admin_user_id: int
+        self, team_id: int, week_id: int, moves_to_grant: int, reason: str, admin_user_id: int
     ) -> AdminMoveGrant:
         """Grant additional moves to a team for a specific week."""
         # Verify admin user exists and is admin
@@ -290,17 +285,19 @@ class RosterService:
             admin_user_id=admin_user_id,
             moves_granted=moves_to_grant,
             reason=reason.strip(),
-            week_id=week_id
+            week_id=week_id,
         )
 
         self.db.add(grant)
 
         # Create transaction log
-        self.db.add(TransactionLog(
-            user_id=admin_user_id,
-            action=f"ADMIN GRANT {moves_to_grant} moves to {team.name} for week {week_id}: {reason}",
-            timestamp=datetime.utcnow()
-        ))
+        self.db.add(
+            TransactionLog(
+                user_id=admin_user_id,
+                action=f"ADMIN GRANT {moves_to_grant} moves to {team.name} for week {week_id}: {reason}",
+                timestamp=datetime.utcnow(),
+            )
+        )
 
         self.db.commit()
         return grant
@@ -311,7 +308,7 @@ class RosterService:
         starter_player_ids: List[int],
         admin_user_id: int,
         week_id: int,
-        bypass_move_limit: bool = True
+        bypass_move_limit: bool = True,
     ) -> List[RosterSlot]:
         """Set starters with admin override capability."""
         # Verify admin user exists and is admin
@@ -391,13 +388,7 @@ class RosterService:
                     if bypass_move_limit:
                         action += " (ADMIN OVERRIDE)"
 
-                    self.db.add(
-                        TransactionLog(
-                            user_id=admin_user_id,
-                            action=action,
-                            timestamp=datetime.utcnow(),
-                        )
-                    )
+                    self.db.add(TransactionLog(user_id=admin_user_id, action=action, timestamp=datetime.utcnow()))
                 else:
                     # Log bench transaction but don't count it as a move
                     player = self.db.get(Player, rs.player_id)
@@ -405,13 +396,7 @@ class RosterService:
                     if bypass_move_limit:
                         action += " (ADMIN OVERRIDE)"
 
-                    self.db.add(
-                        TransactionLog(
-                            user_id=admin_user_id,
-                            action=action,
-                            timestamp=datetime.utcnow(),
-                        )
-                    )
+                    self.db.add(TransactionLog(user_id=admin_user_id, action=action, timestamp=datetime.utcnow()))
 
         self.db.commit()
 
@@ -538,11 +523,7 @@ class RosterService:
                 continue  # Already saved
 
             # Get current roster state
-            roster_slots = (
-                self.db.query(RosterSlot)
-                .filter(RosterSlot.team_id == team.id)
-                .all()
-            )
+            roster_slots = self.db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all()
 
             # Save weekly lineup entries
             for slot in roster_slots:
@@ -551,7 +532,7 @@ class RosterService:
                     player_id=slot.player_id,
                     week_id=week_id,
                     is_starter=slot.is_starter,
-                    locked_at=locked_at
+                    locked_at=locked_at,
                 )
                 self.db.add(weekly_lineup)
 
@@ -574,9 +555,7 @@ class RosterService:
         for team in teams:
             # Check if team has any current starters
             current_starters = (
-                self.db.query(RosterSlot)
-                .filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True)
-                .count()
+                self.db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).count()
             )
 
             if current_starters > 0:
@@ -588,7 +567,7 @@ class RosterService:
                 .filter(
                     WeeklyLineup.team_id == team.id,
                     WeeklyLineup.week_id == previous_week_id,
-                    WeeklyLineup.is_starter == True
+                    WeeklyLineup.is_starter == True,
                 )
                 .all()
             )
@@ -600,10 +579,7 @@ class RosterService:
             for prev_starter in previous_starters:
                 roster_slot = (
                     self.db.query(RosterSlot)
-                    .filter(
-                        RosterSlot.team_id == team.id,
-                        RosterSlot.player_id == prev_starter.player_id
-                    )
+                    .filter(RosterSlot.team_id == team.id, RosterSlot.player_id == prev_starter.player_id)
                     .first()
                 )
 
@@ -623,9 +599,7 @@ class RosterService:
         """
         # Check if team has any current starters
         current_starters = (
-            self.db.query(RosterSlot)
-            .filter(RosterSlot.team_id == team_id, RosterSlot.is_starter == True)
-            .count()
+            self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id, RosterSlot.is_starter == True).count()
         )
 
         if current_starters > 0:
@@ -641,7 +615,7 @@ class RosterService:
             .filter(
                 WeeklyLineup.team_id == team_id,
                 WeeklyLineup.week_id == previous_week_id,
-                WeeklyLineup.is_starter == True
+                WeeklyLineup.is_starter == True,
             )
             .all()
         )
@@ -654,10 +628,7 @@ class RosterService:
         for prev_starter in previous_starters:
             roster_slot = (
                 self.db.query(RosterSlot)
-                .filter(
-                    RosterSlot.team_id == team_id,
-                    RosterSlot.player_id == prev_starter.player_id
-                )
+                .filter(RosterSlot.team_id == team_id, RosterSlot.player_id == prev_starter.player_id)
                 .first()
             )
 

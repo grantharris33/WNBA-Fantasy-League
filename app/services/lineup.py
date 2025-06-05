@@ -1,9 +1,9 @@
-from datetime import datetime, timezone, timedelta, date
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import WeeklyLineup, RosterSlot, Team, Player
+from app.models import Player, RosterSlot, Team, WeeklyLineup
 
 
 class LineupService:
@@ -41,9 +41,7 @@ class LineupService:
 
         # Check if lineup is already locked
         existing_lineup = (
-            self.db.query(WeeklyLineup)
-            .filter(WeeklyLineup.team_id == team_id, WeeklyLineup.week_id == week_id)
-            .first()
+            self.db.query(WeeklyLineup).filter(WeeklyLineup.team_id == team_id, WeeklyLineup.week_id == week_id).first()
         )
 
         # If lineup exists and is locked, can't modify
@@ -75,11 +73,7 @@ class LineupService:
                 continue  # Already locked
 
             # Get current roster state
-            roster_slots = (
-                self.db.query(RosterSlot)
-                .filter(RosterSlot.team_id == team.id)
-                .all()
-            )
+            roster_slots = self.db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all()
 
             # Create weekly lineup entries
             for slot in roster_slots:
@@ -88,7 +82,7 @@ class LineupService:
                     player_id=slot.player_id,
                     week_id=week_id,
                     is_starter=slot.is_starter,
-                    locked_at=locked_at
+                    locked_at=locked_at,
                 )
                 self.db.add(weekly_lineup)
 
@@ -109,11 +103,7 @@ class LineupService:
         current_week_id = self.get_current_week_id()
         if week_id == current_week_id:
             # Update RosterSlot table
-            roster_slots = (
-                self.db.query(RosterSlot)
-                .filter(RosterSlot.team_id == team_id)
-                .all()
-            )
+            roster_slots = self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id).all()
 
             for slot in roster_slots:
                 slot.is_starter = slot.player_id in starter_ids
@@ -142,14 +132,16 @@ class LineupService:
 
             lineup = []
             for slot, player in roster_slots:
-                lineup.append({
-                    "player_id": player.id,
-                    "player_name": player.full_name,
-                    "position": player.position,
-                    "team_abbr": player.team_abbr,
-                    "is_starter": slot.is_starter,
-                    "locked": week_id < current_week_id
-                })
+                lineup.append(
+                    {
+                        "player_id": player.id,
+                        "player_name": player.full_name,
+                        "position": player.position,
+                        "team_abbr": player.team_abbr,
+                        "is_starter": slot.is_starter,
+                        "locked": week_id < current_week_id,
+                    }
+                )
             return lineup
 
         # For past weeks, get from WeeklyLineup
@@ -165,15 +157,17 @@ class LineupService:
 
         lineup = []
         for lineup_entry, player in weekly_lineups:
-            lineup.append({
-                "player_id": player.id,
-                "player_name": player.full_name,
-                "position": player.position,
-                "team_abbr": player.team_abbr,
-                "is_starter": lineup_entry.is_starter,
-                "locked": True,
-                "locked_at": lineup_entry.locked_at
-            })
+            lineup.append(
+                {
+                    "player_id": player.id,
+                    "player_name": player.full_name,
+                    "position": player.position,
+                    "team_abbr": player.team_abbr,
+                    "is_starter": lineup_entry.is_starter,
+                    "locked": True,
+                    "locked_at": lineup_entry.locked_at,
+                }
+            )
 
         return lineup
 
@@ -194,11 +188,7 @@ class LineupService:
         # Add current week first if not locked
         current_lineup = self.get_weekly_lineup(team_id, current_week_id)
         if current_lineup:
-            history.append({
-                "week_id": current_week_id,
-                "lineup": current_lineup,
-                "is_current": True
-            })
+            history.append({"week_id": current_week_id, "lineup": current_lineup, "is_current": True})
 
         # Add historical weeks
         for (week_id,) in weeks:
@@ -207,10 +197,6 @@ class LineupService:
 
             lineup = self.get_weekly_lineup(team_id, week_id)
             if lineup:
-                history.append({
-                    "week_id": week_id,
-                    "lineup": lineup,
-                    "is_current": False
-                })
+                history.append({"week_id": week_id, "lineup": lineup, "is_current": False})
 
         return history

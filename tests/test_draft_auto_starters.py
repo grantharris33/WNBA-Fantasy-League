@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.orm import Session
 
-from app.models import League, Player, RosterSlot, Team, User, DraftState, DraftPick
+from app.models import DraftPick, DraftState, League, Player, RosterSlot, Team, User
 from app.services.draft import DraftService
 
 
@@ -14,18 +14,12 @@ def setup_draft_test(db: Session):
     db.flush()
 
     # Create test users
-    users = [
-        User(email=f"user{i}@example.com", hashed_password="hashed_password")
-        for i in range(1, 5)  # 4 users
-    ]
+    users = [User(email=f"user{i}@example.com", hashed_password="hashed_password") for i in range(1, 5)]  # 4 users
     db.add_all(users)
     db.flush()
 
     # Create test teams
-    teams = [
-        Team(name=f"Team {i}", owner_id=users[i-1].id, league_id=league.id)
-        for i in range(1, 5)  # 4 teams
-    ]
+    teams = [Team(name=f"Team {i}", owner_id=users[i - 1].id, league_id=league.id) for i in range(1, 5)]  # 4 teams
     db.add_all(teams)
     db.flush()
 
@@ -42,7 +36,7 @@ def setup_draft_test(db: Session):
         Player(full_name="Guard-Forward 1", position="G-F", team_abbr="TST"),
         Player(full_name="Forward-Center 1", position="F-C", team_abbr="TST"),
         # Fill remaining slots for full draft
-        *[Player(full_name=f"Utility {i}", position="F", team_abbr="TST") for i in range(1, 4)]
+        *[Player(full_name=f"Utility {i}", position="F", team_abbr="TST") for i in range(1, 4)],
     ]
     db.add_all(players)
     db.flush()
@@ -50,22 +44,12 @@ def setup_draft_test(db: Session):
     # Create draft state
     pick_order = ",".join([str(team.id) for team in teams] + [str(team.id) for team in reversed(teams)])
     draft = DraftState(
-        league_id=league.id,
-        current_round=1,
-        current_pick_index=0,
-        status="active",
-        pick_order=pick_order
+        league_id=league.id, current_round=1, current_pick_index=0, status="active", pick_order=pick_order
     )
     db.add(draft)
     db.flush()
 
-    return {
-        "league": league,
-        "users": users,
-        "teams": teams,
-        "players": players,
-        "draft": draft
-    }
+    return {"league": league, "users": users, "teams": teams, "players": players, "draft": draft}
 
 
 def test_auto_set_starters_after_draft_completion(db: Session, setup_draft_test):
@@ -99,7 +83,7 @@ def test_auto_set_starters_after_draft_completion(db: Session, setup_draft_test)
                 player_id=player.id,
                 round=round_num,
                 pick_number=pick_number,
-                is_auto=False
+                is_auto=False,
             )
 
             # Create roster slot
@@ -107,7 +91,7 @@ def test_auto_set_starters_after_draft_completion(db: Session, setup_draft_test)
                 team_id=team.id,
                 player_id=player.id,
                 position=player.position,
-                is_starter=False  # Initially no starters
+                is_starter=False,  # Initially no starters
             )
 
             db.add(pick)
@@ -124,18 +108,12 @@ def test_auto_set_starters_after_draft_completion(db: Session, setup_draft_test)
 
     # Assert - check that each team has exactly 5 starters
     for team in teams:
-        starters = db.query(RosterSlot).filter(
-            RosterSlot.team_id == team.id,
-            RosterSlot.is_starter == True
-        ).all()
+        starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).all()
 
         assert len(starters) == 5, f"Team {team.name} should have exactly 5 starters"
 
         # Verify position requirements
-        starter_positions = [
-            db.query(Player).filter(Player.id == slot.player_id).first().position
-            for slot in starters
-        ]
+        starter_positions = [db.query(Player).filter(Player.id == slot.player_id).first().position for slot in starters]
 
         guard_count = sum(1 for pos in starter_positions if pos and 'G' in pos)
         forward_center_count = sum(1 for pos in starter_positions if pos and ('F' in pos or 'C' in pos))
@@ -155,13 +133,13 @@ def test_auto_starters_prioritize_early_picks(db: Session, setup_draft_test):
 
     # Create a roster with good positional distribution in early picks
     draft_picks_and_slots = [
-        (1, players[0]),   # Guard 1 - 1st pick
-        (5, players[1]),   # Guard 2 - 5th pick
+        (1, players[0]),  # Guard 1 - 1st pick
+        (5, players[1]),  # Guard 2 - 5th pick
         (9, players[16]),  # Forward 1 - 9th pick
-        (13, players[28]), # Center 1 - 13th pick
-        (17, players[17]), # Forward 2 - 17th pick
+        (13, players[28]),  # Center 1 - 13th pick
+        (17, players[17]),  # Forward 2 - 17th pick
         (21, players[2]),  # Guard 3 - 21st pick (should be bench)
-        (25, players[18]), # Forward 3 - 25th pick (should be bench)
+        (25, players[18]),  # Forward 3 - 25th pick (should be bench)
     ]
 
     for pick_num, player in draft_picks_and_slots:
@@ -171,15 +149,10 @@ def test_auto_starters_prioritize_early_picks(db: Session, setup_draft_test):
             player_id=player.id,
             round=(pick_num - 1) // 4 + 1,
             pick_number=pick_num,
-            is_auto=False
+            is_auto=False,
         )
 
-        roster_slot = RosterSlot(
-            team_id=team.id,
-            player_id=player.id,
-            position=player.position,
-            is_starter=False
-        )
+        roster_slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=False)
 
         db.add(pick)
         db.add(roster_slot)
@@ -190,10 +163,7 @@ def test_auto_starters_prioritize_early_picks(db: Session, setup_draft_test):
     service._set_initial_starters_for_team(team.id)
 
     # Assert
-    starters = db.query(RosterSlot).filter(
-        RosterSlot.team_id == team.id,
-        RosterSlot.is_starter == True
-    ).all()
+    starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).all()
 
     starter_player_ids = [slot.player_id for slot in starters]
 
@@ -216,20 +186,10 @@ def test_auto_starters_with_insufficient_players(db: Session, setup_draft_test):
     # Create a roster with only 3 players
     for i, player in enumerate(players[:3]):
         pick = DraftPick(
-            draft_id=draft.id,
-            team_id=team.id,
-            player_id=player.id,
-            round=1,
-            pick_number=i + 1,
-            is_auto=False
+            draft_id=draft.id, team_id=team.id, player_id=player.id, round=1, pick_number=i + 1, is_auto=False
         )
 
-        roster_slot = RosterSlot(
-            team_id=team.id,
-            player_id=player.id,
-            position=player.position,
-            is_starter=False
-        )
+        roster_slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=False)
 
         db.add(pick)
         db.add(roster_slot)
@@ -240,10 +200,7 @@ def test_auto_starters_with_insufficient_players(db: Session, setup_draft_test):
     service._set_initial_starters_for_team(team.id)
 
     # Assert - no starters should be set since there are fewer than 5 players
-    starters = db.query(RosterSlot).filter(
-        RosterSlot.team_id == team.id,
-        RosterSlot.is_starter == True
-    ).count()
+    starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).count()
 
     assert starters == 0, "Teams with fewer than 5 players should not have starters auto-set"
 
@@ -255,14 +212,14 @@ def test_validate_starter_positions(db: Session, setup_draft_test):
     test_data = setup_draft_test
     players = test_data["players"]
 
-        # Test valid combination (2 Guards, 3 Forwards/Centers)
+    # Test valid combination (2 Guards, 3 Forwards/Centers)
     valid_combo = (players[0].id, players[1].id, players[16].id, players[17].id, players[28].id)
     player_positions = {
         players[0].id: "G",
         players[1].id: "G",
         players[16].id: "F",
         players[17].id: "F",
-        players[28].id: "C"
+        players[28].id: "C",
     }
 
     assert service._validate_starter_positions(valid_combo, player_positions) is True
@@ -274,7 +231,7 @@ def test_validate_starter_positions(db: Session, setup_draft_test):
         players[16].id: "F",
         players[17].id: "F",
         players[18].id: "F",
-        players[28].id: "C"
+        players[28].id: "C",
     }
 
     assert service._validate_starter_positions(invalid_combo, invalid_positions) is False
@@ -286,7 +243,7 @@ def test_validate_starter_positions(db: Session, setup_draft_test):
         players[36].id: "G-F",  # Counts as both Guard and Forward
         players[37].id: "F-C",  # Counts as both Forward and Center
         players[16].id: "F",
-        players[28].id: "C"
+        players[28].id: "C",
     }
 
     assert service._validate_starter_positions(multi_combo, multi_positions) is True
@@ -320,15 +277,10 @@ def test_draft_completion_triggers_auto_starters(db: Session, setup_draft_test):
                 player_id=player.id,
                 round=round_num,
                 pick_number=pick_number,
-                is_auto=False
+                is_auto=False,
             )
 
-            roster_slot = RosterSlot(
-                team_id=team.id,
-                player_id=player.id,
-                position=player.position,
-                is_starter=False
-            )
+            roster_slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=False)
 
             db.add(pick)
             db.add(roster_slot)
@@ -340,20 +292,10 @@ def test_draft_completion_triggers_auto_starters(db: Session, setup_draft_test):
         player = players[pick_number - 1]
 
         pick = DraftPick(
-            draft_id=draft.id,
-            team_id=team.id,
-            player_id=player.id,
-            round=10,
-            pick_number=pick_number,
-            is_auto=False
+            draft_id=draft.id, team_id=team.id, player_id=player.id, round=10, pick_number=pick_number, is_auto=False
         )
 
-        roster_slot = RosterSlot(
-            team_id=team.id,
-            player_id=player.id,
-            position=player.position,
-            is_starter=False
-        )
+        roster_slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=False)
 
         db.add(pick)
         db.add(roster_slot)
@@ -369,10 +311,7 @@ def test_draft_completion_triggers_auto_starters(db: Session, setup_draft_test):
     final_player = players[pick_number - 1]
 
     pick, updated_draft = service.make_pick(
-        draft_id=draft.id,
-        team_id=final_team.id,
-        player_id=final_player.id,
-        user_id=test_data["users"][0].id
+        draft_id=draft.id, team_id=final_team.id, player_id=final_player.id, user_id=test_data["users"][0].id
     )
 
     # Assert - draft should be completed and starters should be set
@@ -380,9 +319,6 @@ def test_draft_completion_triggers_auto_starters(db: Session, setup_draft_test):
 
     # Check that all teams have starters set
     for team in teams:
-        starters = db.query(RosterSlot).filter(
-            RosterSlot.team_id == team.id,
-            RosterSlot.is_starter == True
-        ).count()
+        starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).count()
 
         assert starters == 5, f"Team {team.name} should have 5 starters after draft completion"

@@ -32,18 +32,14 @@ import os
 import sys
 from typing import Any, Dict, List
 
-from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RateLimitError, ApiKeyError
+from app.external_apis.rapidapi_client import ApiKeyError, RapidApiError, RateLimitError, wnba_client
 
 
 class ApiTester:
     """Test suite for WNBA RapidAPI endpoints."""
 
     def __init__(self):
-        self.results = {
-            "passed": 0,
-            "failed": 0,
-            "errors": []
-        }
+        self.results = {"passed": 0, "failed": 0, "errors": []}
 
     def log_pass(self, test_name: str, message: str = ""):
         """Log a successful test."""
@@ -140,9 +136,9 @@ class ApiTester:
                             try:
                                 float(stats_arr[13])  # PTS should be last
                                 float(stats_arr[6])  # REB
-                                float(stats_arr[7])   # AST
-                                float(stats_arr[8])    # STL
-                                float(stats_arr[9])    # BLK
+                                float(stats_arr[7])  # AST
+                                float(stats_arr[8])  # STL
+                                float(stats_arr[9])  # BLK
                             except (ValueError, IndexError) as e:
                                 self.log_fail(test_name, f"Error parsing stats array: {e}")
                                 return

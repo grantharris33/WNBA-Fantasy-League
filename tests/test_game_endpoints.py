@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.external_apis.rapidapi_client import RetryError, wnba_client
+from app.main import app
 
 summary_response = {
     "header": {

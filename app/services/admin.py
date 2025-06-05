@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
 
-from app.models import (
-    WeeklyLineup, RosterSlot, Team, Player, TeamScore,
-    TransactionLog, User, StatLine, Game
-)
-from app.services.scoring import update_weekly_team_scores
+from app.models import Game, Player, RosterSlot, StatLine, Team, TeamScore, TransactionLog, User, WeeklyLineup
 from app.services.lineup import LineupService
+from app.services.scoring import update_weekly_team_scores
 
 
 class AdminService:
@@ -22,12 +19,7 @@ class AdminService:
         self.lineup_service = LineupService(db)
 
     def modify_historical_lineup(
-        self,
-        team_id: int,
-        week_id: int,
-        changes: Dict[str, Any],
-        admin_user_id: int,
-        justification: str = ""
+        self, team_id: int, week_id: int, changes: Dict[str, Any], admin_user_id: int, justification: str = ""
     ) -> bool:
         """
         Modify a historical lineup for a specific team and week.
@@ -49,9 +41,7 @@ class AdminService:
 
         # Get current lineup state for comparison
         existing_lineup = (
-            self.db.query(WeeklyLineup)
-            .filter(WeeklyLineup.team_id == team_id, WeeklyLineup.week_id == week_id)
-            .all()
+            self.db.query(WeeklyLineup).filter(WeeklyLineup.team_id == team_id, WeeklyLineup.week_id == week_id).all()
         )
 
         if not existing_lineup:
@@ -60,7 +50,7 @@ class AdminService:
         # Store before state for audit
         before_state = {
             "starters": [lineup.player_id for lineup in existing_lineup if lineup.is_starter],
-            "bench": [lineup.player_id for lineup in existing_lineup if not lineup.is_starter]
+            "bench": [lineup.player_id for lineup in existing_lineup if not lineup.is_starter],
         }
 
         # Apply changes
@@ -75,7 +65,7 @@ class AdminService:
         # Store after state for audit
         after_state = {
             "starters": new_starter_ids,
-            "bench": [lineup.player_id for lineup in existing_lineup if not lineup.is_starter]
+            "bench": [lineup.player_id for lineup in existing_lineup if not lineup.is_starter],
         }
 
         # Log the admin action
@@ -84,18 +74,14 @@ class AdminService:
             action="MODIFY_HISTORICAL_LINEUP",
             details=f"Team {team_id}, Week {week_id}: {justification}",
             before_state=before_state,
-            after_state=after_state
+            after_state=after_state,
         )
 
         self.db.commit()
         return True
 
     def recalculate_team_week_score(
-        self,
-        team_id: int,
-        week_id: int,
-        admin_user_id: int,
-        justification: str = ""
+        self, team_id: int, week_id: int, admin_user_id: int, justification: str = ""
     ) -> Optional[float]:
         """
         Recalculate the score for a specific team and week.
@@ -111,9 +97,7 @@ class AdminService:
         """
         # Get existing score for comparison
         existing_score = (
-            self.db.query(TeamScore)
-            .filter(TeamScore.team_id == team_id, TeamScore.week == week_id)
-            .first()
+            self.db.query(TeamScore).filter(TeamScore.team_id == team_id, TeamScore.week == week_id).first()
         )
 
         old_score = existing_score.score if existing_score else 0.0
@@ -125,8 +109,8 @@ class AdminService:
         iso_week = week_id % 100
 
         # Get a Monday date in that week for scoring calculation
-        from datetime import date, timedelta
         import datetime as dt
+        from datetime import date, timedelta
 
         # Find the first Monday of the year, then add weeks
         jan_4 = date(year, 1, 4)  # Week 1 always contains Jan 4
@@ -138,9 +122,7 @@ class AdminService:
 
         # Get the new score
         new_score_entry = (
-            self.db.query(TeamScore)
-            .filter(TeamScore.team_id == team_id, TeamScore.week == week_id)
-            .first()
+            self.db.query(TeamScore).filter(TeamScore.team_id == team_id, TeamScore.week == week_id).first()
         )
 
         new_score = new_score_entry.score if new_score_entry else 0.0
@@ -151,17 +133,13 @@ class AdminService:
             action="RECALCULATE_SCORE",
             details=f"Team {team_id}, Week {week_id}: {justification}",
             before_state={"score": old_score},
-            after_state={"score": new_score}
+            after_state={"score": new_score},
         )
 
         return new_score
 
     def override_weekly_moves(
-        self,
-        team_id: int,
-        additional_moves: int,
-        admin_user_id: int,
-        justification: str = ""
+        self, team_id: int, additional_moves: int, admin_user_id: int, justification: str = ""
     ) -> bool:
         """
         Grant additional weekly moves to a team.
@@ -189,17 +167,14 @@ class AdminService:
             action="OVERRIDE_WEEKLY_MOVES",
             details=f"Team {team_id}: Granted {additional_moves} moves. {justification}",
             before_state={"moves_this_week": old_moves},
-            after_state={"moves_this_week": new_moves}
+            after_state={"moves_this_week": new_moves},
         )
 
         self.db.commit()
         return True
 
     def get_admin_audit_log(
-        self,
-        team_id: Optional[int] = None,
-        limit: int = 100,
-        offset: int = 0
+        self, team_id: Optional[int] = None, limit: int = 100, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
         Get admin action audit log.
@@ -215,11 +190,9 @@ class AdminService:
         query = (
             self.db.query(TransactionLog, User.email)
             .join(User, TransactionLog.user_id == User.id)
-            .filter(TransactionLog.action.in_([
-                'MODIFY_HISTORICAL_LINEUP',
-                'RECALCULATE_SCORE',
-                'OVERRIDE_WEEKLY_MOVES'
-            ]))
+            .filter(
+                TransactionLog.action.in_(['MODIFY_HISTORICAL_LINEUP', 'RECALCULATE_SCORE', 'OVERRIDE_WEEKLY_MOVES'])
+            )
             .order_by(desc(TransactionLog.timestamp))
         )
 
@@ -230,15 +203,17 @@ class AdminService:
 
         result = []
         for log, admin_email in logs:
-            result.append({
-                "id": log.id,
-                "timestamp": log.timestamp.isoformat(),
-                "admin_email": admin_email,
-                "action": log.action,
-                "details": log.patch,  # We store details in patch field
-                "path": log.path,
-                "method": log.method
-            })
+            result.append(
+                {
+                    "id": log.id,
+                    "timestamp": log.timestamp.isoformat(),
+                    "admin_email": admin_email,
+                    "action": log.action,
+                    "details": log.patch,  # We store details in patch field
+                    "path": log.path,
+                    "method": log.method,
+                }
+            )
 
         return result
 
@@ -248,7 +223,7 @@ class AdminService:
         action: str,
         details: str,
         before_state: Optional[Dict] = None,
-        after_state: Optional[Dict] = None
+        after_state: Optional[Dict] = None,
     ) -> None:
         """
         Log an admin action to the audit trail.
@@ -262,11 +237,7 @@ class AdminService:
         """
         import json
 
-        patch_data = {
-            "details": details,
-            "before": before_state,
-            "after": after_state
-        }
+        patch_data = {"details": details, "before": before_state, "after": after_state}
 
         log_entry = TransactionLog(
             user_id=admin_user_id,
@@ -274,7 +245,7 @@ class AdminService:
             method="ADMIN",
             path="/admin/action",
             patch=json.dumps(patch_data),
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
 
         self.db.add(log_entry)
@@ -308,18 +279,20 @@ class AdminService:
                     self.db.query(TransactionLog)
                     .filter(
                         TransactionLog.action == 'MODIFY_HISTORICAL_LINEUP',
-                        TransactionLog.patch.contains(f"Team {team_id}, Week {week_id}")
+                        TransactionLog.patch.contains(f"Team {team_id}, Week {week_id}"),
                     )
                     .order_by(desc(TransactionLog.timestamp))
                     .all()
                 )
 
-                result.append({
-                    "week_id": week_id,
-                    "lineup": lineup,
-                    "admin_modified": len(admin_logs) > 0,
-                    "modification_count": len(admin_logs),
-                    "last_modified": admin_logs[0].timestamp.isoformat() if admin_logs else None
-                })
+                result.append(
+                    {
+                        "week_id": week_id,
+                        "lineup": lineup,
+                        "admin_modified": len(admin_logs) > 0,
+                        "modification_count": len(admin_logs),
+                        "last_modified": admin_logs[0].timestamp.isoformat() if admin_logs else None,
+                    }
+                )
 
         return result

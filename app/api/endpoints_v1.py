@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, List
 from datetime import datetime, timezone
+from typing import Annotated, Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy import func
@@ -17,42 +17,42 @@ from app.api.schemas import (
     DropPlayerRequest,
     GamePlayByPlayOut,
     GameSummaryOut,
+    InviteCodeResponse,
     JoinLeagueRequest,
+    LeagueChampionOut,
     LeagueCreate,
     LeagueOut,
     LeagueUpdate,
     LeagueWithRole,
-    InviteCodeResponse,
+    LineupHistoryOut,
+    LineupLockResponse,
     NewsArticleOut,
     Pagination,
     PlayerOut,
+    PlayerScoreBreakdownOut,
     RosterSlotOut,
     ScheduleDayOut,
     ScoreOut,
-    PlayerScoreBreakdownOut,
-    TeamScoreHistoryOut,
-    WeeklyScoresOut,
-    LeagueChampionOut,
-    TopPerformerOut,
     ScoreTrendOut,
     SetStartersRequest,
-    TeamOut,
-    TeamWithRosterSlotsOut,
+    SetWeeklyStartersRequest,
     TeamCreate,
+    TeamOut,
+    TeamScoreHistoryOut,
     TeamUpdate,
+    TeamWithRosterSlotsOut,
+    TopPerformerOut,
     UserOut,
     WeeklyLineupOut,
     WeeklyLineupPlayerOut,
-    LineupHistoryOut,
-    SetWeeklyStartersRequest,
-    LineupLockResponse,
+    WeeklyScoresOut,
 )
 from app.core.database import get_db
-from app.models import League, Player, Team, TeamScore, User, WeeklyBonus, DraftState, StatLine, RosterSlot
-from app.services.roster import RosterService
-from app.services.team import TeamService, map_team_to_out
+from app.models import DraftState, League, Player, RosterSlot, StatLine, Team, TeamScore, User, WeeklyBonus
 from app.services.draft import DraftService
 from app.services.lineup import LineupService
+from app.services.roster import RosterService
+from app.services.team import TeamService, map_team_to_out
 
 # CORS support
 router = APIRouter(prefix="/api/v1")
@@ -87,6 +87,7 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
 
     # Ensure starters are carried over from previous week if needed
     from app.services.roster import RosterService
+
     roster_service = RosterService(db)
     roster_service.ensure_starters_carried_over(team_id)
 
@@ -98,10 +99,7 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
     for rs in team.roster_slots:
         player_out = PlayerOut.from_orm(rs.player)
         roster_slot = RosterSlotOut(
-            player_id=rs.player_id,
-            position=rs.position,
-            is_starter=rs.is_starter,
-            player=player_out
+            player_id=rs.player_id, position=rs.position, is_starter=rs.is_starter, player=player_out
         )
         roster_slots.append(roster_slot)
 
@@ -181,7 +179,9 @@ def current_scores(*, db: Session = Depends(get_db)) -> List[ScoreOut]:  # noqa:
 
 
 @router.get("/scores/history", response_model=List[WeeklyScoresOut])
-def historical_scores(*, db: Session = Depends(get_db), league_id: int = Query(None)) -> List[WeeklyScoresOut]:  # noqa: D401
+def historical_scores(
+    *, db: Session = Depends(get_db), league_id: int = Query(None)
+) -> List[WeeklyScoresOut]:  # noqa: D401
     """Get historical weekly scores for all teams."""
     # Get all weeks that have scores
     weeks_query = db.query(TeamScore.week).distinct().order_by(TeamScore.week)
@@ -199,10 +199,7 @@ def historical_scores(*, db: Session = Depends(get_db), league_id: int = Query(N
 
         for team in teams:
             # Calculate season total up to this week
-            season_total = sum(
-                score.score for score in team.scores
-                if score.week <= week
-            )
+            season_total = sum(score.score for score in team.scores if score.week <= week)
 
             # Get weekly score
             weekly_score = 0.0
@@ -227,23 +224,27 @@ def historical_scores(*, db: Session = Depends(get_db), league_id: int = Query(N
                         games_played += 1
 
                 if player_points > 0 or games_played > 0:
-                    player_breakdown.append(PlayerScoreBreakdownOut(
-                        player_id=roster_slot.player_id,
-                        player_name=roster_slot.player.full_name,
-                        position=roster_slot.player.position,
-                        points_scored=round(player_points, 2),
-                        games_played=games_played,
-                        is_starter=roster_slot.is_starter
-                    ))
+                    player_breakdown.append(
+                        PlayerScoreBreakdownOut(
+                            player_id=roster_slot.player_id,
+                            player_name=roster_slot.player.full_name,
+                            position=roster_slot.player.position,
+                            points_scored=round(player_points, 2),
+                            games_played=games_played,
+                            is_starter=roster_slot.is_starter,
+                        )
+                    )
 
-            weekly_scores.append(TeamScoreHistoryOut(
-                team_id=team.id,
-                team_name=team.name,
-                week=week,
-                weekly_score=round(weekly_score, 2),
-                season_total=round(season_total, 2),
-                player_breakdown=player_breakdown
-            ))
+            weekly_scores.append(
+                TeamScoreHistoryOut(
+                    team_id=team.id,
+                    team_name=team.name,
+                    week=week,
+                    weekly_score=round(weekly_score, 2),
+                    season_total=round(season_total, 2),
+                    player_breakdown=player_breakdown,
+                )
+            )
 
         # Sort by season total and assign ranks
         weekly_scores.sort(key=lambda s: s.season_total, reverse=True)
@@ -277,26 +278,24 @@ def top_performers(*, db: Session = Depends(get_db), week: int = Query(None)) ->
     player_totals = {}
     for stat in stat_lines:
         if stat.player_id not in player_totals:
-            player_totals[stat.player_id] = {
-                'player': stat.player,
-                'total_points': 0.0,
-                'games_played': 0
-            }
+            player_totals[stat.player_id] = {'player': stat.player, 'total_points': 0.0, 'games_played': 0}
         player_totals[stat.player_id]['total_points'] += stat.points
         player_totals[stat.player_id]['games_played'] += 1
 
     # Convert to TopPerformerOut and sort
     performers = []
     for player_data in player_totals.values():
-        performers.append(TopPerformerOut(
-            player_id=player_data['player'].id,
-            player_name=player_data['player'].full_name,
-            position=player_data['player'].position,
-            team_abbr=player_data['player'].team_abbr,
-            total_points=round(player_data['total_points'], 2),
-            games_played=player_data['games_played'],
-            avg_points=round(player_data['total_points'] / max(player_data['games_played'], 1), 2)
-        ))
+        performers.append(
+            TopPerformerOut(
+                player_id=player_data['player'].id,
+                player_name=player_data['player'].full_name,
+                position=player_data['player'].position,
+                team_abbr=player_data['player'].team_abbr,
+                total_points=round(player_data['total_points'], 2),
+                games_played=player_data['games_played'],
+                avg_points=round(player_data['total_points'] / max(player_data['games_played'], 1), 2),
+            )
+        )
 
     # Sort by total points descending and limit to top 50
     performers.sort(key=lambda p: p.total_points, reverse=True)
@@ -327,18 +326,22 @@ def score_trends(*, db: Session = Depends(get_db), league_id: int = Query(None))
 
         for score in sorted_scores:
             cumulative_points += score.score
-            weekly_scores.append({
-                'week': score.week,
-                'weekly_score': round(score.score, 2),
-                'cumulative_score': round(cumulative_points, 2)
-            })
+            weekly_scores.append(
+                {
+                    'week': score.week,
+                    'weekly_score': round(score.score, 2),
+                    'cumulative_score': round(cumulative_points, 2),
+                }
+            )
 
-        result.append(ScoreTrendOut(
-            team_id=team.id,
-            team_name=team.name,
-            weekly_scores=weekly_scores,
-            total_points=round(cumulative_points, 2)
-        ))
+        result.append(
+            ScoreTrendOut(
+                team_id=team.id,
+                team_name=team.name,
+                weekly_scores=weekly_scores,
+                total_points=round(cumulative_points, 2),
+            )
+        )
 
     # Sort by total points
     result.sort(key=lambda t: t.total_points, reverse=True)
@@ -351,7 +354,9 @@ def score_trends(*, db: Session = Depends(get_db), league_id: int = Query(None))
 
 
 @router.get("/scores/champion", response_model=LeagueChampionOut | None)
-def league_champion(*, db: Session = Depends(get_db), league_id: int = Query(None)) -> LeagueChampionOut | None:  # noqa: D401
+def league_champion(
+    *, db: Session = Depends(get_db), league_id: int = Query(None)
+) -> LeagueChampionOut | None:  # noqa: D401
     """Get the current league champion (team with highest season points)."""
     teams_query = db.query(Team)
     if league_id:
@@ -388,7 +393,7 @@ def league_champion(*, db: Session = Depends(get_db), league_id: int = Query(Non
         total_points=round(champion_points, 2),
         best_week=best_week,
         best_week_score=round(best_week_score, 2),
-        league_id=champion_team.league_id
+        league_id=champion_team.league_id,
     )
 
 
@@ -523,11 +528,7 @@ async def options_team(team_id: int):
 # ---------------------------------------------------------------------------
 
 
-@router.post(
-    "/leagues/{league_id}/teams",
-    response_model=TeamOut,
-    status_code=201,
-)
+@router.post("/leagues/{league_id}/teams", response_model=TeamOut, status_code=201)
 def create_team(
     *,
     league_id: int = Path(..., description="League ID"),
@@ -537,9 +538,7 @@ def create_team(
 ):
     """Create a new team in a league for the authenticated user."""
     try:
-        team = TeamService.create_team_in_league(
-            db=db, name=data.name, league_id=league_id, owner_id=current_user.id
-        )
+        team = TeamService.create_team_in_league(db=db, name=data.name, league_id=league_id, owner_id=current_user.id)
     except ValueError as exc:
         detail = str(exc)
         status_code = 404 if "League not found" in detail else 409
@@ -603,10 +602,7 @@ def update_team(
 
 @router.get("/leagues/{league_id}/draft/state", response_model=DraftStateResponse)
 def get_league_draft_state(
-    *,
-    league_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    *, league_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get the current draft state for a league.
@@ -640,7 +636,7 @@ def list_players(
     team_abbr: str = Query(None, description="Filter by team abbreviation"),
     status: str = Query("active", description="Filter by status (active, injured, inactive)"),
     search: str = Query(None, description="Search by player name"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Pagination[PlayerOut]:
     """List all players with optional filtering."""
     query = db.query(Player)
@@ -666,11 +662,7 @@ def list_players(
 
 
 @router.get("/players/{player_id}", response_model=PlayerOut)
-def get_player(
-    *,
-    player_id: int = Path(..., description="Player ID"),
-    db: Session = Depends(get_db)
-) -> PlayerOut:
+def get_player(*, player_id: int = Path(..., description="Player ID"), db: Session = Depends(get_db)) -> PlayerOut:
     """Get detailed player profile by ID."""
     player = db.query(Player).filter_by(id=player_id).one_or_none()
     if not player:
@@ -683,13 +675,14 @@ def get_player(
 # Weekly Lineup Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/teams/{team_id}/lineups/{week_id}", response_model=WeeklyLineupOut)
 def get_weekly_lineup(
     *,
     team_id: int = Path(..., description="Team ID"),
     week_id: int = Path(..., description="Week ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> WeeklyLineupOut:
     """Get lineup for a specific team and week."""
     # Verify team ownership
@@ -706,22 +699,20 @@ def get_weekly_lineup(
     # Convert to schema format
     lineup_players = []
     for player_data in lineup_data:
-        lineup_players.append(WeeklyLineupPlayerOut(
-            player_id=player_data["player_id"],
-            player_name=player_data["player_name"],
-            position=player_data["position"],
-            team_abbr=player_data["team_abbr"],
-            is_starter=player_data["is_starter"],
-            locked=player_data["locked"],
-            locked_at=player_data.get("locked_at")
-        ))
+        lineup_players.append(
+            WeeklyLineupPlayerOut(
+                player_id=player_data["player_id"],
+                player_name=player_data["player_name"],
+                position=player_data["position"],
+                team_abbr=player_data["team_abbr"],
+                is_starter=player_data["is_starter"],
+                locked=player_data["locked"],
+                locked_at=player_data.get("locked_at"),
+            )
+        )
 
     current_week_id = lineup_service.get_current_week_id()
-    return WeeklyLineupOut(
-        week_id=week_id,
-        lineup=lineup_players,
-        is_current=week_id == current_week_id
-    )
+    return WeeklyLineupOut(week_id=week_id, lineup=lineup_players, is_current=week_id == current_week_id)
 
 
 @router.get("/teams/{team_id}/lineups/history", response_model=LineupHistoryOut)
@@ -729,7 +720,7 @@ def get_lineup_history(
     *,
     team_id: int = Path(..., description="Team ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> LineupHistoryOut:
     """Get all historical lineups for a team."""
     # Verify team ownership
@@ -746,21 +737,21 @@ def get_lineup_history(
     for week_data in history_data:
         lineup_players = []
         for player_data in week_data["lineup"]:
-            lineup_players.append(WeeklyLineupPlayerOut(
-                player_id=player_data["player_id"],
-                player_name=player_data["player_name"],
-                position=player_data["position"],
-                team_abbr=player_data["team_abbr"],
-                is_starter=player_data["is_starter"],
-                locked=player_data["locked"],
-                locked_at=player_data.get("locked_at")
-            ))
+            lineup_players.append(
+                WeeklyLineupPlayerOut(
+                    player_id=player_data["player_id"],
+                    player_name=player_data["player_name"],
+                    position=player_data["position"],
+                    team_abbr=player_data["team_abbr"],
+                    is_starter=player_data["is_starter"],
+                    locked=player_data["locked"],
+                    locked_at=player_data.get("locked_at"),
+                )
+            )
 
-        history.append(WeeklyLineupOut(
-            week_id=week_data["week_id"],
-            lineup=lineup_players,
-            is_current=week_data["is_current"]
-        ))
+        history.append(
+            WeeklyLineupOut(week_id=week_data["week_id"], lineup=lineup_players, is_current=week_data["is_current"])
+        )
 
     return LineupHistoryOut(history=history)
 
@@ -772,7 +763,7 @@ def set_weekly_starters(
     week_id: int = Path(..., description="Week ID"),
     data: SetWeeklyStartersRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> WeeklyLineupOut:
     """Set starters for a specific week."""
     # Verify team ownership
@@ -800,7 +791,7 @@ def lock_weekly_lineups(
     *,
     week_id: int = Path(..., description="Week ID to lock"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> LineupLockResponse:
     """Lock lineups for a specific week (admin only)."""
     # Check if user is admin
@@ -811,11 +802,7 @@ def lock_weekly_lineups(
 
     teams_processed = lineup_service.lock_weekly_lineups(week_id)
 
-    return LineupLockResponse(
-        week_id=week_id,
-        teams_processed=teams_processed,
-        locked_at=datetime.now(timezone.utc)
-    )
+    return LineupLockResponse(week_id=week_id, teams_processed=teams_processed, locked_at=datetime.now(timezone.utc))
 
 
 # Add the router to the API

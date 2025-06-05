@@ -1,19 +1,19 @@
 """API endpoints for quick lookups of teams and players by ID."""
 
 from typing import Dict, List, Optional
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import WNBATeam, Player
+from app.models import Player, WNBATeam
 
 router = APIRouter(prefix="/api/v1/lookup", tags=["lookup"])
 
 
 @router.get("/teams", response_model=Dict[int, Dict])
 async def lookup_teams(
-    team_ids: Optional[str] = Query(None, description="Comma-separated team IDs"),
-    db: Session = Depends(get_db)
+    team_ids: Optional[str] = Query(None, description="Comma-separated team IDs"), db: Session = Depends(get_db)
 ) -> Dict[int, Dict]:
     """
     Get team name and abbreviation lookup for team IDs.
@@ -36,7 +36,7 @@ async def lookup_teams(
             "name": team.display_name,
             "abbreviation": team.abbreviation,
             "location": team.location,
-            "logo_url": team.logo_url
+            "logo_url": team.logo_url,
         }
         for team in teams
     }
@@ -44,8 +44,7 @@ async def lookup_teams(
 
 @router.get("/players", response_model=Dict[int, Dict])
 async def lookup_players(
-    player_ids: Optional[str] = Query(None, description="Comma-separated player IDs"),
-    db: Session = Depends(get_db)
+    player_ids: Optional[str] = Query(None, description="Comma-separated player IDs"), db: Session = Depends(get_db)
 ) -> Dict[int, Dict]:
     """
     Get player name and team lookup for player IDs.
@@ -73,7 +72,7 @@ async def lookup_players(
             "team_id": player.wnba_team_id,
             "team_name": player.wnba_team.display_name if player.wnba_team else None,
             "team_abbreviation": player.wnba_team.abbreviation if player.wnba_team else None,
-            "headshot_url": player.headshot_url
+            "headshot_url": player.headshot_url,
         }
         for player in players
     }
@@ -83,16 +82,13 @@ async def lookup_players(
 async def batch_lookup(
     team_ids: Optional[str] = Query(None, description="Comma-separated team IDs"),
     player_ids: Optional[str] = Query(None, description="Comma-separated player IDs"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict:
     """
     Batch lookup for both teams and players in a single request.
     Returns both teams and players dictionaries.
     """
-    result = {
-        "teams": {},
-        "players": {}
-    }
+    result = {"teams": {}, "players": {}}
 
     # Get teams
     if team_ids:
@@ -105,7 +101,7 @@ async def batch_lookup(
                     "name": team.display_name,
                     "abbreviation": team.abbreviation,
                     "location": team.location,
-                    "logo_url": team.logo_url
+                    "logo_url": team.logo_url,
                 }
                 for team in teams
             }
@@ -116,9 +112,12 @@ async def batch_lookup(
     if player_ids:
         try:
             player_id_list = [int(id.strip()) for id in player_ids.split(",")]
-            players = db.query(Player).join(
-                WNBATeam, Player.wnba_team_id == WNBATeam.id, isouter=True
-            ).filter(Player.id.in_(player_id_list)).all()
+            players = (
+                db.query(Player)
+                .join(WNBATeam, Player.wnba_team_id == WNBATeam.id, isouter=True)
+                .filter(Player.id.in_(player_id_list))
+                .all()
+            )
             result["players"] = {
                 player.id: {
                     "id": player.id,
@@ -128,7 +127,7 @@ async def batch_lookup(
                     "team_id": player.wnba_team_id,
                     "team_name": player.wnba_team.display_name if player.wnba_team else None,
                     "team_abbreviation": player.wnba_team.abbreviation if player.wnba_team else None,
-                    "headshot_url": player.headshot_url
+                    "headshot_url": player.headshot_url,
                 }
                 for player in players
             }

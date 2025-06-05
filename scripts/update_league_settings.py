@@ -4,6 +4,7 @@ Script to update existing leagues with default timer settings.
 """
 
 from sqlalchemy.orm import Session
+
 from app.core.database import SessionLocal
 from app.models import League
 
@@ -26,6 +27,7 @@ def update_league_settings():
 
                 # Force SQLAlchemy to detect the change
                 from sqlalchemy.orm.attributes import flag_modified
+
                 flag_modified(league, "settings")
 
                 print(f"Updated league {league.id} ({league.name}) with default timer settings")

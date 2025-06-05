@@ -5,9 +5,9 @@ Revises: f7d1b34e5a2c
 Create Date: 2024-01-15 10:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '0a81dd8f0b1e'
@@ -29,7 +29,7 @@ def upgrade():
         sa.Column('games_processed', sa.Integer(), nullable=True),
         sa.Column('players_updated', sa.Integer(), nullable=True),
         sa.Column('errors', sa.Text(), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
     )
     op.create_index(op.f('ix_ingestion_run_id'), 'ingestion_run', ['id'], unique=False)
 
@@ -45,7 +45,7 @@ def upgrade():
         sa.Column('status', sa.String(), nullable=True),
         sa.Column('error_message', sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('game_id')
+        sa.UniqueConstraint('game_id'),
     )
     op.create_index(op.f('ix_ingestion_queue_id'), 'ingestion_queue', ['id'], unique=False)
 

@@ -66,24 +66,26 @@ def check_draft_clocks():
                                 loop = asyncio.new_event_loop()
                                 asyncio.set_event_loop(loop)
 
-                            loop.run_until_complete(manager.broadcast_to_league(
-                                updated_draft.league_id,
-                                {
-                                    "event": "pick_made",
-                                    "data": {
-                                        "draft_id": draft.id,
-                                        "pick": {
-                                            "id": pick.id,
-                                            "team_id": pick.team_id,
-                                            "player_id": pick.player_id,
-                                            "round": pick.round,
-                                            "pick_number": pick.pick_number,
-                                            "is_auto": True,
+                            loop.run_until_complete(
+                                manager.broadcast_to_league(
+                                    updated_draft.league_id,
+                                    {
+                                        "event": "pick_made",
+                                        "data": {
+                                            "draft_id": draft.id,
+                                            "pick": {
+                                                "id": pick.id,
+                                                "team_id": pick.team_id,
+                                                "player_id": pick.player_id,
+                                                "round": pick.round,
+                                                "pick_number": pick.pick_number,
+                                                "is_auto": True,
+                                            },
+                                            "draft_state": updated_draft.as_dict(),
                                         },
-                                        "draft_state": updated_draft.as_dict(),
                                     },
-                                },
-                            ))
+                                )
+                            )
                         except Exception as ws_error:
                             logger.error(f"Error broadcasting auto-pick WebSocket event: {ws_error}")
                     else:
@@ -105,18 +107,20 @@ def check_draft_clocks():
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
 
-                    loop.run_until_complete(manager.broadcast_to_league(
-                        draft.league_id,
-                        {
-                            "event": "timer_sync",
-                            "data": {
-                                "draft_id": draft.id,
-                                "seconds_remaining": draft.seconds_remaining,
-                                "current_team_id": draft.current_team_id(),
-                                "status": draft.status
-                            }
-                        }
-                    ))
+                    loop.run_until_complete(
+                        manager.broadcast_to_league(
+                            draft.league_id,
+                            {
+                                "event": "timer_sync",
+                                "data": {
+                                    "draft_id": draft.id,
+                                    "seconds_remaining": draft.seconds_remaining,
+                                    "current_team_id": draft.current_team_id(),
+                                    "status": draft.status,
+                                },
+                            },
+                        )
+                    )
                 except Exception as ws_error:
                     logger.error(f"Error broadcasting timer sync for draft {draft.id}: {ws_error}")
 
@@ -205,7 +209,7 @@ def start_scheduled_drafts():
             .filter(
                 League.draft_date <= now,
                 League.draft_date.isnot(None),
-                ~League.id.in_(select(leagues_with_drafts.c.league_id))  # No draft state exists
+                ~League.id.in_(select(leagues_with_drafts.c.league_id)),  # No draft state exists
             )
             .all()
         )
@@ -220,7 +224,9 @@ def start_scheduled_drafts():
                     draft_state = draft_service.start_draft(league.id, league.commissioner_id)
                     logger.info(f"Successfully started draft {draft_state.id} for league {league.id}")
                 else:
-                    logger.warning(f"Cannot start draft for league {league.id} - not enough teams ({len(league.teams)})")
+                    logger.warning(
+                        f"Cannot start draft for league {league.id} - not enough teams ({len(league.teams)})"
+                    )
             except Exception as e:
                 logger.error(f"Error starting scheduled draft for league {league.id}: {str(e)}")
 

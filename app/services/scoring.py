@@ -136,7 +136,7 @@ def update_weekly_team_scores(target_date: date | None = None, *, session: Sessi
     start_dt, end_dt, week_id = _week_bounds(target_date)
 
     try:
-                # Determine current week
+        # Determine current week
         current_week_id = _week_bounds(datetime.now(timezone.utc).date())[2]
 
         # Build starter mapping based on whether this is current or past week
@@ -144,10 +144,7 @@ def update_weekly_team_scores(target_date: date | None = None, *, session: Sessi
 
         if week_id >= current_week_id:
             # Current/future week: use RosterSlot table
-            roster_query = (
-                session.query(models.RosterSlot)
-                .filter(models.RosterSlot.is_starter == True)
-            )
+            roster_query = session.query(models.RosterSlot).filter(models.RosterSlot.is_starter == True)
             starter_mapping = {rs.player_id: rs.team_id for rs in roster_query}
             print(f"DEBUG: Current/future week {week_id}, found {len(starter_mapping)} starters")
         else:

@@ -62,7 +62,7 @@ def main() -> None:
     users = []
     for i in range(1, 5):  # Create demo1, demo2, demo3, demo4
         email = f"demo{i}@example.com"
-        is_admin = (i == 1)  # Only demo1 is admin
+        is_admin = i == 1  # Only demo1 is admin
         user = models.User(email=email, hashed_password=hash_password("password"), is_admin=is_admin)
         db.add(user)
         users.append(user)

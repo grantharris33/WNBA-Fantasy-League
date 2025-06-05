@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, JSON, Text
+from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -119,9 +119,7 @@ class WNBATeam(Base):
 
 class Standings(Base):
     __tablename__ = "standings"
-    __table_args__ = (
-        UniqueConstraint("team_id", "season", "date", name="uq_standings_team_season_date"),
-    )
+    __table_args__ = (UniqueConstraint("team_id", "season", "date", name="uq_standings_team_season_date"),)
 
     id: int = Column(Integer, primary_key=True)
     team_id: int = Column(Integer, ForeignKey("wnba_team.id"))
@@ -265,9 +263,7 @@ class Game(Base):
 
 class StatLine(Base):
     __tablename__ = "stat_line"
-    __table_args__ = (
-        UniqueConstraint("player_id", "game_id", name="uq_stat_line_player_game"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "game_id", name="uq_stat_line_player_game"),)
 
     id: int = Column(Integer, primary_key=True, index=True)
     player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)
@@ -493,18 +489,20 @@ class DraftState(Base):
             player_name = pick.player.full_name if pick.player else "Unknown"
             player_position = pick.player.position if pick.player else "Unknown"
 
-            formatted_picks.append({
-                "id": pick.id,
-                "round": pick.round,
-                "pick_number": pick.pick_number,
-                "team_id": pick.team_id,
-                "team_name": team_name,
-                "player_id": pick.player_id,
-                "player_name": player_name,
-                "player_position": player_position,
-                "timestamp": pick.timestamp.isoformat(),
-                "is_auto": pick.is_auto,
-            })
+            formatted_picks.append(
+                {
+                    "id": pick.id,
+                    "round": pick.round,
+                    "pick_number": pick.pick_number,
+                    "team_id": pick.team_id,
+                    "team_name": team_name,
+                    "player_id": pick.player_id,
+                    "player_name": player_name,
+                    "player_position": player_position,
+                    "timestamp": pick.timestamp.isoformat(),
+                    "is_auto": pick.is_auto,
+                }
+            )
 
         return {
             "id": self.id,
@@ -587,4 +585,4 @@ class AdminMoveGrant(Base):
 # Analytics Models
 # ---------------------------------------------------------------------------
 
-from app.models.analytics import PlayerSeasonStats, PlayerTrends, MatchupAnalysis
+from app.models.analytics import MatchupAnalysis, PlayerSeasonStats, PlayerTrends

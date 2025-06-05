@@ -132,6 +132,7 @@ class TeamOut(BaseModel):
 
 class TeamWithRosterSlotsOut(BaseModel):
     """Team with detailed roster slot information including starter status."""
+
     id: int
     name: str
     league_id: int | None = None

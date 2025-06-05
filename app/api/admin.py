@@ -1,6 +1,6 @@
 from typing import Annotated, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Body
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user
@@ -92,7 +92,7 @@ async def modify_historical_lineup(
     week_id: int = Path(..., description="Week ID"),
     request: ModifyLineupRequest = Body(...),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> AdminActionResponse:
     """
     Modify historical lineup for a team and week.
@@ -106,14 +106,14 @@ async def modify_historical_lineup(
             week_id=week_id,
             changes={"starter_ids": request.starter_ids},
             admin_user_id=current_user.id,
-            justification=request.justification
+            justification=request.justification,
         )
 
         if success:
             return AdminActionResponse(
                 success=True,
                 message=f"Successfully modified lineup for team {team_id}, week {week_id}",
-                data={"team_id": team_id, "week_id": week_id, "starter_ids": request.starter_ids}
+                data={"team_id": team_id, "week_id": week_id, "starter_ids": request.starter_ids},
             )
         else:
             raise HTTPException(status_code=400, detail="Failed to modify lineup")
@@ -130,7 +130,7 @@ async def recalculate_team_week_score(
     week_id: int = Path(..., description="Week ID"),
     request: RecalculateScoreRequest = Body(...),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> AdminActionResponse:
     """
     Recalculate score for a specific team and week.
@@ -140,17 +140,14 @@ async def recalculate_team_week_score(
         admin_service = AdminService(db)
 
         new_score = admin_service.recalculate_team_week_score(
-            team_id=team_id,
-            week_id=week_id,
-            admin_user_id=current_user.id,
-            justification=request.justification
+            team_id=team_id, week_id=week_id, admin_user_id=current_user.id, justification=request.justification
         )
 
         if new_score is not None:
             return AdminActionResponse(
                 success=True,
                 message=f"Successfully recalculated score for team {team_id}, week {week_id}",
-                data={"team_id": team_id, "week_id": week_id, "new_score": new_score}
+                data={"team_id": team_id, "week_id": week_id, "new_score": new_score},
             )
         else:
             raise HTTPException(status_code=400, detail="Failed to recalculate score")
@@ -166,7 +163,7 @@ async def grant_additional_moves(
     team_id: int = Path(..., description="Team ID"),
     request: GrantMovesRequest = Body(...),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> AdminActionResponse:
     """
     Grant additional weekly moves to a team.
@@ -179,14 +176,14 @@ async def grant_additional_moves(
             team_id=team_id,
             additional_moves=request.additional_moves,
             admin_user_id=current_user.id,
-            justification=request.justification
+            justification=request.justification,
         )
 
         if success:
             return AdminActionResponse(
                 success=True,
                 message=f"Successfully granted {request.additional_moves} additional moves to team {team_id}",
-                data={"team_id": team_id, "additional_moves": request.additional_moves}
+                data={"team_id": team_id, "additional_moves": request.additional_moves},
             )
         else:
             raise HTTPException(status_code=400, detail="Failed to grant additional moves")
@@ -203,7 +200,7 @@ async def get_admin_audit_log(
     db: Annotated[Session, Depends(get_db)] = None,
     team_id: Optional[int] = Query(None, description="Filter by team ID"),
     limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
-    offset: int = Query(0, ge=0, description="Number of records to skip")
+    offset: int = Query(0, ge=0, description="Number of records to skip"),
 ) -> List[AuditLogEntry]:
     """
     Get admin action audit log.
@@ -212,11 +209,7 @@ async def get_admin_audit_log(
     try:
         admin_service = AdminService(db)
 
-        logs = admin_service.get_admin_audit_log(
-            team_id=team_id,
-            limit=limit,
-            offset=offset
-        )
+        logs = admin_service.get_admin_audit_log(team_id=team_id, limit=limit, offset=offset)
 
         return [AuditLogEntry(**log) for log in logs]
 
@@ -228,7 +221,7 @@ async def get_admin_audit_log(
 async def get_team_lineup_history(
     team_id: int = Path(..., description="Team ID"),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> List[LineupHistoryEntry]:
     """
     Get lineup history for a team with admin modification indicators.
@@ -250,7 +243,7 @@ async def get_admin_lineup_view(
     team_id: int = Path(..., description="Team ID"),
     week_id: int = Path(..., description="Week ID"),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> Dict:
     """
     Get detailed lineup view for admin modification.
@@ -273,7 +266,7 @@ async def get_admin_lineup_view(
             "lineup": lineup,
             "admin_modified": week_entry["admin_modified"] if week_entry else False,
             "modification_count": week_entry["modification_count"] if week_entry else 0,
-            "last_modified": week_entry["last_modified"] if week_entry else None
+            "last_modified": week_entry["last_modified"] if week_entry else None,
         }
 
     except HTTPException:
@@ -284,13 +277,14 @@ async def get_admin_lineup_view(
 
 # New endpoints for Story 3: Enhanced Admin Move Management
 
+
 @router.post("/teams/{team_id}/weeks/{week_id}/grant-moves")
 async def grant_team_moves(
     team_id: int = Path(..., description="Team ID"),
     week_id: int = Path(..., description="Week ID"),
     request: NewGrantMovesRequest = Body(...),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> AdminMoveGrantResponse:
     """
     Grant additional moves to a team for a specific week.
@@ -298,6 +292,7 @@ async def grant_team_moves(
     """
     try:
         from app.services.roster import RosterService
+
         roster_service = RosterService(db)
 
         grant = roster_service.grant_admin_moves(
@@ -305,7 +300,7 @@ async def grant_team_moves(
             week_id=week_id,
             moves_to_grant=request.moves_to_grant,
             reason=request.reason,
-            admin_user_id=current_user.id
+            admin_user_id=current_user.id,
         )
 
         return AdminMoveGrantResponse(
@@ -315,7 +310,7 @@ async def grant_team_moves(
             moves_granted=grant.moves_granted,
             reason=grant.reason,
             granted_at=grant.granted_at.isoformat(),
-            week_id=grant.week_id
+            week_id=grant.week_id,
         )
 
     except ValueError as e:
@@ -329,7 +324,7 @@ async def get_team_move_summary(
     team_id: int = Path(..., description="Team ID"),
     week_id: int = Path(..., description="Week ID"),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> TeamMoveSummaryResponse:
     """
     Get detailed move summary for a team including admin grants.
@@ -337,6 +332,7 @@ async def get_team_move_summary(
     """
     try:
         from app.services.roster import RosterService
+
         roster_service = RosterService(db)
 
         summary = roster_service.get_team_move_summary(team_id, week_id)
@@ -355,7 +351,7 @@ async def force_set_team_roster(
     week_id: int = Path(..., description="Week ID"),
     request: ForceSetRosterRequest = Body(...),
     current_user: Annotated[User, Depends(get_admin_user)] = None,
-    db: Annotated[Session, Depends(get_db)] = None
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> AdminActionResponse:
     """
     Force set team roster with admin override, bypassing move limits.
@@ -363,6 +359,7 @@ async def force_set_team_roster(
     """
     try:
         from app.services.roster import RosterService
+
         roster_service = RosterService(db)
 
         starters = roster_service.set_starters_admin_override(
@@ -370,7 +367,7 @@ async def force_set_team_roster(
             starter_player_ids=request.starter_ids,
             admin_user_id=current_user.id,
             week_id=week_id,
-            bypass_move_limit=request.bypass_move_limit
+            bypass_move_limit=request.bypass_move_limit,
         )
 
         return AdminActionResponse(
@@ -381,8 +378,8 @@ async def force_set_team_roster(
                 "week_id": week_id,
                 "starter_ids": request.starter_ids,
                 "bypass_move_limit": request.bypass_move_limit,
-                "starters_count": len(starters)
-            }
+                "starters_count": len(starters),
+            },
         )
 
     except ValueError as e:

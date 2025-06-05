@@ -58,11 +58,7 @@ def setup_team_test_data(db: Session):
     db.add_all([team1, team2, team3])
     db.commit()
 
-    return {
-        "users": [user1, user2],
-        "leagues": [league1, league2],
-        "teams": [team1, team2, team3],
-    }
+    return {"users": [user1, user2], "leagues": [league1, league2], "teams": [team1, team2, team3]}
 
 
 def test_create_team_success(auth_client, setup_team_test_data, db: Session):
@@ -72,10 +68,7 @@ def test_create_team_success(auth_client, setup_team_test_data, db: Session):
     db.add(new_league)
     db.commit()
 
-    response = auth_client.post(
-        f"/api/v1/leagues/{new_league.id}/teams",
-        json={"name": "New Team"}
-    )
+    response = auth_client.post(f"/api/v1/leagues/{new_league.id}/teams", json={"name": "New Team"})
 
     assert response.status_code == 201
     data = response.json()
@@ -88,10 +81,7 @@ def test_create_team_success(auth_client, setup_team_test_data, db: Session):
 
 def test_create_team_league_not_found(auth_client):
     """Test creating a team with non-existent league."""
-    response = auth_client.post(
-        "/api/v1/leagues/9999/teams",  # Non-existent league ID
-        json={"name": "New Team"}
-    )
+    response = auth_client.post("/api/v1/leagues/9999/teams", json={"name": "New Team"})  # Non-existent league ID
 
     assert response.status_code == 404
     assert "League not found" in response.json()["detail"]
@@ -107,10 +97,7 @@ def test_create_team_name_conflicts_skipped(auth_client, setup_team_test_data):
 
     # The important validation is that a user can't have more than one team per league
     # This check happens before name uniqueness check
-    response = auth_client.post(
-        f"/api/v1/leagues/{league.id}/teams",
-        json={"name": existing_name}
-    )
+    response = auth_client.post(f"/api/v1/leagues/{league.id}/teams", json={"name": existing_name})
 
     assert response.status_code == 409
     assert "User already owns a team in this league" in response.json()["detail"]
@@ -121,10 +108,7 @@ def test_create_team_one_per_user_per_league(auth_client, setup_team_test_data):
     # User1 (our authenticated user) already has a team in league1
     league_id = setup_team_test_data["leagues"][0].id
 
-    response = auth_client.post(
-        f"/api/v1/leagues/{league_id}/teams",
-        json={"name": "Another Team"}
-    )
+    response = auth_client.post(f"/api/v1/leagues/{league_id}/teams", json={"name": "Another Team"})
 
     assert response.status_code == 409
     assert "User already owns a team in this league" in response.json()["detail"]
@@ -168,10 +152,7 @@ def test_update_team_success(auth_client, setup_team_test_data, db: Session):
     """Test successfully updating a team."""
     team_id = setup_team_test_data["teams"][0].id  # Team1 is owned by User1
 
-    response = auth_client.put(
-        f"/api/v1/teams/{team_id}",
-        json={"name": "Updated Team Name"}
-    )
+    response = auth_client.put(f"/api/v1/teams/{team_id}", json={"name": "Updated Team Name"})
 
     assert response.status_code == 200
     data = response.json()
@@ -184,10 +165,7 @@ def test_update_team_success(auth_client, setup_team_test_data, db: Session):
 
 def test_update_team_not_found(auth_client):
     """Test updating a non-existent team."""
-    response = auth_client.put(
-        "/api/v1/teams/9999",  # Non-existent team ID
-        json={"name": "Updated Team Name"}
-    )
+    response = auth_client.put("/api/v1/teams/9999", json={"name": "Updated Team Name"})  # Non-existent team ID
 
     assert response.status_code == 404
     assert "Team not found" in response.json()["detail"]
@@ -197,10 +175,7 @@ def test_update_team_not_owner(auth_client, setup_team_test_data):
     """Test that only the owner can update a team."""
     team_id = setup_team_test_data["teams"][1].id  # Team2 is owned by User2, not our authenticated User1
 
-    response = auth_client.put(
-        f"/api/v1/teams/{team_id}",
-        json={"name": "Updated Team Name"}
-    )
+    response = auth_client.put(f"/api/v1/teams/{team_id}", json={"name": "Updated Team Name"})
 
     assert response.status_code == 403
     assert "Not team owner" in response.json()["detail"]
@@ -211,10 +186,7 @@ def test_update_team_duplicate_name(auth_client, setup_team_test_data):
     team_id = setup_team_test_data["teams"][0].id  # Team1 is owned by User1
     existing_name = setup_team_test_data["teams"][1].name  # Name of Team2 in same league
 
-    response = auth_client.put(
-        f"/api/v1/teams/{team_id}",
-        json={"name": existing_name}
-    )
+    response = auth_client.put(f"/api/v1/teams/{team_id}", json={"name": existing_name})
 
     assert response.status_code == 409
     assert "Team name already exists" in response.json()["detail"]

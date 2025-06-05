@@ -5,9 +5,10 @@ Revises: 4a615af8fb1f
 Create Date: 2024-01-01 12:30:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '66156fba2281'
@@ -35,7 +36,9 @@ def upgrade():
         op.add_column('league', sa.Column('is_active', sa.Boolean(), nullable=False, default=True))
 
     # Update existing rows to have unique invite codes
-    op.execute("UPDATE league SET invite_code = 'LEAGUE-' || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || '-' || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) WHERE invite_code IS NULL")
+    op.execute(
+        "UPDATE league SET invite_code = 'LEAGUE-' || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || '-' || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) || SUBSTR('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', ABS(RANDOM()) % 36 + 1, 1) WHERE invite_code IS NULL"
+    )
 
     # Now make invite_code NOT NULL and add unique constraint
     with op.batch_alter_table('league', schema=None) as batch_op:
