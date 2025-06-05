@@ -37,7 +37,7 @@ const DashboardPage: React.FC = () => {
       // Extract unique leagues from user teams
       const leagues = teams.reduce((acc, team) => {
         if (team.league_id && !acc.find(l => l.id === team.league_id)) {
-          acc.push({ id: team.league_id, name: team.league_name || `League ${team.league_id}` });
+          acc.push({ id: team.league_id, name: team.league?.name || `League ${team.league_id}` });
         }
         return acc;
       }, [] as Array<{ id: number; name: string }>);
@@ -69,10 +69,8 @@ const DashboardPage: React.FC = () => {
   const totalSeasonPoints = Array.isArray(userTeams) ? userTeams.reduce((sum, team) => sum + (team?.season_points || 0), 0) : 0;
   const totalMovesUsed = Array.isArray(userTeams) ? userTeams.reduce((sum, team) => sum + (team?.moves_this_week || 0), 0) : 0;
   
-  // Filter standings by selected league
-  const filteredStandings = selectedLeagueId 
-    ? currentScoresData.filter(score => score.league_id === selectedLeagueId)
-    : currentScoresData;
+  // Note: League filtering should be done server-side for scores
+  const filteredStandings = currentScoresData;
 
   return (
     <DashboardLayout>

@@ -8,6 +8,10 @@ interface ConfirmationModalProps {
   onCancel: () => void;
   confirmButtonText?: string;
   cancelButtonText?: string;
+  confirmText?: string;
+  isLoading?: boolean;
+  confirmDisabled?: boolean;
+  children?: React.ReactNode;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -18,6 +22,10 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onCancel,
   confirmButtonText = 'Confirm',
   cancelButtonText = 'Cancel',
+  confirmText,
+  isLoading = false,
+  confirmDisabled = false,
+  children,
 }) => {
   if (!isOpen) return null;
 
@@ -26,6 +34,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
         <h3 className="text-xl font-semibold mb-4 text-gray-800">{title}</h3>
         <p className="text-gray-600 mb-6 whitespace-pre-wrap">{message}</p>
+        {children && <div className="mb-4">{children}</div>}
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
@@ -35,9 +44,10 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={confirmDisabled || isLoading}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {confirmButtonText}
+            {isLoading ? 'Loading...' : (confirmText || confirmButtonText)}
           </button>
         </div>
       </div>

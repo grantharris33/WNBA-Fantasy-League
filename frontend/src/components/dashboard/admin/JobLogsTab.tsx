@@ -71,32 +71,6 @@ const JobLogsTab: React.FC = () => {
     return log.message.startsWith(selectedLevel);
   });
 
-  const getLogLevelColor = (message: string): string => {
-    if (message.startsWith('ERROR')) return 'text-red-600 bg-red-50 border-red-200';
-    if (message.startsWith('WARN')) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-    if (message.startsWith('INFO')) return 'text-blue-600 bg-blue-50 border-blue-200';
-    return 'text-gray-600 bg-gray-50 border-gray-200';
-  };
-
-  const getLogIcon = (message: string): string => {
-    if (message.startsWith('ERROR')) return '❌';
-    if (message.startsWith('WARN')) return '⚠️';
-    if (message.startsWith('INFO')) return 'ℹ️';
-    return '📝';
-  };
-
-  const getProviderColor = (provider: string): string => {
-    switch (provider) {
-      case 'rapidapi':
-        return 'bg-blue-100 text-blue-800';
-      case 'data_quality':
-        return 'bg-green-100 text-green-800';
-      case 'scheduler':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -264,7 +238,6 @@ const LogEntry: React.FC<LogEntryProps> = ({ log }) => {
   
   // Clean up the message by removing the log level prefix
   const cleanMessage = log.message.replace(/^(INFO|ERROR|WARN):\s*/, '');
-  const logLevel = log.message.match(/^(INFO|ERROR|WARN)/)?.[0] || 'INFO';
   
   return (
     <div className={`p-4 border-l-4 ${getLogLevelColor(log.message)}`}>

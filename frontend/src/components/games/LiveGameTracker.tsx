@@ -33,25 +33,10 @@ interface LiveGameData {
   }>;
 }
 
-interface LiveFantasyScore {
-  team_id: number;
-  total_fantasy_points: number;
-  starter_points: number;
-  player_scores: Array<{
-    player_id: number;
-    player_name: string;
-    position?: string;
-    is_starter: boolean;
-    fantasy_points: number;
-    has_live_game: boolean;
-  }>;
-  last_updated: string;
-}
 
 const LiveGameTracker: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const [gameData, setGameData] = useState<LiveGameData | null>(null);
-  const [fantasyScores, setFantasyScores] = useState<LiveFantasyScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);

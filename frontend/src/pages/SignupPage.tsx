@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const SignupPage = () => {
@@ -34,9 +33,15 @@ const SignupPage = () => {
 
     try {
       // Create user account
-      await api.post('/api/v1/users/', {
-        email,
-        password
+      await fetch('/api/v1/users/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password
+        }),
       });
 
       toast.success('Account created successfully!');

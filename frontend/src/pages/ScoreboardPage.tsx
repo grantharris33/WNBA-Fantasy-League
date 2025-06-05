@@ -123,8 +123,8 @@ const ScoreboardPage: React.FC = () => {
   const handleManualUpdate = useCallback(async () => {
     setIsUpdating(true);
     try {
-      const response = await api.post('/api/v1/scores/update');
-      toast.success(response.message || 'Scores updated successfully!');
+      // TODO: Implement score update endpoint
+      toast.info('Score update functionality not yet implemented');
       // Refresh current scores
       await fetchCurrentScores();
     } catch (error) {

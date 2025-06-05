@@ -1,12 +1,10 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface WelcomeCardProps {
   hasTeams: boolean;
 }
 
 const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasTeams }) => {
-  const { user } = useAuth();
   
   if (hasTeams) return null;
 

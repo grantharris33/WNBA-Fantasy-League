@@ -70,47 +70,11 @@ const AuditLogTab: React.FC = () => {
     });
   };
 
-  const getActionIcon = (action: string): string => {
-    switch (action) {
-      case 'MODIFY_HISTORICAL_LINEUP':
-        return '✏️';
-      case 'RECALCULATE_SCORE':
-        return '🔄';
-      case 'OVERRIDE_WEEKLY_MOVES':
-      case 'GRANT_ADMIN_MOVES':
-        return '🎫';
-      default:
-        return '📝';
-    }
-  };
-
-  const getActionColor = (action: string): string => {
-    switch (action) {
-      case 'MODIFY_HISTORICAL_LINEUP':
-        return 'bg-blue-100 text-blue-800';
-      case 'RECALCULATE_SCORE':
-        return 'bg-green-100 text-green-800';
-      case 'OVERRIDE_WEEKLY_MOVES':
-      case 'GRANT_ADMIN_MOVES':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const formatActionName = (action: string): string => {
     return action
       .split('_')
       .map(word => word.charAt(0) + word.slice(1).toLowerCase())
       .join(' ');
-  };
-
-  const parseDetails = (details: string): any => {
-    try {
-      return JSON.parse(details);
-    } catch {
-      return { details };
-    }
   };
 
   return (

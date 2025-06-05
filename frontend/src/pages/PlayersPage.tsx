@@ -56,13 +56,13 @@ const PlayersPage: React.FC = () => {
         const rosterPlayers = await Promise.all(
           rosterPlayerIds.map(async (playerId) => {
             try {
-              return await api.wnba.getPlayerDetails(playerId);
+              return await api.wnba.getPlayerStats(playerId);
             } catch {
               return null;
             }
           })
         );
-        setMyRosterPlayers(rosterPlayers.filter(player => player !== null));
+        setMyRosterPlayers(rosterPlayers.filter((player: any) => player !== null) as any);
       }
     } catch (err) {
       console.error('Failed to load roster players:', err);
