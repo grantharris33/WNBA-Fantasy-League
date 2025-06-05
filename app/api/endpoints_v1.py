@@ -81,7 +81,15 @@ def list_leagues(  # noqa: D401
 
 @router.get("/teams/{team_id}", response_model=TeamWithRosterSlotsOut)
 def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
-    team = db.query(Team).filter_by(id=team_id).one_or_none()
+    from sqlalchemy.orm import joinedload
+
+    team = (
+        db.query(Team)
+        .options(joinedload(Team.roster_slots).joinedload(RosterSlot.player), joinedload(Team.scores))
+        .filter_by(id=team_id)
+        .one_or_none()
+    )
+
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
@@ -92,7 +100,12 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
     roster_service.ensure_starters_carried_over(team_id)
 
     # Refresh the team data to get updated starter information
-    team = db.query(Team).filter_by(id=team_id).one_or_none()
+    team = (
+        db.query(Team)
+        .options(joinedload(Team.roster_slots).joinedload(RosterSlot.player), joinedload(Team.scores))
+        .filter_by(id=team_id)
+        .one_or_none()
+    )
 
     # Build roster slots with player details and starter info
     roster_slots: List[RosterSlotOut] = []
@@ -104,7 +117,7 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
         roster_slots.append(roster_slot)
 
     # Season points = sum of all weekly scores
-    season_points = sum(score.score for score in team.scores)
+    season_points = sum(score.score for score in team.scores) if team.scores else 0
 
     return TeamWithRosterSlotsOut(
         id=team.id,

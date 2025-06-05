@@ -10,14 +10,14 @@ const TeamManagementLayout: React.FC<TeamManagementLayoutProps> = ({ children, t
   const location = useLocation();
 
   const sidebarLinks = [
-    { to: '/my-teams', label: 'Team Overview', icon: 'bar_chart' },
-    { to: '/team/lineup', label: 'Lineup', icon: 'groups' },
-    { to: '/team/matchup', label: 'Matchup', icon: 'sports_basketball' },
-    { to: '/team/stats', label: 'Stats', icon: 'query_stats' },
+    { to: '/my-teams', label: 'My Teams', icon: 'groups' },
+    { to: '/players', label: 'All Players', icon: 'sports_basketball' },
+    { to: '/scoreboard', label: 'Standings', icon: 'leaderboard' },
+    { to: '/games', label: 'Games', icon: 'sports_score' },
   ];
 
   const isActivePath = (path: string) => {
-    return location.pathname.includes(path);
+    return location.pathname.startsWith(path) && path !== '/';
   };
 
   return (
@@ -61,18 +61,18 @@ const TeamManagementLayout: React.FC<TeamManagementLayoutProps> = ({ children, t
                     key={link.to}
                     to={link.to}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group ${
-                      isActivePath(link.label.toLowerCase()) 
+                      isActivePath(link.to) 
                         ? 'bg-[#0c7ff2]/10 text-[#0c7ff2]' 
                         : 'text-slate-700 hover:bg-slate-100 hover:text-[#0c7ff2]'
                     }`}
                   >
                     <span className={`material-icons ${
-                      isActivePath(link.label.toLowerCase()) 
+                      isActivePath(link.to) 
                         ? 'text-[#0c7ff2]' 
                         : 'text-slate-500 group-hover:text-[#0c7ff2]'
                     } transition-colors`}>{link.icon}</span>
                     <span className={`text-sm ${
-                      isActivePath(link.label.toLowerCase()) ? 'font-bold' : 'font-medium'
+                      isActivePath(link.to) ? 'font-bold' : 'font-medium'
                     }`}>{link.label}</span>
                   </Link>
                 ))}

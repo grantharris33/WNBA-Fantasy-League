@@ -29,6 +29,7 @@ interface PlayerSearchResult {
 const PlayersPage: React.FC = () => {
   const navigate = useNavigate();
   const [players, setPlayers] = useState<PlayerSearchResult[]>([]);
+  const [myRosterPlayers, setMyRosterPlayers] = useState<PlayerSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,31 @@ const PlayersPage: React.FC = () => {
     const remainingInches = inches % 12;
     return `${feet}'${remainingInches}"`;
   };
+
+  const loadMyRosterPlayers = useCallback(async () => {
+    try {
+      const teams = await api.users.getMyTeams();
+      const rosterPlayerIds = teams.flatMap(team => 
+        team.roster_slots?.map(slot => slot.player_id) || []
+      );
+      
+      if (rosterPlayerIds.length > 0) {
+        // Fetch player details for roster players
+        const rosterPlayers = await Promise.all(
+          rosterPlayerIds.map(async (playerId) => {
+            try {
+              return await api.wnba.getPlayerDetails(playerId);
+            } catch {
+              return null;
+            }
+          })
+        );
+        setMyRosterPlayers(rosterPlayers.filter(player => player !== null));
+      }
+    } catch (err) {
+      console.error('Failed to load roster players:', err);
+    }
+  }, []);
 
   const loadInitialPlayers = useCallback(async () => {
     setLoading(true);
@@ -98,7 +124,8 @@ const PlayersPage: React.FC = () => {
 
   useEffect(() => {
     loadInitialPlayers();
-  }, [loadInitialPlayers]);
+    loadMyRosterPlayers();
+  }, [loadInitialPlayers, loadMyRosterPlayers]);
 
   useEffect(() => {
     debouncedSearch(searchQuery, positionFilter, teamFilter);
@@ -178,6 +205,44 @@ const PlayersPage: React.FC = () => {
           Explore detailed statistics and information for WNBA players
         </p>
       </div>
+
+      {/* My Roster Players */}
+      {myRosterPlayers.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-[#0c7ff2]">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <span className="material-icons text-[#0c7ff2] mr-2">groups</span>
+            My Roster Players
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {myRosterPlayers.map(player => (
+              <div
+                key={player.player_id}
+                className="bg-slate-50 rounded-lg p-4 hover:bg-slate-100 cursor-pointer transition-colors"
+                onClick={() => navigate(`/player/${player.player_id}`)}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-[#0c7ff2] rounded-full flex items-center justify-center text-white font-semibold">
+                    {player.full_name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {player.full_name}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {player.position} • {player.team_abbr}
+                    </p>
+                    <div className="flex space-x-2 mt-1">
+                      <span className="text-xs text-slate-600">{player.ppg?.toFixed(1)} PPG</span>
+                      <span className="text-xs text-slate-600">{player.rpg?.toFixed(1)} RPG</span>
+                      <span className="text-xs text-slate-600">{player.apg?.toFixed(1)} APG</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="bg-white rounded-lg shadow-sm p-6">
