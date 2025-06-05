@@ -137,6 +137,16 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
 
 @router.get("/scores/current", response_model=List[ScoreOut])
 def current_scores(*, db: Session = Depends(get_db)) -> List[ScoreOut]:  # noqa: D401
+    from app.services.cache import CacheService
+
+    # Try to get from cache first
+    cache_service = CacheService(db)
+    cache_key = cache_service.create_cache_key("current_scores")
+    cached_scores = cache_service.get(cache_key)
+
+    if cached_scores is not None:
+        return cached_scores
+
     # Determine latest week id (if any)
     latest_week = db.query(func.max(TeamScore.week)).scalar()
 
@@ -183,6 +193,10 @@ def current_scores(*, db: Session = Depends(get_db)) -> List[ScoreOut]:  # noqa:
 
     # Sort descending by season points
     result.sort(key=lambda s: s.season_points, reverse=True)
+
+    # Cache the results for 5 minutes
+    cache_service.set(cache_key, result, ttl_seconds=300, endpoint="current_scores")
+
     return result
 
 

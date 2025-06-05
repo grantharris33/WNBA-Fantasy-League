@@ -20,6 +20,7 @@ from .endpoints_v1 import router as v1_router
 from .game_router import router as game_router
 from .league_management import router as league_management_router
 from .league_router import router as league_router
+from .live_games import router as live_games_router
 from .logs import router as logs_router
 from .lookup import router as lookup_router
 from .scores import router as scores_router
@@ -59,6 +60,9 @@ router.include_router(league_router, prefix="/api/v1")
 
 # WNBA data endpoints
 router.include_router(wnba_router)
+
+# Live games endpoints
+router.include_router(live_games_router)
 
 # Lookup endpoints
 router.include_router(lookup_router)
