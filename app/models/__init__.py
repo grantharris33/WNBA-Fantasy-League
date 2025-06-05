@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import JSON, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
@@ -659,6 +659,158 @@ class Notification(Base):
     league = relationship("League", backref="notifications")
     team = relationship("Team", backref="notifications")
     player = relationship("Player", backref="notifications")
+
+
+# ---------------------------------------------------------------------------
+# Live Game Tracking Models
+# ---------------------------------------------------------------------------
+
+
+class LiveGameTracker(Base):
+    __tablename__ = "live_game_tracker"
+
+    id: int = Column(Integer, primary_key=True)
+    game_id: str = Column(String, ForeignKey("game.id"), nullable=False, unique=True)
+    game_date: datetime = Column(DateTime, nullable=False)
+    status: str = Column(String, nullable=False)  # scheduled, in_progress, final
+    last_update: datetime = Column(DateTime, nullable=False)
+    next_update: datetime = Column(DateTime, nullable=False)
+    update_frequency: int = Column(Integer, default=300)  # seconds
+    quarter: int | None = Column(Integer)
+    time_remaining: str | None = Column(String)
+    home_score: int = Column(Integer, default=0)
+    away_score: int = Column(Integer, default=0)
+    is_active: bool = Column(Boolean, default=True)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    game = relationship("Game", backref="live_tracker")
+
+    def should_update(self) -> bool:
+        """Check if the game should be updated based on next_update time."""
+        return datetime.utcnow() >= self.next_update and self.is_active
+
+    def calculate_next_update(self) -> datetime:
+        """Calculate the next update time based on game status."""
+        now = datetime.utcnow()
+        if self.status == "in_progress":
+            # More frequent updates during live games
+            return now + timedelta(seconds=self.update_frequency)
+        elif self.status == "scheduled":
+            # Less frequent updates for scheduled games
+            return now + timedelta(seconds=1800)  # 30 minutes
+        else:  # final
+            # No more updates needed for completed games
+            return now + timedelta(days=1)
+
+
+class LivePlayerStats(Base):
+    __tablename__ = "live_player_stats"
+    __table_args__ = (UniqueConstraint("game_id", "player_id", name="uq_live_stats_game_player"),)
+
+    id: int = Column(Integer, primary_key=True)
+    game_id: str = Column(String, ForeignKey("game.id"), nullable=False)
+    player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)
+
+    # Live stats (same as StatLine but for in-progress games)
+    minutes_played: float = Column(Float, default=0.0)
+    points: float = Column(Float, default=0.0)
+    rebounds: float = Column(Float, default=0.0)
+    assists: float = Column(Float, default=0.0)
+    steals: float = Column(Float, default=0.0)
+    blocks: float = Column(Float, default=0.0)
+    field_goals_made: int = Column(Integer, default=0)
+    field_goals_attempted: int = Column(Integer, default=0)
+    three_pointers_made: int = Column(Integer, default=0)
+    three_pointers_attempted: int = Column(Integer, default=0)
+    free_throws_made: int = Column(Integer, default=0)
+    free_throws_attempted: int = Column(Integer, default=0)
+    turnovers: int = Column(Integer, default=0)
+    personal_fouls: int = Column(Integer, default=0)
+
+    # Fantasy points calculation
+    fantasy_points: float = Column(Float, default=0.0)
+
+    # Tracking
+    last_update: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    is_final: bool = Column(Boolean, default=False)  # True when game is finished
+
+    # Relationships
+    game = relationship("Game", backref="live_stats")
+    player = relationship("Player", backref="live_stats")
+
+    def calculate_fantasy_points(self) -> float:
+        """Calculate fantasy points based on current stats."""
+        # Standard fantasy scoring
+        points = (
+            self.points * 1.0
+            + self.rebounds * 1.2
+            + self.assists * 1.5
+            + self.steals * 3.0
+            + self.blocks * 3.0
+            + self.turnovers * -1.0
+        )
+        return round(points, 2)
+
+    def update_fantasy_points(self):
+        """Update the fantasy_points field."""
+        self.fantasy_points = self.calculate_fantasy_points()
+
+
+# ---------------------------------------------------------------------------
+# Cache Models
+# ---------------------------------------------------------------------------
+
+
+class ApiCache(Base):
+    __tablename__ = "api_cache"
+
+    id: int = Column(Integer, primary_key=True)
+    cache_key: str = Column(String, nullable=False, unique=True, index=True)
+    data: dict = Column(JSON, nullable=False)
+    expires_at: datetime = Column(DateTime, nullable=False)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    hit_count: int = Column(Integer, default=0)
+    last_accessed: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Metadata
+    endpoint: str | None = Column(String)  # Which API endpoint this cache is for
+    size_bytes: int = Column(Integer, default=0)  # Approximate size for monitoring
+
+    def is_expired(self) -> bool:
+        """Check if the cache entry is expired."""
+        return datetime.utcnow() > self.expires_at
+
+    def increment_hit_count(self):
+        """Increment hit count and update last accessed time."""
+        self.hit_count += 1
+        self.last_accessed = datetime.utcnow()
+
+
+class CacheStatistics(Base):
+    __tablename__ = "cache_statistics"
+
+    id: int = Column(Integer, primary_key=True)
+    date: date = Column(Date, nullable=False, unique=True)
+    total_requests: int = Column(Integer, default=0)
+    cache_hits: int = Column(Integer, default=0)
+    cache_misses: int = Column(Integer, default=0)
+    api_calls_saved: int = Column(Integer, default=0)
+    average_response_time: float = Column(Float, default=0.0)  # milliseconds
+
+    # Breakdown by endpoint
+    endpoint_stats: dict = Column(JSON, default={})
+
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    @property
+    def hit_rate(self) -> float:
+        """Calculate cache hit rate."""
+        if self.total_requests == 0:
+            return 0.0
+        return (self.cache_hits / self.total_requests) * 100
 
 
 # ---------------------------------------------------------------------------
