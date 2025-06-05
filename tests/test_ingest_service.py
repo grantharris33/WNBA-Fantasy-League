@@ -14,6 +14,7 @@ async def test_jobs_route(monkeypatch, tmp_path: Path):
     db_file = tmp_path / "test.db"
     monkeypatch.setenv("DB_FILENAME", str(db_file))
     monkeypatch.setenv("RAPIDAPI_KEY", "dummy-key")
+    monkeypatch.setenv("TESTING", "false")  # Allow scheduler to start for this test
 
     # Import app after env vars set
     from importlib import reload
