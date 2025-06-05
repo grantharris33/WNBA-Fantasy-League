@@ -85,6 +85,14 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
+    # Ensure starters are carried over from previous week if needed
+    from app.services.roster import RosterService
+    roster_service = RosterService(db)
+    roster_service.ensure_starters_carried_over(team_id)
+
+    # Refresh the team data to get updated starter information
+    team = db.query(Team).filter_by(id=team_id).one_or_none()
+
     # Build roster slots with player details and starter info
     roster_slots: List[RosterSlotOut] = []
     for rs in team.roster_slots:
@@ -255,8 +263,6 @@ def historical_scores(*, db: Session = Depends(get_db), league_id: int = Query(N
 @router.get("/scores/top-performers", response_model=List[TopPerformerOut])
 def top_performers(*, db: Session = Depends(get_db), week: int = Query(None)) -> List[TopPerformerOut]:  # noqa: D401
     """Get top performing players for a given week or overall."""
-    from app.models import StatLine
-
     query = db.query(StatLine).join(Player)
 
     # Filter by week if provided

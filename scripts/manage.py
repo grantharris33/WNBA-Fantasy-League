@@ -135,7 +135,7 @@ def backfill_season(season: int):
         # Show some example players for verification
         sample_players = db.query(Player).limit(5).all()
         if sample_players:
-            print(f"\nSample players imported:")
+            print("\nSample players imported:")
             for player in sample_players:
                 print(f"  - {player.full_name} ({player.position or 'N/A'})")
     finally:
@@ -169,7 +169,7 @@ def backfill_season(season: int):
     if weeks_run:
         print(f"\nScore calculation complete: processed {len(weeks_run)} ISO weeks ({weeks_run[0]}–{weeks_run[-1]})")
     else:
-        print(f"\nScore calculation complete: no ISO weeks processed")
+        print("\nScore calculation complete: no ISO weeks processed")
 
     # Show final statistics
     print(f"\n{'='*80}")
@@ -186,7 +186,7 @@ def backfill_season(season: int):
         ).order_by(IngestLog.timestamp.desc()).limit(5).all()
 
         if recent_errors:
-            print(f"\nRecent ingest errors (showing last 5):")
+            print("\nRecent ingest errors (showing last 5):")
             for error in recent_errors:
                 print(f"  {error.timestamp}: {error.message}")
     finally:
@@ -331,14 +331,14 @@ def show_stats():
         players_count = db.query(Player).count()
         stat_lines_count = db.query(StatLine).count()
 
-        print(f"📊 OVERVIEW")
+        print("📊 OVERVIEW")
         print(f"Users: {users_count} | Leagues: {leagues_count} | Teams: {teams_count}")
         print(f"Players: {players_count} | Stat Lines: {stat_lines_count}")
 
         # League statistics
         if leagues_count > 0:
-            print(f"\n🏀 LEAGUE STATS")
-            active_leagues = db.query(League).filter(League.is_active == True).count()
+            print("\n🏀 LEAGUE STATS")
+            active_leagues = db.query(League).filter(League.is_active is True).count()
             print(f"Active leagues: {active_leagues}/{leagues_count}")
 
             # Teams per league
@@ -347,7 +347,7 @@ def show_stats():
 
         # Player statistics
         if players_count > 0:
-            print(f"\n👥 PLAYER STATS")
+            print("\n👥 PLAYER STATS")
 
             # Position breakdown
             positions = db.query(Player.position, func.count(Player.id)).group_by(Player.position).all()
@@ -362,7 +362,7 @@ def show_stats():
 
         # Game statistics
         if stat_lines_count > 0:
-            print(f"\n📈 GAME STATS")
+            print("\n📈 GAME STATS")
 
             # Date range
             date_range = db.query(
@@ -381,14 +381,14 @@ def show_stats():
         # Draft statistics
         draft_count = db.query(DraftState).count()
         if draft_count > 0:
-            print(f"\n🎯 DRAFT STATS")
+            print("\n🎯 DRAFT STATS")
             active_drafts = db.query(DraftState).filter(DraftState.status == "active").count()
             completed_drafts = db.query(DraftState).filter(DraftState.status == "completed").count()
             print(f"Active drafts: {active_drafts}")
             print(f"Completed drafts: {completed_drafts}")
 
         # Recent activity
-        print(f"\n🕒 RECENT ACTIVITY")
+        print("\n🕒 RECENT ACTIVITY")
         recent_users = db.query(User).filter(User.created_at >= dt.datetime.utcnow() - dt.timedelta(days=7)).count()
         print(f"New users (last 7 days): {recent_users}")
 
@@ -478,7 +478,7 @@ def show_players(position: str = None, limit: int = 20, search: str = None):
             print(f"\n... and {total_count - limit} more players")
 
         # Show position summary
-        print(f"\n📊 Position Summary:")
+        print("\n📊 Position Summary:")
         positions = db.query(Player.position, func.count(Player.id)).group_by(Player.position).all()
         for pos, count in sorted(positions):
             pos_name = pos or "Unknown"
@@ -545,31 +545,31 @@ def verify_data():
         print("🔍 Running integrity checks...\n")
 
         # Check 1: Users without teams in active leagues
-        users_without_teams = db.query(User).outerjoin(Team).filter(Team.id == None).count()
+        users_without_teams = db.query(User).outerjoin(Team).filter(Team.id is None).count()
         if users_without_teams > 0:
             print(f"ℹ️  {users_without_teams} users have no teams (this may be normal)")
 
         # Check 2: Teams without owners
-        teams_without_owners = db.query(Team).filter(Team.owner_id == None).count()
+        teams_without_owners = db.query(Team).filter(Team.owner_id is None).count()
         if teams_without_owners > 0:
             print(f"⚠️  {teams_without_owners} teams have no owners")
             issues_found += 1
 
         # Check 3: Teams in non-existent leagues
-        orphaned_teams = db.query(Team).outerjoin(League).filter(League.id == None).count()
+        orphaned_teams = db.query(Team).outerjoin(League).filter(League.id is None).count()
         if orphaned_teams > 0:
             print(f"❌ {orphaned_teams} teams reference non-existent leagues")
             issues_found += 1
 
         # Check 4: Stat lines for non-existent players
-        orphaned_stats = db.query(StatLine).outerjoin(Player).filter(Player.id == None).count()
+        orphaned_stats = db.query(StatLine).outerjoin(Player).filter(Player.id is None).count()
         if orphaned_stats > 0:
             print(f"❌ {orphaned_stats} stat lines reference non-existent players")
             issues_found += 1
 
         # Check 5: Roster slots for non-existent teams/players
-        orphaned_roster_teams = db.query(RosterSlot).outerjoin(Team).filter(Team.id == None).count()
-        orphaned_roster_players = db.query(RosterSlot).outerjoin(Player).filter(Player.id == None).count()
+        orphaned_roster_teams = db.query(RosterSlot).outerjoin(Team).filter(Team.id is None).count()
+        orphaned_roster_players = db.query(RosterSlot).outerjoin(Player).filter(Player.id is None).count()
 
         if orphaned_roster_teams > 0:
             print(f"❌ {orphaned_roster_teams} roster slots reference non-existent teams")
@@ -580,7 +580,7 @@ def verify_data():
             issues_found += 1
 
         # Check 6: Draft states for non-existent leagues
-        orphaned_drafts = db.query(DraftState).outerjoin(League).filter(League.id == None).count()
+        orphaned_drafts = db.query(DraftState).outerjoin(League).filter(League.id is None).count()
         if orphaned_drafts > 0:
             print(f"❌ {orphaned_drafts} draft states reference non-existent leagues")
             issues_found += 1
@@ -727,7 +727,7 @@ def ingest_data_range(start_date: str, end_date: str):
         # Show some example players
         if final_players > initial_players:
             sample_players = db.query(Player).order_by(Player.id.desc()).limit(5).all()
-            print(f"\nRecently added/updated players:")
+            print("\nRecently added/updated players:")
             for player in sample_players:
                 print(f"  - {player.full_name} ({player.position or 'N/A'})")
     finally:

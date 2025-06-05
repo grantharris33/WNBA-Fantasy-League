@@ -59,8 +59,8 @@ class AdminService:
 
         # Store before state for audit
         before_state = {
-            "starters": [l.player_id for l in existing_lineup if l.is_starter],
-            "bench": [l.player_id for l in existing_lineup if not l.is_starter]
+            "starters": [lineup.player_id for lineup in existing_lineup if lineup.is_starter],
+            "bench": [lineup.player_id for lineup in existing_lineup if not lineup.is_starter]
         }
 
         # Apply changes
@@ -75,7 +75,7 @@ class AdminService:
         # Store after state for audit
         after_state = {
             "starters": new_starter_ids,
-            "bench": [l.player_id for l in existing_lineup if not l.is_starter]
+            "bench": [lineup.player_id for lineup in existing_lineup if not lineup.is_starter]
         }
 
         # Log the admin action

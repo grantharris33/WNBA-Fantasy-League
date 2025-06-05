@@ -141,7 +141,7 @@ def test_lock_weekly_lineups(lineup_service, setup_lineup_test, db):
     assert len(lineups) == 7  # All 7 players
 
     # Check starters
-    starters = [l for l in lineups if l.is_starter]
+    starters = [lineup for lineup in lineups if lineup.is_starter]
     assert len(starters) == 5
 
 

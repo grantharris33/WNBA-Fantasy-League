@@ -267,6 +267,6 @@ async def websocket_endpoint(websocket: WebSocket, league_id: int = Path(...), t
         try:
             if websocket.client_state == websocket.client_state.CONNECTED:
                 await websocket.close(code=1008, reason=str(e))
-        except:
-            pass  # Connection may already be closed
+        except Exception as close_error:
+            print(f"Failed to close websocket: {close_error}")  # Connection may already be closed
         return

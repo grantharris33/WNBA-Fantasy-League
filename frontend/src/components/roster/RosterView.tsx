@@ -84,7 +84,7 @@ const RosterView: React.FC<RosterViewProps> = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleToggleStarter(player, isStarter);
+              handleToggleStarter();
             }}
             className={`text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-colors ${
               isStarter

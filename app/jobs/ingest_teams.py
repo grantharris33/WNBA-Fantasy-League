@@ -63,7 +63,7 @@ def _upsert_wnba_team(session, team_data: dict[str, Any]) -> models.WNBATeam:
 
     # Extract team name and location from displayName
     display_name = team_data.get("displayName", "")
-    short_name = team_data.get("shortDisplayName", "")
+    team_data.get("shortDisplayName", "")
 
     # Try to split display name into location and name
     # e.g., "Atlanta Dream" -> location="Atlanta", name="Dream"

@@ -62,7 +62,7 @@ def list_admins():
     db: Session = SessionLocal()
 
     try:
-        admins = db.query(User).filter(User.is_admin == True).all()
+        admins = db.query(User).filter(User.is_admin is True).all()
 
         if not admins:
             click.echo("No admin users found")

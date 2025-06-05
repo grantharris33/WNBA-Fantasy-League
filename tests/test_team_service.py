@@ -83,7 +83,7 @@ def test_get_teams_by_league_id(db: Session, setup_team_test):
 
 def test_create_team_in_league_success(db: Session, setup_team_test):
     """Test successfully creating a team in a league."""
-    league_id = setup_team_test["leagues"][0].id
+    setup_team_test["leagues"][0].id
     owner_id = setup_team_test["users"][1].id
     name = "New Team"
 

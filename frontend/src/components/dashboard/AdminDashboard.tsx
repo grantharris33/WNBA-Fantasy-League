@@ -2,16 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import { useAuth } from '../../contexts/AuthContext';
-
-// Mock admin API service for now - this would be replaced with the actual service
-const adminApi = {
-  async getAuditLog() { return []; },
-  async getTeamLineupHistory() { return []; },
-  async getAdminLineupView() { return { lineup: [] }; },
-  async modifyHistoricalLineup() { return { success: true }; },
-  async recalculateScore() { return { success: true }; },
-  async grantAdditionalMoves() { return { success: true }; }
-};
+import { adminApi } from '../../services/adminApi';
 
 interface Team {
   id: number;

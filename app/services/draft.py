@@ -156,6 +156,8 @@ class DraftService:
         # Check if draft is complete (10 rounds)
         if draft.current_round > 10:
             draft.status = "completed"
+            # Automatically set starters for all teams when draft completes
+            self._set_initial_starters_for_all_teams(draft.league_id)
 
         # Commit changes
         self.db.add(pick)
@@ -363,6 +365,99 @@ class DraftService:
 
         # Check if we can satisfy requirements with remaining picks
         return remaining_picks >= (guards_needed + forwards_needed)
+
+    def _set_initial_starters_for_all_teams(self, league_id: int) -> None:
+        """
+        Automatically set starters for all teams in a league after draft completion.
+        Selects the first 5 players that satisfy positional requirements (>=2G, >=1F/C).
+        """
+        # Get all teams in the league
+        teams = self.db.query(Team).filter(Team.league_id == league_id).all()
+
+        for team in teams:
+            self._set_initial_starters_for_team(team.id)
+
+    def _set_initial_starters_for_team(self, team_id: int) -> None:
+        """
+        Set initial starters for a single team based on draft order and position requirements.
+        """
+        # Get all roster slots for this team, ordered by draft pick order
+        roster_slots = (
+            self.db.query(RosterSlot)
+            .join(DraftPick, RosterSlot.player_id == DraftPick.player_id)
+            .filter(RosterSlot.team_id == team_id)
+            .order_by(DraftPick.pick_number)
+            .all()
+        )
+
+        if len(roster_slots) < 5:
+            # Team doesn't have enough players to set starters
+            return
+
+        # Try to find the first valid 5-player combination that meets position requirements
+        selected_starters = self._find_valid_starter_combination(roster_slots)
+
+        if len(selected_starters) == 5:
+            # Set the selected players as starters
+            for slot in roster_slots:
+                if slot.player_id in selected_starters:
+                    slot.is_starter = True
+                else:
+                    slot.is_starter = False
+
+            # Log the action
+            player_names = []
+            for slot in roster_slots:
+                if slot.is_starter:
+                    player = self.db.query(Player).filter(Player.id == slot.player_id).first()
+                    player_names.append(player.full_name if player else "Unknown")
+
+            team = self.db.query(Team).filter(Team.id == team_id).first()
+            action = f"Auto-set initial starters for {team.name if team else 'Unknown Team'}: {', '.join(player_names)}"
+            self._log_transaction(None, action)  # No specific user for auto-action
+
+    def _find_valid_starter_combination(self, roster_slots: List[RosterSlot]) -> List[int]:
+        """
+        Find the first valid combination of 5 players that meets position requirements.
+        Returns list of player IDs.
+        """
+        from itertools import combinations
+
+        # Get player positions for all roster slots
+        player_positions = {}
+        for slot in roster_slots:
+            player = self.db.query(Player).filter(Player.id == slot.player_id).first()
+            player_positions[slot.player_id] = player.position if player else None
+
+        # Try combinations starting with the first drafted players (prioritize early picks)
+        # First try combinations that include the first 3 picks, then expand
+        roster_player_ids = [slot.player_id for slot in roster_slots]
+
+        # Start with combinations that include early picks, then try all combinations
+        for start_index in range(min(3, len(roster_slots) - 4)):  # Start with first few picks
+            for combo in combinations(roster_player_ids[start_index:], 5):
+                if self._validate_starter_positions(combo, player_positions):
+                    return list(combo)
+
+        # If no valid combination found with early picks, try all combinations
+        for combo in combinations(roster_player_ids, 5):
+            if self._validate_starter_positions(combo, player_positions):
+                return list(combo)
+
+        # If no valid combination found, just take first 5 players
+        return roster_player_ids[:5]
+
+    def _validate_starter_positions(self, player_ids: tuple, player_positions: dict) -> bool:
+        """
+        Validate that a combination of players meets position requirements.
+        Returns True if the combination has >=2 Guards and >=1 Forward/Center.
+        """
+        positions = [player_positions.get(pid) for pid in player_ids if player_positions.get(pid)]
+
+        guard_count = sum(1 for pos in positions if pos and 'G' in pos)
+        forward_center_count = sum(1 for pos in positions if pos and ('F' in pos or 'C' in pos))
+
+        return guard_count >= 2 and forward_center_count >= 1
 
     def _log_transaction(self, user_id: int, action: str) -> None:
         """Log a transaction to the transaction_log table."""

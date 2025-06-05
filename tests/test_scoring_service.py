@@ -100,7 +100,7 @@ async def test_update_weekly_team_scores(monkeypatch, tmp_path: Path):
     print(f"Found {len(stat_lines)} stat lines")
 
     # Check if roster slots exist with starters
-    roster_slots = session2.query(models.RosterSlot).filter(models.RosterSlot.is_starter == True).all()
+    roster_slots = session2.query(models.RosterSlot).filter(models.RosterSlot.is_starter is True).all()
     print(f"Found {len(roster_slots)} starter roster slots")
 
     assert len(rows) == 2

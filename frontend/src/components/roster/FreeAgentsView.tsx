@@ -27,10 +27,6 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
   const [teamFilter, setTeamFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    fetchFreeAgents();
-  }, [leagueId, fetchFreeAgents]);
-
   const fetchFreeAgents = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -44,6 +40,10 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
       setLoading(false);
     }
   }, [leagueId]);
+
+  useEffect(() => {
+    fetchFreeAgents();
+  }, [fetchFreeAgents]);
 
   const filteredAgents = freeAgents.filter((player) => {
     const matchesSearch = player.full_name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -94,15 +94,15 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
           {/* Player Stats */}
           <div className="grid grid-cols-3 gap-2 text-xs text-slate-500 mb-2">
             <div className="text-center">
-              <div className="font-medium text-slate-900">{player.ppg ? player.ppg.toFixed(1) : '--'}</div>
+              <div className="font-medium text-slate-900">{player.stats_2024?.ppg ? player.stats_2024.ppg.toFixed(1) : '--'}</div>
               <div>PPG</div>
             </div>
             <div className="text-center">
-              <div className="font-medium text-slate-900">{player.rpg ? player.rpg.toFixed(1) : '--'}</div>
+              <div className="font-medium text-slate-900">{player.stats_2024?.rpg ? player.stats_2024.rpg.toFixed(1) : '--'}</div>
               <div>RPG</div>
             </div>
             <div className="text-center">
-              <div className="font-medium text-slate-900">{player.apg ? player.apg.toFixed(1) : '--'}</div>
+              <div className="font-medium text-slate-900">{player.stats_2024?.apg ? player.stats_2024.apg.toFixed(1) : '--'}</div>
               <div>APG</div>
             </div>
           </div>

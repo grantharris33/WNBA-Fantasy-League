@@ -1,11 +1,11 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { AuthContext } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -63,19 +63,19 @@ const SettingsPage: React.FC = () => {
             <h2 className="text-xl font-bold text-[#0d141c] mb-4">Account Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
                 <input
                   type="text"
-                  value={user?.username || 'Not available'}
+                  value={user?.email || 'Not available'}
                   disabled
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-600"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">User ID</label>
                 <input
-                  type="email"
-                  value={user?.email || 'Not available'}
+                  type="text"
+                  value={user?.id?.toString() || 'Not available'}
                   disabled
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-600"
                 />

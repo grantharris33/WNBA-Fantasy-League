@@ -78,7 +78,7 @@ def season(season: int, start_date: Optional[datetime], end_date: Optional[datet
                 dry_run=dry_run
             )
 
-            click.echo(f"\n📊 Backfill Summary:")
+            click.echo("\n📊 Backfill Summary:")
             click.echo(f"Status: {run.status}")
             click.echo(f"Games found: {run.games_found}")
             click.echo(f"Games processed: {run.games_processed}")
@@ -116,12 +116,12 @@ def health_check(check_missing: bool, days_back: int):
 
             queue_status = health.get('queue_status', {})
             if queue_status:
-                click.echo(f"\n📋 Queue Status:")
+                click.echo("\n📋 Queue Status:")
                 for status, count in queue_status.items():
                     click.echo(f"  {status}: {count}")
 
             if check_missing:
-                click.echo(f"\n🔍 Checking for missing games...")
+                click.echo("\n🔍 Checking for missing games...")
                 end_date = date.today()
                 start_date = end_date - dt.timedelta(days=days_back)
 
@@ -682,7 +682,7 @@ def stats():
             StatLine.game_date >= datetime.utcnow() - dt.timedelta(days=7)
         ).count()
 
-        click.echo(f"\n🕒 Recent Activity (7 days)")
+        click.echo("\n🕒 Recent Activity (7 days)")
         click.echo(f"New stat lines: {recent_stats}")
 
         # Latest data

@@ -21,7 +21,7 @@ def sample_player(db: Session):
         team_abbr="TST"
     )
     db.add(player)
-    db.commit()
+    db.flush()
     return player
 
 
@@ -36,7 +36,7 @@ def sample_team(db: Session):
         display_name="Test City Test Team"
     )
     db.add(team)
-    db.commit()
+    db.flush()
     return team
 
 
@@ -88,7 +88,7 @@ def sample_games_and_stats(db: Session, sample_player, sample_team):
         stats.append(stat)
         db.add(stat)
 
-    db.commit()
+    db.flush()
     return games, stats
 
 
@@ -96,6 +96,9 @@ def test_calculate_player_efficiency_rating(db: Session, sample_player, sample_g
     """Test PER calculation."""
     analytics_service = AnalyticsService(db)
 
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+    
     per = analytics_service.calculate_player_efficiency_rating(
         sample_player.id,
         datetime.now().year
@@ -126,6 +129,9 @@ def test_calculate_fantasy_consistency(db: Session, sample_player, sample_games_
     """Test fantasy consistency score calculation."""
     analytics_service = AnalyticsService(db)
 
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
     consistency = analytics_service.calculate_fantasy_consistency(sample_player.id, games=5)
 
     assert consistency >= 0
@@ -152,6 +158,9 @@ def test_update_player_season_stats(db: Session, sample_player, sample_games_and
     """Test updating player season statistics."""
     analytics_service = AnalyticsService(db)
 
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
     season_stats = analytics_service.update_player_season_stats(
         sample_player.id,
         datetime.now().year
@@ -172,6 +181,9 @@ def test_update_player_trends(db: Session, sample_player, sample_games_and_stats
     """Test updating player trends."""
     analytics_service = AnalyticsService(db)
 
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
     trends = analytics_service.update_player_trends(sample_player.id)
 
     assert trends is not None
@@ -184,6 +196,9 @@ def test_update_player_trends(db: Session, sample_player, sample_games_and_stats
 def test_project_fantasy_points(db: Session, sample_player, sample_team, sample_games_and_stats):
     """Test fantasy point projection."""
     analytics_service = AnalyticsService(db)
+
+    # Flush to ensure all data is available in this transaction
+    db.flush()
 
     # First calculate season stats
     analytics_service.update_player_season_stats(sample_player.id, datetime.now().year)
@@ -200,6 +215,9 @@ def test_project_fantasy_points(db: Session, sample_player, sample_team, sample_
 
 def test_analytics_api_endpoints(client, db: Session, sample_player, sample_games_and_stats):
     """Test analytics API endpoints."""
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+    
     # Test get player analytics
     response = client.get(f"/api/v1/players/{sample_player.id}/analytics")
     assert response.status_code == 200

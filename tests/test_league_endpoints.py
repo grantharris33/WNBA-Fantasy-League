@@ -262,7 +262,7 @@ class TestLeagueEndpoints:
             json={"name": "Owned League"},
         )
         assert response.status_code == 201
-        invite_code = response.json()["invite_code"]
+        response.json()["invite_code"]
         app.dependency_overrides.clear()
 
         # Create another league with second user

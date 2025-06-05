@@ -105,7 +105,7 @@ class BackfillService:
 
                             # Count what we processed
                             game_date_dt = dt.datetime.combine(current_date, dt.time())
-                            processed_stats = self.db.query(StatLine).filter(
+                            self.db.query(StatLine).filter(
                                 StatLine.game_date >= game_date_dt,
                                 StatLine.game_date < game_date_dt + dt.timedelta(days=1)
                             ).count()
@@ -179,7 +179,6 @@ class BackfillService:
         }
 
                 # Close the WNBA client to avoid connection issues
-        from app.external_apis.rapidapi_client import wnba_client
         await wnba_client.close()
 
         return result

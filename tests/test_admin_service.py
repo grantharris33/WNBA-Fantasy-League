@@ -196,11 +196,10 @@ class TestAdminService:
         """Test score recalculation."""
         admin_service = AdminService(db)
 
-        old_score = test_team_score.score
 
         # Mock the scoring calculation by directly updating the score
         # In a real scenario, this would trigger the actual scoring calculation
-        new_score = admin_service.recalculate_team_week_score(
+        admin_service.recalculate_team_week_score(
             team_id=test_team.id,
             week_id=202501,
             admin_user_id=admin_user.id,

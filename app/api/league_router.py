@@ -55,9 +55,16 @@ def _map_schedule(games: List[dict[str, Any]], date_str: str) -> ScheduleDayOut:
     return ScheduleDayOut(date=date_str, games=mapped_games)
 
 
-def _map_news(raw: dict[str, Any]) -> List[NewsArticleOut]:
+def _map_news(raw: dict[str, Any] | list[dict[str, Any]]) -> List[NewsArticleOut]:
     articles: List[NewsArticleOut] = []
-    for item in raw.get("articles", raw.get("data", [])):
+    # Handle case where raw is already a list of articles
+    if isinstance(raw, list):
+        items = raw
+    else:
+        # Handle case where raw is a dict with articles or data key
+        items = raw.get("articles", raw.get("data", []))
+
+    for item in items:
         link_val = item.get("link")
         if isinstance(link_val, dict):
             link_val = link_val.get("href")
@@ -71,19 +78,38 @@ def _map_news(raw: dict[str, Any]) -> List[NewsArticleOut]:
 
 def _map_injuries(raw: dict[str, Any]) -> LeagueInjuryReportOut:
     teams: List[TeamInjuryListOut] = []
-    for team in raw.get("teams", []):
+
+    # Handle new API structure where data is under "injuries" key
+    injury_data = raw.get("injuries", raw.get("teams", []))
+
+    for team in injury_data:
         players: List[PlayerInjuryDetailOut] = []
-        for p in team.get("injuries", []):
+        for injury in team.get("injuries", []):
+            # Extract player info from athlete object
+            athlete = injury.get("athlete", {})
+            player_id = str(athlete.get("id") or injury.get("id", ""))
+            player_name = athlete.get("displayName") or athlete.get("firstName", "") + " " + athlete.get("lastName", "")
+            position = athlete.get("position", {}).get("abbreviation")
+
+            # Get injury details
+            status = injury.get("status", "Unknown")
+            comment = injury.get("shortComment") or injury.get("longComment") or injury.get("details", {}).get("type", "")
+
             players.append(
                 PlayerInjuryDetailOut(
-                    player_id=str(p.get("id") or p.get("playerId")),
-                    player_name=p.get("name") or p.get("fullName"),
-                    position=p.get("position"),
-                    status=p.get("status"),
-                    comment=p.get("comment") or p.get("details"),
+                    player_id=player_id,
+                    player_name=player_name.strip(),
+                    position=position,
+                    status=status,
+                    comment=comment,
                 )
             )
-        teams.append(TeamInjuryListOut(team_id=str(team.get("id")), team_name=team.get("name"), players=players))
+
+        team_id = str(team.get("id", ""))
+        team_name = team.get("displayName") or team.get("name", "")
+
+        teams.append(TeamInjuryListOut(team_id=team_id, team_name=team_name, players=players))
+
     return LeagueInjuryReportOut(teams=teams)
 
 

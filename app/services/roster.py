@@ -1,15 +1,21 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta, date
 from typing import List, Optional
 
 from sqlalchemy import and_, exists, func, not_, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import League, Player, RosterSlot, Team, TransactionLog, User, AdminMoveGrant
+from app.models import League, Player, RosterSlot, Team, TransactionLog, User, AdminMoveGrant, WeeklyLineup
 
 
 class RosterService:
     def __init__(self, db: Session):
         self.db = db
+
+    def _get_current_week_id(self) -> int:
+        """Get the current week ID based on ISO calendar."""
+        today = datetime.now(timezone.utc).date()
+        iso_year, iso_week, _ = today.isocalendar()
+        return iso_year * 100 + iso_week
 
     def get_free_agents(self, league_id: int) -> List[Player]:
         """Get players not currently on any team in the league."""
@@ -60,8 +66,8 @@ class RosterService:
 
         # If adding this player, what would the counts be?
         new_position = new_player.position
-        new_guards = current_guards + (1 if new_position and 'G' in new_position else 0)
-        new_forwards_centers = current_forwards_centers + (1 if new_position and ('F' in new_position or 'C' in new_position) else 0)
+        current_guards + (1 if new_position and 'G' in new_position else 0)
+        current_forwards_centers + (1 if new_position and ('F' in new_position or 'C' in new_position) else 0)
 
         # Auto-add if:
         # 1. We have fewer than 5 starters AND
@@ -97,9 +103,14 @@ class RosterService:
         if not team:
             raise ValueError(f"Team with ID {team_id} not found")
 
-        # Verify that we haven't reached the weekly move cap
-        if team.moves_this_week >= 3:
-            raise ValueError("Weekly move limit reached (3 moves per week)")
+        # Check move limits only if setting as starter
+        if set_as_starter:
+            current_week = self._get_current_week_id()
+            total_available_moves = self._get_total_available_moves(team_id, current_week)
+
+            # Verify that we haven't reached the weekly move cap
+            if team.moves_this_week >= total_available_moves:
+                raise ValueError(f"Weekly move limit reached ({team.moves_this_week}/{total_available_moves} moves used)")
 
         # Verify player exists
         player = self.db.get(Player, player_id)
@@ -124,7 +135,15 @@ class RosterService:
         auto_starter = False
         if not set_as_starter:
             auto_starter = self._should_auto_set_as_starter(team_id, player)
-            set_as_starter = auto_starter
+            if auto_starter:
+                # Check move limits for auto-starter
+                current_week = self._get_current_week_id()
+                total_available_moves = self._get_total_available_moves(team_id, current_week)
+                if team.moves_this_week >= total_available_moves:
+                    # Don't auto-set as starter if no moves left
+                    auto_starter = False
+                else:
+                    set_as_starter = True
 
         # Create the roster slot
         roster_slot = RosterSlot(
@@ -154,10 +173,6 @@ class RosterService:
         if not team:
             raise ValueError(f"Team with ID {team_id} not found")
 
-        # Verify that we haven't reached the weekly move cap
-        if team.moves_this_week >= 3:
-            raise ValueError("Weekly move limit reached (3 moves per week)")
-
         # Verify the player is on the team
         roster_slot = (
             self.db.query(RosterSlot).filter(RosterSlot.team_id == team_id, RosterSlot.player_id == player_id).first()
@@ -169,10 +184,7 @@ class RosterService:
         # Get player name for the log
         player = self.db.get(Player, player_id)
 
-        # Increment the moves counter for drops too
-        team.moves_this_week += 1
-
-        # Delete the roster slot
+        # Delete the roster slot (dropping players no longer counts as a move)
         self.db.delete(roster_slot)
 
         # Create transaction log
@@ -453,8 +465,7 @@ class RosterService:
         new_starter_count = sum(1 for pid in starter_player_ids if pid not in current_starter_ids)
 
         # Check if we have enough moves left for the week (including admin grants)
-        # For current week check, we'll use week 1 as default since we don't have week tracking yet
-        current_week = 1  # TODO: Replace with actual current week logic
+        current_week = self._get_current_week_id()
         total_available_moves = self._get_total_available_moves(team_id, current_week)
 
         if new_starter_count > (total_available_moves - team.moves_this_week):
@@ -503,6 +514,161 @@ class RosterService:
         """Reset the moves_this_week counter for all teams."""
         self.db.query(Team).update({Team.moves_this_week: 0})
         self.db.commit()
+
+    def save_current_starters_to_history(self, week_id: int) -> int:
+        """
+        Save current starter status for all teams to WeeklyLineup for the given week.
+        Returns the number of teams processed.
+        """
+        teams_processed = 0
+        locked_at = datetime.now(timezone.utc)
+
+        # Get all teams
+        teams = self.db.query(Team).all()
+
+        for team in teams:
+            # Check if lineup is already saved for this week
+            existing_lineup = (
+                self.db.query(WeeklyLineup)
+                .filter(WeeklyLineup.team_id == team.id, WeeklyLineup.week_id == week_id)
+                .first()
+            )
+
+            if existing_lineup:
+                continue  # Already saved
+
+            # Get current roster state
+            roster_slots = (
+                self.db.query(RosterSlot)
+                .filter(RosterSlot.team_id == team.id)
+                .all()
+            )
+
+            # Save weekly lineup entries
+            for slot in roster_slots:
+                weekly_lineup = WeeklyLineup(
+                    team_id=team.id,
+                    player_id=slot.player_id,
+                    week_id=week_id,
+                    is_starter=slot.is_starter,
+                    locked_at=locked_at
+                )
+                self.db.add(weekly_lineup)
+
+            teams_processed += 1
+
+        self.db.commit()
+        return teams_processed
+
+    def carry_over_starters_from_previous_week(self, current_week_id: int) -> int:
+        """
+        Carry over starters from the previous week for teams that don't have any starters set.
+        Returns the number of teams processed.
+        """
+        teams_processed = 0
+        previous_week_id = current_week_id - 1
+
+        # Get all teams
+        teams = self.db.query(Team).all()
+
+        for team in teams:
+            # Check if team has any current starters
+            current_starters = (
+                self.db.query(RosterSlot)
+                .filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True)
+                .count()
+            )
+
+            if current_starters > 0:
+                continue  # Team already has starters set for this week
+
+            # Get starters from previous week
+            previous_starters = (
+                self.db.query(WeeklyLineup)
+                .filter(
+                    WeeklyLineup.team_id == team.id,
+                    WeeklyLineup.week_id == previous_week_id,
+                    WeeklyLineup.is_starter == True
+                )
+                .all()
+            )
+
+            if not previous_starters:
+                continue  # No previous week starters to carry over
+
+            # Carry over starters if the players are still on the roster
+            for prev_starter in previous_starters:
+                roster_slot = (
+                    self.db.query(RosterSlot)
+                    .filter(
+                        RosterSlot.team_id == team.id,
+                        RosterSlot.player_id == prev_starter.player_id
+                    )
+                    .first()
+                )
+
+                if roster_slot:
+                    roster_slot.is_starter = True
+
+            teams_processed += 1
+
+        self.db.commit()
+        return teams_processed
+
+    def ensure_starters_carried_over(self, team_id: int) -> bool:
+        """
+        Ensure that a team has starters carried over from the previous week if they don't have any current starters.
+        This can be called manually to fix teams that might not have had starters during the weekly reset.
+        Returns True if starters were carried over, False otherwise.
+        """
+        # Check if team has any current starters
+        current_starters = (
+            self.db.query(RosterSlot)
+            .filter(RosterSlot.team_id == team_id, RosterSlot.is_starter == True)
+            .count()
+        )
+
+        if current_starters > 0:
+            return False  # Team already has starters set
+
+        # Get current and previous week IDs
+        current_week_id = self._get_current_week_id()
+        previous_week_id = current_week_id - 1
+
+        # Get starters from previous week
+        previous_starters = (
+            self.db.query(WeeklyLineup)
+            .filter(
+                WeeklyLineup.team_id == team_id,
+                WeeklyLineup.week_id == previous_week_id,
+                WeeklyLineup.is_starter == True
+            )
+            .all()
+        )
+
+        if not previous_starters:
+            return False  # No previous week starters to carry over
+
+        # Carry over starters if the players are still on the roster
+        carried_over = False
+        for prev_starter in previous_starters:
+            roster_slot = (
+                self.db.query(RosterSlot)
+                .filter(
+                    RosterSlot.team_id == team_id,
+                    RosterSlot.player_id == prev_starter.player_id
+                )
+                .first()
+            )
+
+            if roster_slot:
+                roster_slot.is_starter = True
+                carried_over = True
+
+        if carried_over:
+            self.db.commit()
+
+        return carried_over
 
     def get_roster(self, team_id: int, include_player_details: bool = False) -> List[dict]:
         """
