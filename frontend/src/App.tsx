@@ -21,7 +21,6 @@ import BonusesPage from './pages/BonusesPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminPage from './pages/AdminPage';
-import SignupPage from './pages/SignupPage';
 
 function App() {
   return (
