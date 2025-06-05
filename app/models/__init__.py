@@ -818,3 +818,8 @@ class CacheStatistics(Base):
 # ---------------------------------------------------------------------------
 
 from app.models.analytics import MatchupAnalysis, PlayerSeasonStats, PlayerTrends
+from app.models.user_profile import UserPreferences, UserProfile
+
+# ---------------------------------------------------------------------------
+# User Profile Models
+# ---------------------------------------------------------------------------

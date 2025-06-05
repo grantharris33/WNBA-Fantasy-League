@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -21,52 +22,56 @@ import BonusesPage from './pages/BonusesPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminPage from './pages/AdminPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
 
-          {/* Protected routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/scoreboard" element={<ScoreboardPage />} />
-            <Route path="/join" element={<JoinLeaguePage />} />
-            <Route path="/my-teams" element={<MyTeamsPage />} />
-            <Route path="/league/:leagueId" element={<LeagueDetailPage />} />
-            <Route path="/league/:leagueId/manage" element={<LeagueManagementPage />} />
-            <Route path="/draft/:leagueId" element={<DraftPage />} />
-            <Route path="/team/:teamId" element={<TeamPage />} />
-            <Route path="/games" element={<GamesPage />} />
-            <Route path="/game/:gameId" element={<GameDetailPage />} />
-            <Route path="/players" element={<PlayersPage />} />
-            <Route path="/player/:playerId" element={<PlayerDetailPage />} />
-            <Route path="/bonuses" element={<BonusesPage />} />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Route>
+            {/* Protected routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/scoreboard" element={<ScoreboardPage />} />
+              <Route path="/join" element={<JoinLeaguePage />} />
+              <Route path="/my-teams" element={<MyTeamsPage />} />
+              <Route path="/league/:leagueId" element={<LeagueDetailPage />} />
+              <Route path="/league/:leagueId/manage" element={<LeagueManagementPage />} />
+              <Route path="/draft/:leagueId" element={<DraftPage />} />
+              <Route path="/team/:teamId" element={<TeamPage />} />
+              <Route path="/games" element={<GamesPage />} />
+              <Route path="/game/:gameId" element={<GameDetailPage />} />
+              <Route path="/players" element={<PlayersPage />} />
+              <Route path="/player/:playerId" element={<PlayerDetailPage />} />
+              <Route path="/bonuses" element={<BonusesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
 
-          {/* Redirect to home for undefined routes */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
-      </BrowserRouter>
+            {/* Redirect to home for undefined routes */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <ToastContainer
+            position="bottom-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="colored"
+          />
+        </BrowserRouter>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

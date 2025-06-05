@@ -23,6 +23,7 @@ from .league_router import router as league_router
 from .live_games import router as live_games_router
 from .logs import router as logs_router
 from .lookup import router as lookup_router
+from .profile import router as profile_router
 from .scores import router as scores_router
 from .users import router as users_router
 from .wnba import router as wnba_router
@@ -49,6 +50,9 @@ router.include_router(logs_router)
 
 # Analytics endpoints
 router.include_router(analytics_router)
+
+# Profile endpoints
+router.include_router(profile_router)
 
 # Admin endpoints
 router.include_router(admin_router)
