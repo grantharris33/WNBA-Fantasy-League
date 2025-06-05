@@ -5,9 +5,9 @@ Revises: 0a81dd8f0b1e
 Create Date: 2024-01-15 12:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'f148c9022616'
@@ -48,9 +48,9 @@ def upgrade():
         sa.Column('floor', sa.Float(), nullable=True),
         # Metadata
         sa.Column('last_updated', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['player_id'], ['player.id'], ),
+        sa.ForeignKeyConstraint(['player_id'], ['player.id']),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('player_id', 'season', name='uq_player_season')
+        sa.UniqueConstraint('player_id', 'season', name='uq_player_season'),
     )
 
     # Create player_trends table
@@ -79,9 +79,9 @@ def upgrade():
         sa.Column('last_10_games_apg', sa.Float(), nullable=True),
         # Metadata
         sa.Column('last_updated', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['player_id'], ['player.id'], ),
+        sa.ForeignKeyConstraint(['player_id'], ['player.id']),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('player_id', 'calculated_date', name='uq_player_trends_date')
+        sa.UniqueConstraint('player_id', 'calculated_date', name='uq_player_trends_date'),
     )
 
     # Create matchup_analysis table
@@ -112,10 +112,10 @@ def upgrade():
         sa.Column('opponent_position_defense_rating', sa.Float(), nullable=True),
         # Metadata
         sa.Column('last_updated', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['player_id'], ['player.id'], ),
-        sa.ForeignKeyConstraint(['opponent_team_id'], ['wnba_team.id'], ),
+        sa.ForeignKeyConstraint(['player_id'], ['player.id']),
+        sa.ForeignKeyConstraint(['opponent_team_id'], ['wnba_team.id']),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('player_id', 'opponent_team_id', 'season', name='uq_player_opponent_season')
+        sa.UniqueConstraint('player_id', 'opponent_team_id', 'season', name='uq_player_opponent_season'),
     )
 
 

@@ -4,8 +4,8 @@ import click
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models import User, Team
 from app.core.security import hash_password
+from app.models import Team, User
 from app.services.roster import RosterService
 
 
@@ -38,11 +38,7 @@ def create_admin(email: str, password: str):
 
         # Create new admin user
         hashed_password = hash_password(password)
-        admin_user = User(
-            email=email,
-            hashed_password=hashed_password,
-            is_admin=True
-        )
+        admin_user = User(email=email, hashed_password=hashed_password, is_admin=True)
 
         db.add(admin_user)
         db.commit()
@@ -62,7 +58,7 @@ def list_admins():
     db: Session = SessionLocal()
 
     try:
-        admins = db.query(User).filter(User.is_admin == True).all()
+        admins = db.query(User).filter(User.is_admin is True).all()
 
         if not admins:
             click.echo("No admin users found")
@@ -135,11 +131,7 @@ def grant_moves(team_id: int, week_id: int, moves_to_grant: int, reason: str, ad
 
         roster_service = RosterService(db)
         grant = roster_service.grant_admin_moves(
-            team_id=team_id,
-            week_id=week_id,
-            moves_to_grant=moves_to_grant,
-            reason=reason,
-            admin_user_id=admin_user.id
+            team_id=team_id, week_id=week_id, moves_to_grant=moves_to_grant, reason=reason, admin_user_id=admin_user.id
         )
 
         click.echo(f"Successfully granted {moves_to_grant} moves to team '{team.name}' for week {week_id}")
@@ -232,7 +224,7 @@ def force_roster(team_id: int, week_id: int, starter_ids: str, admin_email: str,
             starter_player_ids=starter_player_ids,
             admin_user_id=admin_user.id,
             week_id=week_id,
-            bypass_move_limit=bypass_moves
+            bypass_move_limit=bypass_moves,
         )
 
         click.echo(f"Successfully set roster for team '{team.name}' - Week {week_id}")

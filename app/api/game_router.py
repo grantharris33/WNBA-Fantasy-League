@@ -3,22 +3,22 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 import httpx
-from fastapi import APIRouter, HTTPException, Path, Depends
+from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
+from app import models
+from app.api.deps import get_db
 from app.api.schemas import (
+    ComprehensiveGameStatsOut,
+    ComprehensivePlayerStatsOut,
+    GameInfoOut,
+    GameOut,
     GamePlayByPlayOut,
     GameSummaryBoxScoreTeamOut,
     GameSummaryOut,
     GameSummaryPlayerStatsOut,
-    GameInfoOut,
     PlayByPlayEventOut,
-    ComprehensiveGameStatsOut,
-    ComprehensivePlayerStatsOut,
-    GameOut,
 )
-from app.api.deps import get_db
-from app import models
 from app.external_apis.rapidapi_client import RapidApiClient, RetryError, wnba_client
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -44,10 +44,7 @@ def _map_game_summary(data: dict[str, Any]) -> GameSummaryOut:
     competitor_meta = {}
     for comp in competition.get("competitors", []):
         tid = str(comp.get("id") or comp.get("team", {}).get("id", ""))
-        competitor_meta[tid] = {
-            "abbr": comp.get("team", {}).get("abbreviation"),
-            "score": _safe_int(comp.get("score")),
-        }
+        competitor_meta[tid] = {"abbr": comp.get("team", {}).get("abbreviation"), "score": _safe_int(comp.get("score"))}
 
     teams: List[GameSummaryBoxScoreTeamOut] = []
     for team_block in data.get("boxscore", {}).get("players", []):
@@ -70,10 +67,7 @@ def _map_game_summary(data: dict[str, Any]) -> GameSummaryOut:
         meta = competitor_meta.get(team_id, {})
         teams.append(
             GameSummaryBoxScoreTeamOut(
-                team_id=team_id,
-                team_abbr=meta.get("abbr"),
-                score=meta.get("score", 0),
-                players=players,
+                team_id=team_id, team_abbr=meta.get("abbr"), score=meta.get("score", 0), players=players
             )
         )
 
@@ -134,8 +128,7 @@ async def game_playbyplay(game_id: str = Path(..., description="Game ID")) -> Ga
 
 @router.get("/{game_id}/enhanced", response_model=Dict)
 async def get_enhanced_game_view(
-    game_id: str = Path(..., description="Game ID"),
-    db: Session = Depends(get_db)
+    game_id: str = Path(..., description="Game ID"), db: Session = Depends(get_db)
 ) -> Dict:
     """Get enhanced game view with team names, player names, and additional context."""
 
@@ -145,8 +138,12 @@ async def get_enhanced_game_view(
         raise HTTPException(status_code=404, detail="Game not found")
 
     # Get team information
-    home_team = db.query(models.WNBATeam).filter(models.WNBATeam.id == game.home_team_id).first() if game.home_team_id else None
-    away_team = db.query(models.WNBATeam).filter(models.WNBATeam.id == game.away_team_id).first() if game.away_team_id else None
+    home_team = (
+        db.query(models.WNBATeam).filter(models.WNBATeam.id == game.home_team_id).first() if game.home_team_id else None
+    )
+    away_team = (
+        db.query(models.WNBATeam).filter(models.WNBATeam.id == game.away_team_id).first() if game.away_team_id else None
+    )
 
     # Get all stat lines for this game with player and team info
     stat_lines = (
@@ -217,15 +214,18 @@ async def get_enhanced_game_view(
         # Calculate percentages
         totals["field_goal_percentage"] = (
             totals["field_goals_made"] / totals["field_goals_attempted"] * 100
-            if totals["field_goals_attempted"] > 0 else 0
+            if totals["field_goals_attempted"] > 0
+            else 0
         )
         totals["three_point_percentage"] = (
             totals["three_pointers_made"] / totals["three_pointers_attempted"] * 100
-            if totals["three_pointers_attempted"] > 0 else 0
+            if totals["three_pointers_attempted"] > 0
+            else 0
         )
         totals["free_throw_percentage"] = (
             totals["free_throws_made"] / totals["free_throws_attempted"] * 100
-            if totals["free_throws_attempted"] > 0 else 0
+            if totals["free_throws_attempted"] > 0
+            else 0
         )
 
         return totals
@@ -248,7 +248,7 @@ async def get_enhanced_game_view(
             "score": game.home_score,
             "logo_url": home_team.logo_url if home_team else None,
             "players": sorted(home_players, key=lambda x: (not x["is_starter"], x["player_name"])),
-            "totals": home_totals
+            "totals": home_totals,
         },
         "away_team": {
             "id": game.away_team_id,
@@ -257,20 +257,21 @@ async def get_enhanced_game_view(
             "score": game.away_score,
             "logo_url": away_team.logo_url if away_team else None,
             "players": sorted(away_players, key=lambda x: (not x["is_starter"], x["player_name"])),
-            "totals": away_totals
+            "totals": away_totals,
         },
         "game_leaders": {
             "points": max(stat_lines, key=lambda x: x.points, default=None),
             "rebounds": max(stat_lines, key=lambda x: x.rebounds, default=None),
             "assists": max(stat_lines, key=lambda x: x.assists, default=None),
-        } if stat_lines else {}
+        }
+        if stat_lines
+        else {},
     }
 
 
 @router.get("/{game_id}/comprehensive-stats", response_model=ComprehensiveGameStatsOut)
 async def get_comprehensive_game_stats(
-    game_id: str = Path(..., description="Game ID"),
-    db: Session = Depends(get_db)
+    game_id: str = Path(..., description="Game ID"), db: Session = Depends(get_db)
 ) -> ComprehensiveGameStatsOut:
     """Get comprehensive statistics for a game from our database."""
 
@@ -280,12 +281,7 @@ async def get_comprehensive_game_stats(
         raise HTTPException(status_code=404, detail="Game not found")
 
     # Get all stat lines for this game
-    stat_lines = (
-        db.query(models.StatLine)
-        .filter(models.StatLine.game_id == game_id)
-        .join(models.Player)
-        .all()
-    )
+    stat_lines = db.query(models.StatLine).filter(models.StatLine.game_id == game_id).join(models.Player).all()
 
     # Convert to response format
     player_stats = []
@@ -335,8 +331,4 @@ async def get_comprehensive_game_stats(
         attendance=game.attendance,
     )
 
-    return ComprehensiveGameStatsOut(
-        game=game_out,
-        player_stats=player_stats
-    )
-
+    return ComprehensiveGameStatsOut(game=game_out, player_stats=player_stats)

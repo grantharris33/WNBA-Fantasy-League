@@ -11,6 +11,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
 import Breadcrumb from '../components/common/Breadcrumb';
 import StandingsTable from '../components/dashboard/StandingsTable';
+import DashboardLayout from '../components/layout/DashboardLayout';
 // import HistoricalScoresView from '../components/dashboard/HistoricalScoresView';
 // import TopPerformersView from '../components/dashboard/TopPerformersView';
 // import ScoreTrendsChart from '../components/dashboard/ScoreTrendsChart';
@@ -189,13 +190,14 @@ const ScoreboardPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
-      <Breadcrumb items={breadcrumbItems} />
+    <DashboardLayout>
+      <div className="space-y-8">
+        <Breadcrumb items={breadcrumbItems} />
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">League Scoreboard</h1>
-        <p className="text-gray-600">Track team standings, performance, and season progress</p>
-      </div>
+                 <div className="mb-8">
+           <h1 className="text-3xl font-bold text-slate-900 mb-2">League Scoreboard</h1>
+           <p className="text-slate-600">Track team standings, performance, and season progress</p>
+         </div>
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
@@ -224,22 +226,23 @@ const ScoreboardPage: React.FC = () => {
           {renderTabContent()}
         </div>
 
-      {/* Refresh Button */}
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={() => {
-            fetchCurrentScores();
-            if (activeTab === 'history') fetchHistoricalScores();
-            if (activeTab === 'performers') fetchTopPerformers();
-            if (activeTab === 'trends') fetchScoreTrends();
-            if (activeTab === 'champion') fetchLeagueChampion();
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out"
-        >
-          Refresh Data
-        </button>
+        {/* Refresh Button */}
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => {
+              fetchCurrentScores();
+              if (activeTab === 'history') fetchHistoricalScores();
+              if (activeTab === 'performers') fetchTopPerformers();
+              if (activeTab === 'trends') fetchScoreTrends();
+              if (activeTab === 'champion') fetchLeagueChampion();
+            }}
+                         className="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-[#0c7ff2] text-white text-sm font-semibold hover:bg-[#0a68c4] transition-colors shadow-sm"
+          >
+            Refresh Data
+          </button>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

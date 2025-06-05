@@ -3,24 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import datetime as dt
+import json
 from datetime import date, datetime
-from typing import List, Optional, Dict, Any, Set
+from typing import Any, Dict, List, Optional, Set
 
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
 
 from app.core.database import SessionLocal
-from app.models import (
-    StatLine,
-    Player,
-    IngestLog,
-    IngestionRun,
-    IngestionQueue
-)
-from app.jobs.ingest import ingest_stat_lines, fetch_schedule
-from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RetryError
+from app.external_apis.rapidapi_client import RapidApiError, RetryError, wnba_client
+from app.jobs.ingest import fetch_schedule, ingest_stat_lines
+from app.models import IngestionQueue, IngestionRun, IngestLog, Player, StatLine
 
 
 class BackfillService:
@@ -45,11 +39,7 @@ class BackfillService:
             self.db.close()
 
     async def backfill_season(
-        self,
-        year: int,
-        start_date: date = None,
-        end_date: date = None,
-        dry_run: bool = False
+        self, year: int, start_date: date = None, end_date: date = None, dry_run: bool = False
     ) -> Dict[str, Any]:
         """
         Backfill all games for a season or date range.
@@ -68,12 +58,7 @@ class BackfillService:
 
         # Create ingestion run record
         run = IngestionRun(
-            target_date=start_date,
-            status="running",
-            games_found=0,
-            games_processed=0,
-            players_updated=0,
-            errors="[]"
+            target_date=start_date, status="running", games_found=0, games_processed=0, players_updated=0, errors="[]"
         )
         self.db.add(run)
         self.db.commit()
@@ -105,18 +90,20 @@ class BackfillService:
 
                             # Count what we processed
                             game_date_dt = dt.datetime.combine(current_date, dt.time())
-                            processed_stats = self.db.query(StatLine).filter(
+                            self.db.query(StatLine).filter(
                                 StatLine.game_date >= game_date_dt,
-                                StatLine.game_date < game_date_dt + dt.timedelta(days=1)
+                                StatLine.game_date < game_date_dt + dt.timedelta(days=1),
                             ).count()
 
                             # Count unique players updated
-                            updated_players = self.db.query(
-                                func.count(func.distinct(StatLine.player_id))
-                            ).filter(
-                                StatLine.game_date >= game_date_dt,
-                                StatLine.game_date < game_date_dt + dt.timedelta(days=1)
-                            ).scalar()
+                            updated_players = (
+                                self.db.query(func.count(func.distinct(StatLine.player_id)))
+                                .filter(
+                                    StatLine.game_date >= game_date_dt,
+                                    StatLine.game_date < game_date_dt + dt.timedelta(days=1),
+                                )
+                                .scalar()
+                            )
 
                             total_games_processed += len(games)
                             total_players_updated += updated_players or 0
@@ -178,8 +165,7 @@ class BackfillService:
             "errors": run_errors,
         }
 
-                # Close the WNBA client to avoid connection issues
-        from app.external_apis.rapidapi_client import wnba_client
+        # Close the WNBA client to avoid connection issues
         await wnba_client.close()
 
         return result
@@ -203,13 +189,13 @@ class BackfillService:
         year_start = datetime(year, 1, 1)
         year_end = datetime(year + 1, 1, 1)
 
-        existing_stats = self.db.query(StatLine).filter(
-            and_(
-                StatLine.player_id == player_id,
-                StatLine.game_date >= year_start,
-                StatLine.game_date < year_end
+        existing_stats = (
+            self.db.query(StatLine)
+            .filter(
+                and_(StatLine.player_id == player_id, StatLine.game_date >= year_start, StatLine.game_date < year_end)
             )
-        ).all()
+            .all()
+        )
 
         existing_game_ids = {stat.game_id for stat in existing_stats}
 
@@ -263,7 +249,7 @@ class BackfillService:
                 "game_id": game_id,
                 "status": "skipped",
                 "reason": "Game already exists (use force=True to overwrite)",
-                "existing_stats": len(existing_stats)
+                "existing_stats": len(existing_stats),
             }
 
         # Try to find the game date from existing data
@@ -287,21 +273,12 @@ class BackfillService:
                     continue
 
         if not game_date:
-            return {
-                "game_id": game_id,
-                "status": "failed",
-                "reason": "Could not determine game date"
-            }
+            return {"game_id": game_id, "status": "failed", "reason": "Could not determine game date"}
 
         # Queue the game for reprocessing
         self._queue_game(game_id, game_date, priority=2)  # High priority
 
-        return {
-            "game_id": game_id,
-            "status": "queued",
-            "game_date": game_date.isoformat(),
-            "force": force
-        }
+        return {"game_id": game_id, "status": "queued", "game_date": game_date.isoformat(), "force": force}
 
     async def find_missing_games(self, start_date: date, end_date: date) -> List[str]:
         """
@@ -331,8 +308,7 @@ class BackfillService:
                     db_game_ids = set(
                         self.db.query(StatLine.game_id)
                         .filter(
-                            StatLine.game_date >= game_date_dt,
-                            StatLine.game_date < game_date_dt + dt.timedelta(days=1)
+                            StatLine.game_date >= game_date_dt, StatLine.game_date < game_date_dt + dt.timedelta(days=1)
                         )
                         .distinct()
                         .all()
@@ -364,28 +340,27 @@ class BackfillService:
         cutoff_date = datetime.utcnow() - dt.timedelta(days=days_back)
 
         # Recent ingestion runs
-        recent_runs = self.db.query(IngestionRun).filter(
-            IngestionRun.start_time >= cutoff_date
-        ).order_by(IngestionRun.start_time.desc()).all()
+        recent_runs = (
+            self.db.query(IngestionRun)
+            .filter(IngestionRun.start_time >= cutoff_date)
+            .order_by(IngestionRun.start_time.desc())
+            .all()
+        )
 
         # Queue status
-        queue_stats = self.db.query(
-            IngestionQueue.status,
-            func.count().label('count')
-        ).group_by(IngestionQueue.status).all()
+        queue_stats = (
+            self.db.query(IngestionQueue.status, func.count().label('count')).group_by(IngestionQueue.status).all()
+        )
 
         # Recent errors
-        recent_errors = self.db.query(IngestLog).filter(
-            and_(
-                IngestLog.timestamp >= cutoff_date,
-                IngestLog.message.like("ERROR:%")
-            )
-        ).count()
+        recent_errors = (
+            self.db.query(IngestLog)
+            .filter(and_(IngestLog.timestamp >= cutoff_date, IngestLog.message.like("ERROR:%")))
+            .count()
+        )
 
         # Recent stat lines
-        recent_stats = self.db.query(StatLine).filter(
-            StatLine.game_date >= cutoff_date
-        ).count()
+        recent_stats = self.db.query(StatLine).filter(StatLine.game_date >= cutoff_date).count()
 
         return {
             "period_days": days_back,
@@ -395,18 +370,13 @@ class BackfillService:
             "queue_status": {status: count for status, count in queue_stats},
             "recent_errors": recent_errors,
             "recent_stat_lines": recent_stats,
-            "last_successful_run": max(
-                (r.end_time for r in recent_runs if r.status == "completed"),
-                default=None
-            )
+            "last_successful_run": max((r.end_time for r in recent_runs if r.status == "completed"), default=None),
         }
 
     def _queue_game(self, game_id: str, game_date: date, priority: int = 0) -> IngestionQueue:
         """Add a game to the ingestion queue."""
         # Check if already queued
-        existing = self.db.query(IngestionQueue).filter(
-            IngestionQueue.game_id == game_id
-        ).first()
+        existing = self.db.query(IngestionQueue).filter(IngestionQueue.game_id == game_id).first()
 
         if existing:
             # Update priority if higher
@@ -417,30 +387,19 @@ class BackfillService:
             return existing
 
         # Create new queue entry
-        queue_entry = IngestionQueue(
-            game_id=game_id,
-            game_date=game_date,
-            priority=priority,
-            status="pending"
-        )
+        queue_entry = IngestionQueue(game_id=game_id, game_date=game_date, priority=priority, status="pending")
         self.db.add(queue_entry)
         self.db.commit()
         return queue_entry
 
     def _log_error(self, provider: str, message: str):
         """Log an error message."""
-        log_entry = IngestLog(
-            provider=provider,
-            message=f"ERROR: {message}"
-        )
+        log_entry = IngestLog(provider=provider, message=f"ERROR: {message}")
         self.db.add(log_entry)
         self.db.commit()
 
     def _log_info(self, provider: str, message: str):
         """Log an info message."""
-        log_entry = IngestLog(
-            provider=provider,
-            message=f"INFO: {message}"
-        )
+        log_entry = IngestLog(provider=provider, message=f"INFO: {message}")
         self.db.add(log_entry)
         self.db.commit()

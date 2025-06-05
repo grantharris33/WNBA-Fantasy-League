@@ -5,9 +5,9 @@ Revises: cf62ffc445e5
 Create Date: 2024-12-30 00:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '9ffa968cd683'
@@ -18,7 +18,8 @@ depends_on = None
 
 def upgrade():
     # Create game table
-    op.create_table('game',
+    op.create_table(
+        'game',
         sa.Column('id', sa.String(), nullable=False),
         sa.Column('date', sa.DateTime(), nullable=False),
         sa.Column('home_team_id', sa.Integer(), nullable=True),
@@ -28,9 +29,9 @@ def upgrade():
         sa.Column('status', sa.String(), nullable=True, default='scheduled'),
         sa.Column('venue', sa.String(), nullable=True),
         sa.Column('attendance', sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(['away_team_id'], ['wnba_team.id'], ),
-        sa.ForeignKeyConstraint(['home_team_id'], ['wnba_team.id'], ),
-        sa.PrimaryKeyConstraint('id')
+        sa.ForeignKeyConstraint(['away_team_id'], ['wnba_team.id']),
+        sa.ForeignKeyConstraint(['home_team_id'], ['wnba_team.id']),
+        sa.PrimaryKeyConstraint('id'),
     )
     op.create_index(op.f('ix_game_date'), 'game', ['date'], unique=False)
 

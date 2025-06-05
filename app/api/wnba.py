@@ -2,25 +2,26 @@
 
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.services.wnba import WNBAService
-from app.services.analytics import AnalyticsService
 from app.api.schemas import (
-    WNBATeamOut,
+    DetailedPlayerStatsOut,
+    LeagueLeaderOut,
+    Pagination,
+    PlayerGameLogOut,
+    PlayerSearchResultOut,
     StandingsOut,
     TeamRosterPlayerOut,
     TeamScheduleGameOut,
     TeamStatsOut,
-    PlayerGameLogOut,
-    LeagueLeaderOut,
-    PlayerSearchResultOut,
-    DetailedPlayerStatsOut,
-    Pagination
+    WNBATeamOut,
 )
-from app.models import WNBATeam, Player, PlayerSeasonStats
+from app.core.database import get_db
+from app.models import Player, PlayerSeasonStats, WNBATeam
+from app.services.analytics import AnalyticsService
+from app.services.wnba import WNBAService
 
 router = APIRouter(prefix="/api/v1/wnba", tags=["wnba"])
 
@@ -34,10 +35,7 @@ async def get_all_teams(db: Session = Depends(get_db)) -> List[WNBATeamOut]:
 
 
 @router.get("/teams/{team_id}", response_model=WNBATeamOut)
-async def get_team(
-    team_id: int = Path(..., description="Team ID"),
-    db: Session = Depends(get_db)
-) -> WNBATeamOut:
+async def get_team(team_id: int = Path(..., description="Team ID"), db: Session = Depends(get_db)) -> WNBATeamOut:
     """Get a specific WNBA team by ID."""
     wnba_service = WNBAService(db)
     team = wnba_service.get_team_by_id(team_id)
@@ -48,8 +46,7 @@ async def get_team(
 
 @router.get("/teams/by-abbreviation/{abbreviation}", response_model=WNBATeamOut)
 async def get_team_by_abbreviation(
-    abbreviation: str = Path(..., description="Team abbreviation"),
-    db: Session = Depends(get_db)
+    abbreviation: str = Path(..., description="Team abbreviation"), db: Session = Depends(get_db)
 ) -> WNBATeamOut:
     """Get a WNBA team by abbreviation."""
     wnba_service = WNBAService(db)
@@ -61,8 +58,7 @@ async def get_team_by_abbreviation(
 
 @router.get("/standings", response_model=List[StandingsOut])
 async def get_standings(
-    season: Optional[int] = Query(None, description="Season year (defaults to current)"),
-    db: Session = Depends(get_db)
+    season: Optional[int] = Query(None, description="Season year (defaults to current)"), db: Session = Depends(get_db)
 ) -> List[StandingsOut]:
     """Get current standings for the season."""
     wnba_service = WNBAService(db)
@@ -74,7 +70,7 @@ async def get_standings(
 async def get_team_roster(
     team_id: int = Path(..., description="Team ID"),
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> List[TeamRosterPlayerOut]:
     """Get roster for a specific WNBA team."""
     wnba_service = WNBAService(db)
@@ -87,7 +83,7 @@ async def get_team_schedule(
     team_id: int = Path(..., description="Team ID"),
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
     limit: int = Query(10, ge=1, le=50, description="Number of games to return"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> List[TeamScheduleGameOut]:
     """Get recent and upcoming games for a team."""
     wnba_service = WNBAService(db)
@@ -99,7 +95,7 @@ async def get_team_schedule(
 async def get_team_stats(
     team_id: int = Path(..., description="Team ID"),
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> TeamStatsOut:
     """Get aggregated team statistics."""
     wnba_service = WNBAService(db)
@@ -113,7 +109,7 @@ async def get_team_stats(
 async def get_player_game_log(
     player_id: int = Path(..., description="Player ID"),
     limit: int = Query(10, ge=1, le=50, description="Number of games to return"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> List[PlayerGameLogOut]:
     """Get recent game log for a player."""
     wnba_service = WNBAService(db)
@@ -125,7 +121,7 @@ async def get_player_game_log(
 async def get_player_detailed_stats(
     player_id: int = Path(..., description="Player ID"),
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> DetailedPlayerStatsOut:
     """Get detailed player statistics including advanced metrics."""
     if season is None:
@@ -137,10 +133,11 @@ async def get_player_detailed_stats(
         raise HTTPException(status_code=404, detail="Player not found")
 
     # Get season stats
-    season_stats = db.query(PlayerSeasonStats).filter(
-        PlayerSeasonStats.player_id == player_id,
-        PlayerSeasonStats.season == season
-    ).first()
+    season_stats = (
+        db.query(PlayerSeasonStats)
+        .filter(PlayerSeasonStats.player_id == player_id, PlayerSeasonStats.season == season)
+        .first()
+    )
 
     if not season_stats:
         # Calculate on demand if not available
@@ -163,7 +160,7 @@ async def get_player_detailed_stats(
                 years_pro=player.years_pro,
                 status=player.status,
                 headshot_url=player.headshot_url,
-                season=season
+                season=season,
             )
 
     return DetailedPlayerStatsOut(
@@ -199,7 +196,7 @@ async def get_player_detailed_stats(
         fantasy_ppg=season_stats.fantasy_ppg,
         consistency_score=season_stats.consistency_score,
         ceiling=season_stats.ceiling,
-        floor=season_stats.floor
+        floor=season_stats.floor,
     )
 
 
@@ -208,19 +205,25 @@ async def get_league_leaders(
     stat_category: str = Query(..., description="Statistical category (points, rebounds, assists, etc.)"),
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
     limit: int = Query(10, ge=1, le=50, description="Number of leaders to return"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> List[LeagueLeaderOut]:
     """Get league leaders in a specific statistical category."""
     valid_categories = [
-        "points", "rebounds", "assists", "steals", "blocks",
-        "field_goal_percentage", "three_point_percentage", "free_throw_percentage",
-        "minutes", "fantasy_points"
+        "points",
+        "rebounds",
+        "assists",
+        "steals",
+        "blocks",
+        "field_goal_percentage",
+        "three_point_percentage",
+        "free_throw_percentage",
+        "minutes",
+        "fantasy_points",
     ]
 
     if stat_category not in valid_categories:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid stat category. Valid options: {', '.join(valid_categories)}"
+            status_code=400, detail=f"Invalid stat category. Valid options: {', '.join(valid_categories)}"
         )
 
     wnba_service = WNBAService(db)
@@ -235,7 +238,7 @@ async def search_players(
     position: Optional[str] = Query(None, description="Filter by position"),
     limit: int = Query(50, ge=1, le=200, description="Number of players to return"),
     offset: int = Query(0, ge=0, description="Number of players to skip"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Pagination[PlayerSearchResultOut]:
     """Search for players with various filters."""
     wnba_service = WNBAService(db)
@@ -253,27 +256,18 @@ async def search_players(
     total = players_query.count()
 
     # Get search results
-    search_results = wnba_service.search_players(
-        query=query,
-        team_id=team_id,
-        position=position,
-        limit=limit
-    )[offset:offset + limit]  # Apply offset manually
+    search_results = wnba_service.search_players(query=query, team_id=team_id, position=position, limit=limit)[
+        offset : offset + limit
+    ]  # Apply offset manually
 
     items = [PlayerSearchResultOut(**player) for player in search_results]
 
-    return Pagination[PlayerSearchResultOut](
-        total=total,
-        limit=limit,
-        offset=offset,
-        items=items
-    )
+    return Pagination[PlayerSearchResultOut](total=total, limit=limit, offset=offset, items=items)
 
 
 @router.get("/players/trending", response_model=List[PlayerSearchResultOut])
 async def get_trending_players(
-    limit: int = Query(20, ge=1, le=50, description="Number of players to return"),
-    db: Session = Depends(get_db)
+    limit: int = Query(20, ge=1, le=50, description="Number of players to return"), db: Session = Depends(get_db)
 ) -> List[PlayerSearchResultOut]:
     """Get trending players based on recent performance."""
     wnba_service = WNBAService(db)
@@ -289,29 +283,32 @@ async def get_trending_players(
             player = db.query(Player).filter(Player.id == leader["player_id"]).first()
             if player:
                 current_season = datetime.now().year
-                season_stats = db.query(PlayerSeasonStats).filter(
-                    PlayerSeasonStats.player_id == player.id,
-                    PlayerSeasonStats.season == current_season
-                ).first()
+                season_stats = (
+                    db.query(PlayerSeasonStats)
+                    .filter(PlayerSeasonStats.player_id == player.id, PlayerSeasonStats.season == current_season)
+                    .first()
+                )
 
-                trending.append(PlayerSearchResultOut(
-                    player_id=player.id,
-                    full_name=player.full_name,
-                    jersey_number=player.jersey_number,
-                    position=player.position,
-                    team_id=player.wnba_team_id,
-                    team_name=leader["team_name"],
-                    team_abbr=leader["team_abbr"],
-                    height=player.height,
-                    weight=player.weight,
-                    college=player.college,
-                    years_pro=player.years_pro,
-                    status=player.status,
-                    headshot_url=player.headshot_url,
-                    ppg=season_stats.ppg if season_stats else 0.0,
-                    rpg=season_stats.rpg if season_stats else 0.0,
-                    apg=season_stats.apg if season_stats else 0.0,
-                    games_played=season_stats.games_played if season_stats else 0
-                ))
+                trending.append(
+                    PlayerSearchResultOut(
+                        player_id=player.id,
+                        full_name=player.full_name,
+                        jersey_number=player.jersey_number,
+                        position=player.position,
+                        team_id=player.wnba_team_id,
+                        team_name=leader["team_name"],
+                        team_abbr=leader["team_abbr"],
+                        height=player.height,
+                        weight=player.weight,
+                        college=player.college,
+                        years_pro=player.years_pro,
+                        status=player.status,
+                        headshot_url=player.headshot_url,
+                        ppg=season_stats.ppg if season_stats else 0.0,
+                        rpg=season_stats.rpg if season_stats else 0.0,
+                        apg=season_stats.apg if season_stats else 0.0,
+                        games_played=season_stats.games_played if season_stats else 0,
+                    )
+                )
 
     return trending

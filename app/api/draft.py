@@ -1,15 +1,15 @@
+import asyncio
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.api.schemas import DraftPickRequest, DraftStateResponse
-from pydantic import BaseModel
 from app.core.ws_manager import manager
-from app.models import DraftState, User, League
+from app.models import DraftState, League, User
 from app.services.draft import DraftService
-import asyncio
 
 router = APIRouter(prefix="/draft", tags=["draft"])
 
@@ -162,7 +162,7 @@ async def update_draft_timer(
     draft_id: int,
     timer_request: TimerUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update the draft timer for future picks.
@@ -193,6 +193,7 @@ async def update_draft_timer(
 
         # Force SQLAlchemy to detect the change
         from sqlalchemy.orm.attributes import flag_modified
+
         flag_modified(league, "settings")
 
         db.add(league)
@@ -211,11 +212,8 @@ async def update_draft_timer(
             draft_state.league_id,
             {
                 "event": "timer_updated",
-                "data": {
-                    "draft_state": draft_state.as_dict(),
-                    "new_timer_seconds": timer_request.seconds
-                }
-            }
+                "data": {"draft_state": draft_state.as_dict(), "new_timer_seconds": timer_request.seconds},
+            },
         )
 
         return {"message": "Draft timer updated successfully", "new_timer_seconds": timer_request.seconds}
@@ -267,6 +265,6 @@ async def websocket_endpoint(websocket: WebSocket, league_id: int = Path(...), t
         try:
             if websocket.client_state == websocket.client_state.CONNECTED:
                 await websocket.close(code=1008, reason=str(e))
-        except:
-            pass  # Connection may already be closed
+        except Exception as close_error:
+            print(f"Failed to close websocket: {close_error}")  # Connection may already be closed
         return

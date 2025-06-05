@@ -387,16 +387,25 @@ const GameDetailPage: React.FC = () => {
         <div className="space-y-6">
           <div className="card p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Game Leaders</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {game_leaders.map((leader, index) => (
-                <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600 uppercase tracking-wider">{leader.stat}</div>
-                  <div className="font-bold text-lg text-gray-900">{leader.player_name}</div>
-                  <div className="text-sm text-gray-600">{leader.team_name}</div>
-                  <div className="text-xl font-bold text-blue-600">{leader.value}</div>
-                </div>
-              ))}
-            </div>
+            {game_leaders && game_leaders.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {game_leaders.map((leader, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="text-sm text-gray-600 uppercase tracking-wider">{leader.stat}</div>
+                    <div className="font-bold text-lg text-gray-900">{leader.player_name}</div>
+                    <div className="text-sm text-gray-600">{leader.team_name}</div>
+                    <div className="text-xl font-bold text-blue-600">{leader.value}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-gray-500 mb-2">No game leaders data available</div>
+                <p className="text-sm text-gray-400">
+                  Game leaders information may not be available for this game.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

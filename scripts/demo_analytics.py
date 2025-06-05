@@ -9,8 +9,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.core.database import SessionLocal
-from app.services.analytics import AnalyticsService
 from app.models import Player, PlayerSeasonStats, PlayerTrends
+from app.services.analytics import AnalyticsService
 
 
 def main():
@@ -34,10 +34,11 @@ def main():
 
         # Get season stats
         season = datetime.now().year
-        season_stats = db.query(PlayerSeasonStats).filter(
-            PlayerSeasonStats.player_id == player.id,
-            PlayerSeasonStats.season == season
-        ).first()
+        season_stats = (
+            db.query(PlayerSeasonStats)
+            .filter(PlayerSeasonStats.player_id == player.id, PlayerSeasonStats.season == season)
+            .first()
+        )
 
         if season_stats:
             print("=== Season Statistics ===")
@@ -53,9 +54,12 @@ def main():
             print(f"Floor: {season_stats.floor:.1f}\n")
 
         # Get trends
-        trends = db.query(PlayerTrends).filter(
-            PlayerTrends.player_id == player.id
-        ).order_by(PlayerTrends.calculated_date.desc()).first()
+        trends = (
+            db.query(PlayerTrends)
+            .filter(PlayerTrends.player_id == player.id)
+            .order_by(PlayerTrends.calculated_date.desc())
+            .first()
+        )
 
         if trends:
             print("=== Recent Trends ===")
@@ -107,6 +111,7 @@ def main():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:

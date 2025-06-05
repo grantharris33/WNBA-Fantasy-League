@@ -6,7 +6,7 @@ from typing import Any, Dict
 import httpx
 
 try:
-    from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+    from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 except ModuleNotFoundError:  # pragma: no cover
     # Provide minimal no-op fallback so that code can run without tenacity in CI
     import functools
@@ -46,21 +46,25 @@ except ModuleNotFoundError:  # pragma: no cover
 
 class RapidApiError(Exception):
     """Base exception for RapidAPI errors."""
+
     pass
 
 
 class RateLimitError(RapidApiError):
     """Exception raised when API rate limit is exceeded."""
+
     pass
 
 
 class ApiKeyError(RapidApiError):
     """Exception raised when API key is invalid or missing."""
+
     pass
 
 
 class RetryableError(RapidApiError):
     """Exception for errors that should be retried."""
+
     pass
 
 
@@ -93,7 +97,7 @@ class RapidApiClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type(RetryableError)
+        retry=retry_if_exception_type(RetryableError),
     )
     async def _get_json(self, endpoint: str, params: Dict[str, Any] | None = None) -> Any:
         """
@@ -144,10 +148,7 @@ class RapidApiClient:
 
     async def fetch_schedule(self, year: str, month: str, day: str) -> Any:
         """Fetch the schedule for a given date."""
-        data = await self._get_json(
-            "wnbaschedule",
-            params={"year": year, "month": month, "day": day},
-        )
+        data = await self._get_json("wnbaschedule", params={"year": year, "month": month, "day": day})
         key = f"{year}{month}{day}"
         return data.get(key, [])
 

@@ -5,11 +5,13 @@ Test script for comprehensive game statistics ingestion and retrieval.
 
 import asyncio
 import datetime as dt
-from app.jobs.ingest import ingest_stat_lines
-from app.core.database import SessionLocal
-from app import models
-from app.services.scoring import compute_fantasy_points
+
 from sqlalchemy import text
+
+from app import models
+from app.core.database import SessionLocal
+from app.jobs.ingest import ingest_stat_lines
+from app.services.scoring import compute_fantasy_points
 
 
 async def test_comprehensive_stats():
@@ -36,16 +38,23 @@ async def test_comprehensive_stats():
         session = SessionLocal()
         try:
             # Check games first
-            games_count = session.execute(text("SELECT COUNT(*) FROM game WHERE date(date) = :date"), {"date": test_date.isoformat()}).scalar()
+            games_count = session.execute(
+                text("SELECT COUNT(*) FROM game WHERE date(date) = :date"), {"date": test_date.isoformat()}
+            ).scalar()
 
             print(f"Found {games_count} games for {test_date}")
 
             if games_count > 0:
-                games = session.execute(text("""
+                games = session.execute(
+                    text(
+                        """
                     SELECT id, status, home_team_id, home_score, away_team_id, away_score, venue
                     FROM game
                     WHERE date(date) = :date
-                """), {"date": test_date.isoformat()}).fetchall()
+                """
+                    ),
+                    {"date": test_date.isoformat()},
+                ).fetchall()
 
                 for game in games:
                     game_id, status, home_id, home_score, away_id, away_score, venue = game
@@ -63,7 +72,9 @@ async def test_comprehensive_stats():
 
                     if stat_count > 0:
                         # Get a few examples using raw SQL
-                        results = session.execute(text("""
+                        results = session.execute(
+                            text(
+                                """
                             SELECT p.full_name, s.points, s.rebounds, s.assists,
                                    s.field_goals_made, s.field_goals_attempted, s.field_goal_percentage,
                                    s.three_pointers_made, s.three_pointers_attempted, s.did_not_play,
@@ -72,29 +83,38 @@ async def test_comprehensive_stats():
                             JOIN player p ON p.id = s.player_id
                             WHERE s.game_id = :game_id
                             LIMIT 3
-                        """), {"game_id": game_id}).fetchall()
+                        """
+                            ),
+                            {"game_id": game_id},
+                        ).fetchall()
 
                         for row in results:
                             name, pts, reb, ast, fgm, fga, fgp, tpm, tpa, dnp, to, stl, blk, mins = row
-                            print(f"    {name}: {pts}pts, {reb}reb, {ast}ast, "
-                                  f"FG: {fgm}/{fga} ({fgp:.1f}%), "
-                                  f"3PT: {tpm}/{tpa}, TO: {to}, STL: {stl}, BLK: {blk}, "
-                                  f"MIN: {mins}, DNP: {bool(dnp)}")
+                            print(
+                                f"    {name}: {pts}pts, {reb}reb, {ast}ast, "
+                                f"FG: {fgm}/{fga} ({fgp:.1f}%), "
+                                f"3PT: {tpm}/{tpa}, TO: {to}, STL: {stl}, BLK: {blk}, "
+                                f"MIN: {mins}, DNP: {bool(dnp)}"
+                            )
 
                             # Test fantasy scoring with turnovers
                             if not dnp:
-                                fantasy_pts = compute_fantasy_points({
-                                    "points": pts,
-                                    "rebounds": reb,
-                                    "assists": ast,
-                                    "steals": stl,
-                                    "blocks": blk,
-                                    "turnovers": to
-                                })
+                                fantasy_pts = compute_fantasy_points(
+                                    {
+                                        "points": pts,
+                                        "rebounds": reb,
+                                        "assists": ast,
+                                        "steals": stl,
+                                        "blocks": blk,
+                                        "turnovers": to,
+                                    }
+                                )
                                 print(f"      Fantasy Points: {fantasy_pts}")
 
                         # Test comprehensive stats coverage
-                        comprehensive_stats = session.execute(text("""
+                        comprehensive_stats = session.execute(
+                            text(
+                                """
                             SELECT COUNT(*) as total,
                                    SUM(CASE WHEN minutes_played > 0 THEN 1 ELSE 0 END) as with_minutes,
                                    SUM(CASE WHEN field_goals_attempted > 0 THEN 1 ELSE 0 END) as with_fg,
@@ -104,10 +124,13 @@ async def test_comprehensive_stats():
                                    SUM(CASE WHEN did_not_play = 1 THEN 1 ELSE 0 END) as dnp_count
                             FROM stat_line
                             WHERE game_id = :game_id
-                        """), {"game_id": game_id}).fetchone()
+                        """
+                            ),
+                            {"game_id": game_id},
+                        ).fetchone()
 
                         total, with_minutes, with_fg, with_3pt, with_ft, with_turnovers, dnp_count = comprehensive_stats
-                        print(f"  Comprehensive stats coverage:")
+                        print("  Comprehensive stats coverage:")
                         print(f"    Total players: {total}")
                         print(f"    With minutes: {with_minutes}")
                         print(f"    With field goals: {with_fg}")
@@ -122,6 +145,7 @@ async def test_comprehensive_stats():
         except Exception as e:
             print(f"❌ Database verification failed: {e}")
             import traceback
+
             traceback.print_exc()
         finally:
             session.close()

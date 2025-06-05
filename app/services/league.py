@@ -10,7 +10,7 @@ from typing import List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models import League, Team, User, DraftState
+from app.models import DraftState, League, Team, User
 
 
 class LeagueService:
@@ -97,8 +97,7 @@ class LeagueService:
             current_team_count = self.db.query(Team).filter(Team.league_id == league_id).count()
             if max_teams < current_team_count:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Cannot reduce max_teams below current team count ({current_team_count})"
+                    status_code=400, detail=f"Cannot reduce max_teams below current team count ({current_team_count})"
                 )
 
         # Update fields
@@ -151,30 +150,17 @@ class LeagueService:
             raise HTTPException(status_code=409, detail="League has reached maximum capacity")
 
         # Check if user already has a team in this league
-        existing_team = (
-            self.db.query(Team)
-            .filter(Team.league_id == league.id, Team.owner_id == user.id)
-            .first()
-        )
+        existing_team = self.db.query(Team).filter(Team.league_id == league.id, Team.owner_id == user.id).first()
         if existing_team:
             raise HTTPException(status_code=409, detail="You already have a team in this league")
 
         # Check if team name is already taken in this league
-        existing_name = (
-            self.db.query(Team)
-            .filter(Team.league_id == league.id, Team.name == team_name)
-            .first()
-        )
+        existing_name = self.db.query(Team).filter(Team.league_id == league.id, Team.name == team_name).first()
         if existing_name:
             raise HTTPException(status_code=409, detail="Team name already taken in this league")
 
         # Create team
-        team = Team(
-            name=team_name,
-            owner_id=user.id,
-            league_id=league.id,
-            moves_this_week=0,
-        )
+        team = Team(name=team_name, owner_id=user.id, league_id=league.id, moves_this_week=0)
 
         self.db.add(team)
         self.db.commit()
@@ -235,18 +221,11 @@ class LeagueService:
     def get_user_leagues(self, user: User) -> List[dict]:
         """Get all leagues where user has a team or is commissioner."""
         # Get leagues where user is commissioner
-        owned_leagues = (
-            self.db.query(League)
-            .filter(League.commissioner_id == user.id)
-            .all()
-        )
+        owned_leagues = self.db.query(League).filter(League.commissioner_id == user.id).all()
 
         # Get leagues where user has a team
         team_leagues = (
-            self.db.query(League)
-            .join(Team, Team.league_id == League.id)
-            .filter(Team.owner_id == user.id)
-            .all()
+            self.db.query(League).join(Team, Team.league_id == League.id).filter(Team.owner_id == user.id).all()
         )
 
         # Combine and deduplicate
@@ -256,9 +235,6 @@ class LeagueService:
         result = []
         for league in all_leagues.values():
             role = "commissioner" if league.commissioner_id == user.id else "member"
-            result.append({
-                "league": league,
-                "role": role,
-            })
+            result.append({"league": league, "role": role})
 
         return result

@@ -2,11 +2,12 @@
 
 import logging
 from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.services.analytics import AnalyticsService
 from app.models import IngestLog
+from app.services.analytics import AnalyticsService
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,7 @@ def run_analytics_calculation():
 
         # Log success
         log_entry = IngestLog(
-            provider="analytics_job",
-            message=f"Successfully calculated analytics for season {season}"
+            provider="analytics_job", message=f"Successfully calculated analytics for season {season}"
         )
         db.add(log_entry)
         db.commit()
@@ -38,10 +38,7 @@ def run_analytics_calculation():
         logger.error(f"Error in analytics calculation: {e}")
 
         # Log error
-        log_entry = IngestLog(
-            provider="analytics_job",
-            message=f"Error calculating analytics: {str(e)}"
-        )
+        log_entry = IngestLog(provider="analytics_job", message=f"Error calculating analytics: {str(e)}")
         db.add(log_entry)
         db.commit()
 

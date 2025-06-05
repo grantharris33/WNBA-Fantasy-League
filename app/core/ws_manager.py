@@ -23,7 +23,9 @@ class ConnectionManager:
             self.active_connections[league_id] = set()
 
         self.active_connections[league_id].add(websocket)
-        print(f"[WebSocketManager] Connected to league {league_id}. Total connections: {len(self.active_connections[league_id])}")
+        print(
+            f"[WebSocketManager] Connected to league {league_id}. Total connections: {len(self.active_connections[league_id])}"
+        )
 
     def disconnect(self, websocket: WebSocket, league_id: int):
         """
@@ -43,7 +45,9 @@ class ConnectionManager:
                 del self.active_connections[league_id]
                 print(f"[WebSocketManager] Disconnected from league {league_id}. No connections remaining.")
             else:
-                print(f"[WebSocketManager] Disconnected from league {league_id}. Remaining connections: {len(self.active_connections[league_id])}")
+                print(
+                    f"[WebSocketManager] Disconnected from league {league_id}. Remaining connections: {len(self.active_connections[league_id])}"
+                )
 
     async def broadcast_to_league(self, league_id: int, message: dict):
         """
@@ -58,7 +62,9 @@ class ConnectionManager:
             return
 
         connection_count = len(self.active_connections[league_id])
-        print(f"[WebSocketManager] Broadcasting {message.get('event', 'unknown')} to {connection_count} connections in league {league_id}")
+        print(
+            f"[WebSocketManager] Broadcasting {message.get('event', 'unknown')} to {connection_count} connections in league {league_id}"
+        )
 
         # Track failed connections to clean up
         disconnected = set()
@@ -81,7 +87,9 @@ class ConnectionManager:
         if not self.active_connections[league_id]:
             del self.active_connections[league_id]
 
-        print(f"[WebSocketManager] Broadcast complete. Successful: {successful_broadcasts}, Failed: {len(disconnected)}")
+        print(
+            f"[WebSocketManager] Broadcast complete. Successful: {successful_broadcasts}, Failed: {len(disconnected)}"
+        )
 
 
 # Global connection manager instance

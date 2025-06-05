@@ -22,7 +22,8 @@ const PlayerListItem: React.FC<PlayerListItemProps> = ({
 
   const formatPercentage = (value: number | undefined) => {
     if (value === undefined || value === null) return 'N/A';
-    return (value * 100).toFixed(1) + '%';
+    // API already returns percentage as 0-100, no need to multiply by 100
+    return value.toFixed(1) + '%';
   };
 
   const formatStat = (value: number | undefined) => {
@@ -37,7 +38,7 @@ const PlayerListItem: React.FC<PlayerListItemProps> = ({
           <div>
             <p className="font-semibold text-gray-800 text-lg">{player.full_name}</p>
             <p className="text-sm text-gray-600">
-              {player.position || 'N/A'} - {player.team_abbr || 'N/A'}
+              {player.position || 'N/A'} • {player.team_abbr || 'FA'}
             </p>
           </div>
           {player.stats_2024 && (
@@ -53,41 +54,41 @@ const PlayerListItem: React.FC<PlayerListItemProps> = ({
         </div>
 
         {player.stats_2024 && (
-          <>
-            <div className="grid grid-cols-4 gap-3 text-xs text-gray-600 mb-2">
+          <div className="bg-gray-50 rounded-lg p-3 mt-2">
+            <div className="grid grid-cols-4 gap-4 text-xs text-gray-600 mb-3">
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatStat(player.stats_2024.ppg)}</p>
-                <p>PPG</p>
+                <p className="font-semibold text-gray-900">{formatStat(player.stats_2024.ppg)}</p>
+                <p className="text-gray-600">PPG</p>
               </div>
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatStat(player.stats_2024.rpg)}</p>
-                <p>RPG</p>
+                <p className="font-semibold text-gray-900">{formatStat(player.stats_2024.rpg)}</p>
+                <p className="text-gray-600">RPG</p>
               </div>
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatStat(player.stats_2024.apg)}</p>
-                <p>APG</p>
+                <p className="font-semibold text-gray-900">{formatStat(player.stats_2024.apg)}</p>
+                <p className="text-gray-600">APG</p>
               </div>
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatStat(player.stats_2024.mpg)}</p>
-                <p>MPG</p>
+                <p className="font-semibold text-gray-900">{formatStat(player.stats_2024.mpg)}</p>
+                <p className="text-gray-600">MPG</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-xs text-gray-600">
+            <div className="grid grid-cols-3 gap-4 text-xs text-gray-600">
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatPercentage(player.stats_2024.fg_percentage)}</p>
-                <p>FG%</p>
+                <p className="font-semibold text-gray-900">{formatPercentage(player.stats_2024.fg_percentage)}</p>
+                <p className="text-gray-600">FG%</p>
               </div>
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatPercentage(player.stats_2024.three_point_percentage)}</p>
-                <p>3P%</p>
+                <p className="font-semibold text-gray-900">{formatPercentage(player.stats_2024.three_point_percentage)}</p>
+                <p className="text-gray-600">3P%</p>
               </div>
               <div className="text-center">
-                <p className="font-medium text-gray-800">{formatStat(player.stats_2024.spg)} / {formatStat(player.stats_2024.bpg)}</p>
-                <p>STL/BLK</p>
+                <p className="font-semibold text-gray-900">{formatStat(player.stats_2024.spg)} / {formatStat(player.stats_2024.bpg)}</p>
+                <p className="text-gray-600">STL/BLK</p>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 

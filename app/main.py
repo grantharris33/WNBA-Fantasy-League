@@ -167,7 +167,9 @@ async def _startup() -> None:
 
     # Check for scheduled drafts to start every minute
     if not scheduler.get_job("start_scheduled_drafts"):
-        scheduler.add_job(start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True)
+        scheduler.add_job(
+            start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True
+        )
 
     # Schedule daily analytics calculation at 04:00 UTC (after ingest and scoring)
     if not scheduler.get_job("daily_analytics"):
@@ -287,7 +289,9 @@ def _schedule_nightly() -> None:
 
     # Also add scheduled draft checker to _schedule_nightly for tests
     if not scheduler.get_job("start_scheduled_drafts"):
-        scheduler.add_job(start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True)
+        scheduler.add_job(
+            start_scheduled_drafts, "interval", minutes=1, id="start_scheduled_drafts", replace_existing=True
+        )
 
     # Schedule daily analytics calculation at 04:00 UTC (after ingest and scoring)
     if not scheduler.get_job("daily_analytics"):

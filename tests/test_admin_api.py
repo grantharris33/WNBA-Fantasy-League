@@ -1,23 +1,20 @@
 """Tests for admin API endpoints."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import User, Team, WeeklyLineup, TeamScore, Player, RosterSlot
-from app.core.security import hash_password, create_access_token
+from app.core.security import create_access_token, hash_password
 from app.main import app
+from app.models import Player, RosterSlot, Team, TeamScore, User, WeeklyLineup
 
 
 @pytest.fixture
 def admin_user(db: Session):
     """Create an admin user for testing."""
-    admin = User(
-        email="admin@test.com",
-        hashed_password=hash_password("password"),
-        is_admin=True
-    )
+    admin = User(email="admin@test.com", hashed_password=hash_password("password"), is_admin=True)
     db.add(admin)
     db.commit()
     return admin
@@ -26,11 +23,7 @@ def admin_user(db: Session):
 @pytest.fixture
 def regular_user(db: Session):
     """Create a regular user for testing."""
-    user = User(
-        email="user@test.com",
-        hashed_password=hash_password("password"),
-        is_admin=False
-    )
+    user = User(email="user@test.com", hashed_password=hash_password("password"), is_admin=False)
     db.add(user)
     db.commit()
     return user
@@ -51,12 +44,7 @@ def regular_token(regular_user: User):
 @pytest.fixture
 def test_team(db: Session, regular_user: User):
     """Create a test team."""
-    team = Team(
-        name="Test Team",
-        owner_id=regular_user.id,
-        league_id=1,
-        moves_this_week=3
-    )
+    team = Team(name="Test Team", owner_id=regular_user.id, league_id=1, moves_this_week=3)
     db.add(team)
     db.commit()
     return team
@@ -67,12 +55,7 @@ def test_players(db: Session):
     """Create test players."""
     players = []
     for i in range(10):
-        player = Player(
-            full_name=f"Player {i}",
-            position="G" if i < 5 else "F",
-            team_abbr="TEST",
-            status="active"
-        )
+        player = Player(full_name=f"Player {i}", position="G" if i < 5 else "F", team_abbr="TEST", status="active")
         db.add(player)
         players.append(player)
 
@@ -91,10 +74,7 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
 
         # Add to roster
         roster_slot = RosterSlot(
-            team_id=test_team.id,
-            player_id=player.id,
-            position=player.position,
-            is_starter=is_starter
+            team_id=test_team.id, player_id=player.id, position=player.position, is_starter=is_starter
         )
         db.add(roster_slot)
 
@@ -104,7 +84,7 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
             player_id=player.id,
             week_id=week_id,
             is_starter=is_starter,
-            locked_at=datetime.utcnow()
+            locked_at=datetime.utcnow(),
         )
         db.add(lineup_entry)
         lineup_entries.append(lineup_entry)
@@ -116,17 +96,16 @@ def test_weekly_lineup(db: Session, test_team: Team, test_players: list):
 class TestAdminAPI:
     """Test cases for admin API endpoints."""
 
-    def test_modify_historical_lineup_success(self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list, test_players: list):
+    def test_modify_historical_lineup_success(
+        self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list, test_players: list
+    ):
         """Test successful historical lineup modification."""
         new_starter_ids = [p.id for p in test_players[2:7]]  # Different 5 players
 
         response = client.put(
             f"/api/v1/admin/teams/{test_team.id}/lineups/202501",
-            json={
-                "starter_ids": new_starter_ids,
-                "justification": "Testing lineup modification"
-            },
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json={"starter_ids": new_starter_ids, "justification": "Testing lineup modification"},
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 200
@@ -141,11 +120,8 @@ class TestAdminAPI:
         """Test lineup modification without admin privileges."""
         response = client.put(
             f"/api/v1/admin/teams/{test_team.id}/lineups/202501",
-            json={
-                "starter_ids": [1, 2, 3, 4, 5],
-                "justification": "Testing"
-            },
-            headers={"Authorization": f"Bearer {regular_token}"}
+            json={"starter_ids": [1, 2, 3, 4, 5], "justification": "Testing"},
+            headers={"Authorization": f"Bearer {regular_token}"},
         )
 
         assert response.status_code == 403
@@ -155,10 +131,7 @@ class TestAdminAPI:
         """Test lineup modification without authentication."""
         response = client.put(
             f"/api/v1/admin/teams/{test_team.id}/lineups/202501",
-            json={
-                "starter_ids": [1, 2, 3, 4, 5],
-                "justification": "Testing"
-            }
+            json={"starter_ids": [1, 2, 3, 4, 5], "justification": "Testing"},
         )
 
         assert response.status_code == 401
@@ -167,25 +140,21 @@ class TestAdminAPI:
         """Test lineup modification with invalid team ID."""
         response = client.put(
             "/api/v1/admin/teams/999/lineups/202501",
-            json={
-                "starter_ids": [1, 2, 3, 4, 5],
-                "justification": "Testing"
-            },
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json={"starter_ids": [1, 2, 3, 4, 5], "justification": "Testing"},
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 400
         assert "Team with ID 999 not found" in response.json()["detail"]
 
-    def test_modify_historical_lineup_wrong_starter_count(self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list):
+    def test_modify_historical_lineup_wrong_starter_count(
+        self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list
+    ):
         """Test lineup modification with wrong number of starters."""
         response = client.put(
             f"/api/v1/admin/teams/{test_team.id}/lineups/202501",
-            json={
-                "starter_ids": [1, 2, 3],  # Only 3 starters
-                "justification": "Testing"
-            },
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json={"starter_ids": [1, 2, 3], "justification": "Testing"},  # Only 3 starters
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 400
@@ -197,7 +166,7 @@ class TestAdminAPI:
         response = client.post(
             f"/api/v1/admin/teams/{test_team.id}/weeks/202501/recalculate",
             json={"justification": "Testing score recalculation"},
-            headers={"Authorization": f"Bearer {admin_token}"}
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 200
@@ -210,7 +179,7 @@ class TestAdminAPI:
         response = client.post(
             f"/api/v1/admin/teams/{test_team.id}/weeks/202501/recalculate",
             json={"justification": "Testing"},
-            headers={"Authorization": f"Bearer {regular_token}"}
+            headers={"Authorization": f"Bearer {regular_token}"},
         )
 
         assert response.status_code == 403
@@ -219,11 +188,8 @@ class TestAdminAPI:
         """Test successful granting of additional moves."""
         response = client.post(
             f"/api/v1/admin/teams/{test_team.id}/moves/grant",
-            json={
-                "additional_moves": 2,
-                "justification": "Testing move grant"
-            },
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json={"additional_moves": 2, "justification": "Testing move grant"},
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 200
@@ -236,11 +202,8 @@ class TestAdminAPI:
         """Test granting moves without admin privileges."""
         response = client.post(
             f"/api/v1/admin/teams/{test_team.id}/moves/grant",
-            json={
-                "additional_moves": 2,
-                "justification": "Testing"
-            },
-            headers={"Authorization": f"Bearer {regular_token}"}
+            json={"additional_moves": 2, "justification": "Testing"},
+            headers={"Authorization": f"Bearer {regular_token}"},
         )
 
         assert response.status_code == 403
@@ -249,11 +212,8 @@ class TestAdminAPI:
         """Test granting moves with invalid team ID."""
         response = client.post(
             "/api/v1/admin/teams/999/moves/grant",
-            json={
-                "additional_moves": 2,
-                "justification": "Testing"
-            },
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json={"additional_moves": 2, "justification": "Testing"},
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 400
@@ -261,10 +221,7 @@ class TestAdminAPI:
 
     def test_get_audit_log_success(self, client: TestClient, admin_token: str):
         """Test successful audit log retrieval."""
-        response = client.get(
-            "/api/v1/admin/audit-log",
-            headers={"Authorization": f"Bearer {admin_token}"}
-        )
+        response = client.get("/api/v1/admin/audit-log", headers={"Authorization": f"Bearer {admin_token}"})
 
         assert response.status_code == 200
         data = response.json()
@@ -274,7 +231,7 @@ class TestAdminAPI:
         """Test audit log retrieval with filters."""
         response = client.get(
             f"/api/v1/admin/audit-log?team_id={test_team.id}&limit=50&offset=0",
-            headers={"Authorization": f"Bearer {admin_token}"}
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 200
@@ -283,18 +240,16 @@ class TestAdminAPI:
 
     def test_get_audit_log_unauthorized(self, client: TestClient, regular_token: str):
         """Test audit log retrieval without admin privileges."""
-        response = client.get(
-            "/api/v1/admin/audit-log",
-            headers={"Authorization": f"Bearer {regular_token}"}
-        )
+        response = client.get("/api/v1/admin/audit-log", headers={"Authorization": f"Bearer {regular_token}"})
 
         assert response.status_code == 403
 
-    def test_get_team_lineup_history_success(self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list):
+    def test_get_team_lineup_history_success(
+        self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list
+    ):
         """Test successful team lineup history retrieval."""
         response = client.get(
-            f"/api/v1/admin/teams/{test_team.id}/lineup-history",
-            headers={"Authorization": f"Bearer {admin_token}"}
+            f"/api/v1/admin/teams/{test_team.id}/lineup-history", headers={"Authorization": f"Bearer {admin_token}"}
         )
 
         assert response.status_code == 200
@@ -304,17 +259,18 @@ class TestAdminAPI:
     def test_get_team_lineup_history_unauthorized(self, client: TestClient, regular_token: str, test_team: Team):
         """Test lineup history retrieval without admin privileges."""
         response = client.get(
-            f"/api/v1/admin/teams/{test_team.id}/lineup-history",
-            headers={"Authorization": f"Bearer {regular_token}"}
+            f"/api/v1/admin/teams/{test_team.id}/lineup-history", headers={"Authorization": f"Bearer {regular_token}"}
         )
 
         assert response.status_code == 403
 
-    def test_get_admin_lineup_view_success(self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list):
+    def test_get_admin_lineup_view_success(
+        self, client: TestClient, admin_token: str, test_team: Team, test_weekly_lineup: list
+    ):
         """Test successful admin lineup view retrieval."""
         response = client.get(
             f"/api/v1/admin/teams/{test_team.id}/weeks/202501/lineup",
-            headers={"Authorization": f"Bearer {admin_token}"}
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 200
@@ -327,8 +283,7 @@ class TestAdminAPI:
     def test_get_admin_lineup_view_not_found(self, client: TestClient, admin_token: str):
         """Test getting lineup view for non-existent team/week returns 404."""
         response = client.get(
-            "/api/v1/admin/teams/999/weeks/1/lineup",
-            headers={"Authorization": f"Bearer {admin_token}"}
+            "/api/v1/admin/teams/999/weeks/1/lineup", headers={"Authorization": f"Bearer {admin_token}"}
         )
         assert response.status_code == 404
 
@@ -336,7 +291,7 @@ class TestAdminAPI:
         """Test admin lineup view without admin privileges."""
         response = client.get(
             f"/api/v1/admin/teams/{test_team.id}/weeks/202501/lineup",
-            headers={"Authorization": f"Bearer {regular_token}"}
+            headers={"Authorization": f"Bearer {regular_token}"},
         )
 
         assert response.status_code == 403
@@ -347,10 +302,7 @@ class TestAdminAPI:
         response = client.put(
             f"/api/v1/admin/teams/{test_team.id}/lineups/202501",
             data="invalid json",
-            headers={
-                "Authorization": f"Bearer {admin_token}",
-                "Content-Type": "application/json"
-            }
+            headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"},
         )
 
         assert response.status_code == 422
@@ -361,7 +313,7 @@ class TestAdminAPI:
         response = client.put(
             f"/api/v1/admin/teams/{test_team.id}/lineups/202501",
             json={"justification": "test"},  # Missing starter_ids
-            headers={"Authorization": f"Bearer {admin_token}"}
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 422
@@ -369,11 +321,8 @@ class TestAdminAPI:
         # Test grant moves with invalid data type
         response = client.post(
             f"/api/v1/admin/teams/{test_team.id}/moves/grant",
-            json={
-                "additional_moves": "not_a_number",
-                "justification": "test"
-            },
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json={"additional_moves": "not_a_number", "justification": "test"},
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
 
         assert response.status_code == 422
@@ -383,7 +332,7 @@ class TestAdminAPI:
     def test_grant_team_moves_success(self, client: TestClient, admin_token: str, db: Session):
         """Test successfully granting moves to a team."""
         # Create test data
-        from app.models import Team, League, User
+        from app.models import League, Team, User
 
         league = League(name="Test League", invite_code="TEST123")
         db.add(league)
@@ -397,11 +346,7 @@ class TestAdminAPI:
         response = client.post(
             f"/api/v1/admin/teams/{team.id}/weeks/1/grant-moves",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "moves_to_grant": 2,
-                "reason": "Emergency injury replacement",
-                "week_id": 1
-            }
+            json={"moves_to_grant": 2, "reason": "Emergency injury replacement", "week_id": 1},
         )
 
         assert response.status_code == 200
@@ -416,11 +361,7 @@ class TestAdminAPI:
         response = client.post(
             "/api/v1/admin/teams/999/weeks/1/grant-moves",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "moves_to_grant": 2,
-                "reason": "Test",
-                "week_id": 1
-            }
+            json={"moves_to_grant": 2, "reason": "Test", "week_id": 1},
         )
 
         assert response.status_code == 400
@@ -429,7 +370,7 @@ class TestAdminAPI:
     def test_grant_team_moves_invalid_input(self, client: TestClient, admin_token: str, db: Session):
         """Test granting moves with invalid input returns 400."""
         # Create test data
-        from app.models import Team, League
+        from app.models import League, Team
 
         league = League(name="Test League", invite_code="TEST123")
         db.add(league)
@@ -443,11 +384,7 @@ class TestAdminAPI:
         response = client.post(
             f"/api/v1/admin/teams/{team.id}/weeks/1/grant-moves",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "moves_to_grant": 0,
-                "reason": "Test",
-                "week_id": 1
-            }
+            json={"moves_to_grant": 0, "reason": "Test", "week_id": 1},
         )
 
         assert response.status_code == 400
@@ -456,7 +393,7 @@ class TestAdminAPI:
     def test_get_team_move_summary_success(self, client: TestClient, admin_token: str, db: Session):
         """Test getting team move summary."""
         # Create test data
-        from app.models import Team, League, User, AdminMoveGrant
+        from app.models import AdminMoveGrant, League, Team, User
 
         league = League(name="Test League", invite_code="TEST123")
         db.add(league)
@@ -473,19 +410,14 @@ class TestAdminAPI:
 
         # Add admin grant
         grant = AdminMoveGrant(
-            team_id=team.id,
-            admin_user_id=admin_user.id,
-            moves_granted=2,
-            reason="Emergency",
-            week_id=1
+            team_id=team.id, admin_user_id=admin_user.id, moves_granted=2, reason="Emergency", week_id=1
         )
         db.add(grant)
         db.commit()
 
         # Get summary
         response = client.get(
-            f"/api/v1/admin/teams/{team.id}/weeks/1/move-summary",
-            headers={"Authorization": f"Bearer {admin_token}"}
+            f"/api/v1/admin/teams/{team.id}/weeks/1/move-summary", headers={"Authorization": f"Bearer {admin_token}"}
         )
 
         assert response.status_code == 200
@@ -502,8 +434,7 @@ class TestAdminAPI:
     def test_get_team_move_summary_invalid_team(self, client: TestClient, admin_token: str):
         """Test getting move summary for non-existent team returns 400."""
         response = client.get(
-            "/api/v1/admin/teams/999/weeks/1/move-summary",
-            headers={"Authorization": f"Bearer {admin_token}"}
+            "/api/v1/admin/teams/999/weeks/1/move-summary", headers={"Authorization": f"Bearer {admin_token}"}
         )
 
         assert response.status_code == 400
@@ -512,7 +443,7 @@ class TestAdminAPI:
     def test_force_set_team_roster_success(self, client: TestClient, admin_token: str, db: Session):
         """Test force setting team roster with admin override."""
         # Create test data
-        from app.models import Team, League, Player, RosterSlot
+        from app.models import League, Player, RosterSlot, Team
 
         league = League(name="Test League", invite_code="TEST123")
         db.add(league)
@@ -535,12 +466,7 @@ class TestAdminAPI:
         # Add players to roster
         for i, player in enumerate(players):
             is_starter = i < 5
-            slot = RosterSlot(
-                team_id=team.id,
-                player_id=player.id,
-                position=player.position,
-                is_starter=is_starter
-            )
+            slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=is_starter)
             db.add(slot)
 
         db.commit()
@@ -551,11 +477,7 @@ class TestAdminAPI:
         response = client.put(
             f"/api/v1/admin/teams/{team.id}/weeks/1/force-roster",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "starter_ids": new_starter_ids,
-                "week_id": 1,
-                "bypass_move_limit": True
-            }
+            json={"starter_ids": new_starter_ids, "week_id": 1, "bypass_move_limit": True},
         )
 
         assert response.status_code == 200
@@ -568,7 +490,7 @@ class TestAdminAPI:
     def test_force_set_team_roster_invalid_positions(self, client: TestClient, admin_token: str, db: Session):
         """Test force setting roster with invalid positions returns 400."""
         # Create test data
-        from app.models import Team, League, Player, RosterSlot
+        from app.models import League, Player, RosterSlot, Team
 
         league = League(name="Test League", invite_code="TEST123")
         db.add(league)
@@ -589,12 +511,7 @@ class TestAdminAPI:
 
         # Add players to roster
         for player in players:
-            slot = RosterSlot(
-                team_id=team.id,
-                player_id=player.id,
-                position=player.position,
-                is_starter=False
-            )
+            slot = RosterSlot(team_id=team.id, player_id=player.id, position=player.position, is_starter=False)
             db.add(slot)
 
         db.commit()
@@ -603,11 +520,7 @@ class TestAdminAPI:
         response = client.put(
             f"/api/v1/admin/teams/{team.id}/weeks/1/force-roster",
             headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "starter_ids": [p.id for p in players],
-                "week_id": 1,
-                "bypass_move_limit": True
-            }
+            json={"starter_ids": [p.id for p in players], "week_id": 1, "bypass_move_limit": True},
         )
 
         assert response.status_code == 400
@@ -616,7 +529,7 @@ class TestAdminAPI:
     def test_admin_endpoints_require_admin_privileges(self, client: TestClient, regular_token: str, db: Session):
         """Test that admin endpoints require admin privileges."""
         # Create test data
-        from app.models import Team, League
+        from app.models import League, Team
 
         league = League(name="Test League", invite_code="TEST123")
         db.add(league)
@@ -630,18 +543,13 @@ class TestAdminAPI:
         response = client.post(
             f"/api/v1/admin/teams/{team.id}/weeks/1/grant-moves",
             headers={"Authorization": f"Bearer {regular_token}"},
-            json={
-                "moves_to_grant": 2,
-                "reason": "Test",
-                "week_id": 1
-            }
+            json={"moves_to_grant": 2, "reason": "Test", "week_id": 1},
         )
         assert response.status_code == 403
 
         # Test move summary
         response = client.get(
-            f"/api/v1/admin/teams/{team.id}/weeks/1/move-summary",
-            headers={"Authorization": f"Bearer {regular_token}"}
+            f"/api/v1/admin/teams/{team.id}/weeks/1/move-summary", headers={"Authorization": f"Bearer {regular_token}"}
         )
         assert response.status_code == 403
 
@@ -649,10 +557,6 @@ class TestAdminAPI:
         response = client.put(
             f"/api/v1/admin/teams/{team.id}/weeks/1/force-roster",
             headers={"Authorization": f"Bearer {regular_token}"},
-            json={
-                "starter_ids": [1, 2, 3, 4, 5],
-                "week_id": 1,
-                "bypass_move_limit": True
-            }
+            json={"starter_ids": [1, 2, 3, 4, 5], "week_id": 1, "bypass_move_limit": True},
         )
         assert response.status_code == 403

@@ -4,7 +4,7 @@ import pytest
 from freezegun import freeze_time
 from sqlalchemy.orm import Session
 
-from app.models import League, Player, RosterSlot, Team, User
+from app.models import League, Player, RosterSlot, Team, User, WeeklyLineup
 from app.services.roster import RosterService
 
 
@@ -136,6 +136,247 @@ def test_drop_player_from_team(db: Session, setup_roster_test):
     )
     assert roster_slot is None
 
+    # Verify that dropping a player does NOT increment the move counter
+    team_db = db.query(Team).filter_by(id=team.id).first()
+    assert team_db.moves_this_week == 0
+
+
+def test_drop_player_does_not_count_as_move(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    players = setup_roster_test["players"]
+
+    # Set some moves already used
+    team.moves_this_week = 2
+    db.commit()
+
+    player_to_drop = players[7]  # Bench 1
+
+    # Act
+    service.drop_player_from_team(team.id, player_to_drop.id)
+
+    # Assert
+    # Verify the move counter did not change
+    team_db = db.query(Team).filter_by(id=team.id).first()
+    assert team_db.moves_this_week == 2  # Should remain unchanged
+
+
+def test_add_player_to_bench_does_not_count_as_move(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    players = setup_roster_test["players"]
+    free_agent = players[10]  # Free Agent 1
+
+    # Set some moves already used
+    team.moves_this_week = 2
+    db.commit()
+
+    # Act - explicitly set as bench player
+    roster_slot = service.add_player_to_team(team.id, free_agent.id, set_as_starter=False)
+
+    # Assert
+    assert roster_slot.is_starter == 0
+    # Verify the move counter did not change
+    team_db = db.query(Team).filter_by(id=team.id).first()
+    assert team_db.moves_this_week == 2  # Should remain unchanged
+
+
+def test_can_add_player_to_bench_when_move_limit_reached(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    players = setup_roster_test["players"]
+    free_agent = players[10]  # Free Agent 1
+
+    # Set the team's moves_this_week to the limit
+    team.moves_this_week = 3
+    db.commit()
+
+    # Act - should succeed because adding to bench doesn't count as a move
+    roster_slot = service.add_player_to_team(team.id, free_agent.id, set_as_starter=False)
+
+    # Assert
+    assert roster_slot is not None
+    assert roster_slot.is_starter == 0
+    # Verify the move counter did not change
+    team_db = db.query(Team).filter_by(id=team.id).first()
+    assert team_db.moves_this_week == 3  # Should remain unchanged
+
+
+def test_cannot_add_player_as_starter_when_move_limit_reached(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    players = setup_roster_test["players"]
+    free_agent = players[10]  # Free Agent 1
+
+    # Set the team's moves_this_week to the limit
+    team.moves_this_week = 3
+    db.commit()
+
+    # Act & Assert - should fail because adding as starter counts as a move
+    with pytest.raises(ValueError, match="Weekly move limit reached"):
+        service.add_player_to_team(team.id, free_agent.id, set_as_starter=True)
+
+
+def test_can_drop_player_when_move_limit_reached(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    players = setup_roster_test["players"]
+    player_to_drop = players[7]  # Bench 1
+
+    # Set the team's moves_this_week to the limit
+    team.moves_this_week = 3
+    db.commit()
+
+    # Act - should succeed because dropping doesn't count as a move
+    service.drop_player_from_team(team.id, player_to_drop.id)
+
+    # Assert
+    # Verify player is no longer on the roster
+    roster_slot = (
+        db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.player_id == player_to_drop.id).first()
+    )
+    assert roster_slot is None
+
+    # Verify the move counter did not change
+    team_db = db.query(Team).filter_by(id=team.id).first()
+    assert team_db.moves_this_week == 3  # Should remain unchanged
+
+
+def test_save_current_starters_to_history(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    week_id = 1
+
+    # Act
+    teams_processed = service.save_current_starters_to_history(week_id)
+
+    # Assert
+    assert teams_processed == 1
+
+    # Verify that starters were saved to WeeklyLineup
+    weekly_lineups = (
+        db.query(WeeklyLineup).filter(WeeklyLineup.team_id == team.id, WeeklyLineup.week_id == week_id).all()
+    )
+    assert len(weekly_lineups) == 7  # All 7 players on the roster
+
+    # Verify that the 5 starters are marked correctly
+    starters = [wl for wl in weekly_lineups if wl.is_starter]
+    bench = [wl for wl in weekly_lineups if not wl.is_starter]
+    assert len(starters) == 5
+    assert len(bench) == 2
+
+
+def test_carry_over_starters_from_previous_week(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+    setup_roster_test["players"]
+
+    # First, save current starters to history for week 1
+    service.save_current_starters_to_history(1)
+
+    # Clear all current starters (simulate new week)
+    for slot in db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all():
+        slot.is_starter = False
+    db.commit()
+
+    # Act - carry over starters from week 1 to week 2
+    teams_processed = service.carry_over_starters_from_previous_week(2)
+
+    # Assert
+    assert teams_processed == 1
+
+    # Verify that starters were carried over
+    current_starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).all()
+    assert len(current_starters) == 5
+
+
+def test_ensure_starters_carried_over_when_no_current_starters(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+
+    # Save current starters to history for previous week
+    current_week = service._get_current_week_id()
+    previous_week = current_week - 1
+    service.save_current_starters_to_history(previous_week)
+
+    # Clear all current starters
+    for slot in db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all():
+        slot.is_starter = False
+    db.commit()
+
+    # Act
+    carried_over = service.ensure_starters_carried_over(team.id)
+
+    # Assert
+    assert carried_over is True
+
+    # Verify that starters were carried over
+    current_starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).all()
+    assert len(current_starters) == 5
+
+
+def test_ensure_starters_carried_over_when_already_has_starters(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+
+    # Team already has starters (from setup)
+
+    # Act
+    carried_over = service.ensure_starters_carried_over(team.id)
+
+    # Assert
+    assert carried_over is False  # No carryover needed
+
+
+def test_weekly_reset_with_starter_carryover(db: Session, setup_roster_test):
+    # Arrange
+    service = RosterService(db)
+    team = setup_roster_test["team"]
+
+    # Set some moves used
+    team.moves_this_week = 2
+    db.commit()
+
+    # Get current week
+    current_week = service._get_current_week_id()
+    previous_week = current_week - 1
+
+    # Act - simulate the weekly reset process
+    # 1. Save current starters to history
+    teams_saved = service.save_current_starters_to_history(previous_week)
+
+    # 2. Reset moves
+    service.reset_weekly_moves()
+
+    # 3. Clear starters to simulate new week (normally teams would start with no starters)
+    for slot in db.query(RosterSlot).filter(RosterSlot.team_id == team.id).all():
+        slot.is_starter = False
+    db.commit()
+
+    # 4. Carry over starters
+    teams_carried_over = service.carry_over_starters_from_previous_week(current_week)
+
+    # Assert
+    assert teams_saved == 1
+    assert teams_carried_over == 1
+
+    # Verify moves were reset
+    team_db = db.query(Team).filter_by(id=team.id).first()
+    assert team_db.moves_this_week == 0
+
+    # Verify starters were carried over
+    current_starters = db.query(RosterSlot).filter(RosterSlot.team_id == team.id, RosterSlot.is_starter == True).all()
+    assert len(current_starters) == 5
+
 
 def test_set_starters_valid_lineup(db: Session, setup_roster_test):
     # Arrange
@@ -243,6 +484,7 @@ def test_reset_weekly_moves(db: Session, setup_roster_test):
 
 # Tests for Story 3: Enhanced Admin Move Management
 
+
 def test_grant_admin_moves_success(db: Session, setup_roster_test):
     """Test successfully granting admin moves to a team."""
     # Arrange
@@ -256,11 +498,7 @@ def test_grant_admin_moves_success(db: Session, setup_roster_test):
 
     # Act
     grant = service.grant_admin_moves(
-        team_id=team.id,
-        week_id=1,
-        moves_to_grant=2,
-        reason="Emergency injury replacement",
-        admin_user_id=admin_user.id
+        team_id=team.id, week_id=1, moves_to_grant=2, reason="Emergency injury replacement", admin_user_id=admin_user.id
     )
 
     # Assert
@@ -282,11 +520,7 @@ def test_grant_admin_moves_invalid_admin(db: Session, setup_roster_test):
     # Act & Assert
     with pytest.raises(ValueError, match="is not an admin"):
         service.grant_admin_moves(
-            team_id=team.id,
-            week_id=1,
-            moves_to_grant=2,
-            reason="Test",
-            admin_user_id=regular_user.id
+            team_id=team.id, week_id=1, moves_to_grant=2, reason="Test", admin_user_id=regular_user.id
         )
 
 
@@ -302,13 +536,7 @@ def test_grant_admin_moves_invalid_team(db: Session, setup_roster_test):
 
     # Act & Assert
     with pytest.raises(ValueError, match="Team with ID 999 not found"):
-        service.grant_admin_moves(
-            team_id=999,
-            week_id=1,
-            moves_to_grant=2,
-            reason="Test",
-            admin_user_id=admin_user.id
-        )
+        service.grant_admin_moves(team_id=999, week_id=1, moves_to_grant=2, reason="Test", admin_user_id=admin_user.id)
 
 
 def test_grant_admin_moves_invalid_inputs(db: Session, setup_roster_test):
@@ -325,22 +553,12 @@ def test_grant_admin_moves_invalid_inputs(db: Session, setup_roster_test):
     # Test zero moves
     with pytest.raises(ValueError, match="Must grant at least 1 move"):
         service.grant_admin_moves(
-            team_id=team.id,
-            week_id=1,
-            moves_to_grant=0,
-            reason="Test",
-            admin_user_id=admin_user.id
+            team_id=team.id, week_id=1, moves_to_grant=0, reason="Test", admin_user_id=admin_user.id
         )
 
     # Test empty reason
     with pytest.raises(ValueError, match="Reason is required"):
-        service.grant_admin_moves(
-            team_id=team.id,
-            week_id=1,
-            moves_to_grant=2,
-            reason="",
-            admin_user_id=admin_user.id
-        )
+        service.grant_admin_moves(team_id=team.id, week_id=1, moves_to_grant=2, reason="", admin_user_id=admin_user.id)
 
 
 def test_get_team_move_summary(db: Session, setup_roster_test):
@@ -356,11 +574,7 @@ def test_get_team_move_summary(db: Session, setup_roster_test):
 
     # Grant some admin moves
     service.grant_admin_moves(
-        team_id=team.id,
-        week_id=1,
-        moves_to_grant=2,
-        reason="Emergency replacement",
-        admin_user_id=admin_user.id
+        team_id=team.id, week_id=1, moves_to_grant=2, reason="Emergency replacement", admin_user_id=admin_user.id
     )
 
     # Use some moves
@@ -410,11 +624,7 @@ def test_set_starters_admin_override_success(db: Session, setup_roster_test):
 
     # Act
     starters = service.set_starters_admin_override(
-        team_id=team.id,
-        starter_player_ids=new_starters,
-        admin_user_id=admin_user.id,
-        week_id=1,
-        bypass_move_limit=True
+        team_id=team.id, starter_player_ids=new_starters, admin_user_id=admin_user.id, week_id=1, bypass_move_limit=True
     )
 
     # Assert
@@ -459,7 +669,7 @@ def test_set_starters_admin_override_respects_move_limits_when_not_bypassing(db:
             starter_player_ids=new_starters,
             admin_user_id=admin_user.id,
             week_id=1,
-            bypass_move_limit=False
+            bypass_move_limit=False,
         )
 
 
@@ -471,17 +681,12 @@ def test_set_starters_admin_override_invalid_admin(db: Session, setup_roster_tes
     players = setup_roster_test["players"]
     regular_user = setup_roster_test["user"]  # Not an admin
 
-    new_starters = [
-        players[0].id, players[1].id, players[2].id, players[3].id, players[4].id
-    ]
+    new_starters = [players[0].id, players[1].id, players[2].id, players[3].id, players[4].id]
 
     # Act & Assert
     with pytest.raises(ValueError, match="is not an admin"):
         service.set_starters_admin_override(
-            team_id=team.id,
-            starter_player_ids=new_starters,
-            admin_user_id=regular_user.id,
-            week_id=1
+            team_id=team.id, starter_player_ids=new_starters, admin_user_id=regular_user.id, week_id=1
         )
 
 
@@ -497,13 +702,12 @@ def test_set_starters_with_admin_grants_allows_more_moves(db: Session, setup_ros
     db.add(admin_user)
     db.flush()
 
+    # Get current week for the grant
+    current_week = service._get_current_week_id()
+
     # Grant admin moves
     service.grant_admin_moves(
-        team_id=team.id,
-        week_id=1,
-        moves_to_grant=2,
-        reason="Emergency",
-        admin_user_id=admin_user.id
+        team_id=team.id, week_id=current_week, moves_to_grant=2, reason="Emergency", admin_user_id=admin_user.id
     )
 
     # Use up base moves

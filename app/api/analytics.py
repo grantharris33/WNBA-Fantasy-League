@@ -2,22 +2,21 @@
 
 from datetime import datetime
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models import MatchupAnalysis, Player, PlayerSeasonStats, PlayerTrends, RosterSlot, WNBATeam
 from app.services.analytics import AnalyticsService
-from app.models import (
-    Player, PlayerSeasonStats, PlayerTrends, MatchupAnalysis,
-    RosterSlot, WNBATeam
-)
 
 router = APIRouter()
 
 
 class PlayerAnalyticsResponse(BaseModel):
     """Response model for player analytics."""
+
     player_id: int
     player_name: str
     season: int
@@ -55,6 +54,7 @@ class PlayerAnalyticsResponse(BaseModel):
 
 class PlayerTrendsResponse(BaseModel):
     """Response model for player trends."""
+
     player_id: int
     player_name: str
     calculated_date: str
@@ -83,6 +83,7 @@ class PlayerTrendsResponse(BaseModel):
 
 class ProjectionResponse(BaseModel):
     """Response model for fantasy projections."""
+
     player_id: int
     player_name: str
     opponent_team: str
@@ -97,6 +98,7 @@ class ProjectionResponse(BaseModel):
 
 class MatchupHistoryResponse(BaseModel):
     """Response model for matchup history."""
+
     player_id: int
     opponent_team: str
     games_played: int
@@ -115,7 +117,7 @@ class MatchupHistoryResponse(BaseModel):
 async def get_player_analytics(
     player_id: int,
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get comprehensive analytics for a player."""
     if season is None:
@@ -127,10 +129,11 @@ async def get_player_analytics(
         raise HTTPException(status_code=404, detail="Player not found")
 
     # Get season stats
-    season_stats = db.query(PlayerSeasonStats).filter(
-        PlayerSeasonStats.player_id == player_id,
-        PlayerSeasonStats.season == season
-    ).first()
+    season_stats = (
+        db.query(PlayerSeasonStats)
+        .filter(PlayerSeasonStats.player_id == player_id, PlayerSeasonStats.season == season)
+        .first()
+    )
 
     if not season_stats:
         # Calculate on demand if not available
@@ -138,10 +141,7 @@ async def get_player_analytics(
         season_stats = analytics_service.update_player_season_stats(player_id, season)
 
         if not season_stats:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No statistics found for player in {season} season"
-            )
+            raise HTTPException(status_code=404, detail=f"No statistics found for player in {season} season")
 
     return PlayerAnalyticsResponse(
         player_id=player.id,
@@ -165,15 +165,12 @@ async def get_player_analytics(
         fantasy_ppg=season_stats.fantasy_ppg,
         consistency_score=season_stats.consistency_score,
         ceiling=season_stats.ceiling,
-        floor=season_stats.floor
+        floor=season_stats.floor,
     )
 
 
 @router.get("/api/v1/players/{player_id}/trends", response_model=PlayerTrendsResponse)
-async def get_player_trends(
-    player_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_player_trends(player_id: int, db: Session = Depends(get_db)):
     """Get recent performance trends for a player."""
     # Get player
     player = db.query(Player).filter(Player.id == player_id).first()
@@ -181,9 +178,12 @@ async def get_player_trends(
         raise HTTPException(status_code=404, detail="Player not found")
 
     # Get latest trends
-    trends = db.query(PlayerTrends).filter(
-        PlayerTrends.player_id == player_id
-    ).order_by(PlayerTrends.calculated_date.desc()).first()
+    trends = (
+        db.query(PlayerTrends)
+        .filter(PlayerTrends.player_id == player_id)
+        .order_by(PlayerTrends.calculated_date.desc())
+        .first()
+    )
 
     if not trends:
         # Calculate on demand
@@ -205,7 +205,7 @@ async def get_player_trends(
         minutes_trend=trends.minutes_trend,
         is_hot=trends.is_hot,
         is_cold=trends.is_cold,
-        streak_games=trends.streak_games
+        streak_games=trends.streak_games,
     )
 
 
@@ -213,22 +213,25 @@ async def get_player_trends(
 async def get_weekly_projections(
     week: Optional[int] = Query(None, description="Week number (defaults to current)"),
     team_id: Optional[int] = Query(None, description="Filter by fantasy team"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get fantasy projections for players."""
     analytics_service = AnalyticsService(db)
 
     # Get players to project (either from a specific team or top players)
     if team_id:
-        players = db.query(Player).join(RosterSlot).filter(
-            RosterSlot.team_id == team_id
-        ).all()
+        players = db.query(Player).join(RosterSlot).filter(RosterSlot.team_id == team_id).all()
     else:
         # Get top 50 players by fantasy average
         season = datetime.now().year
-        players = db.query(Player).join(PlayerSeasonStats).filter(
-            PlayerSeasonStats.season == season
-        ).order_by(PlayerSeasonStats.fantasy_ppg.desc()).limit(50).all()
+        players = (
+            db.query(Player)
+            .join(PlayerSeasonStats)
+            .filter(PlayerSeasonStats.season == season)
+            .order_by(PlayerSeasonStats.fantasy_ppg.desc())
+            .limit(50)
+            .all()
+        )
 
     projections = []
 
@@ -240,24 +243,30 @@ async def get_weekly_projections(
         projection = analytics_service.project_fantasy_points(player.id, opponent_id)
 
         # Get additional context
-        season_stats = db.query(PlayerSeasonStats).filter(
-            PlayerSeasonStats.player_id == player.id,
-            PlayerSeasonStats.season == datetime.now().year
-        ).first()
+        season_stats = (
+            db.query(PlayerSeasonStats)
+            .filter(PlayerSeasonStats.player_id == player.id, PlayerSeasonStats.season == datetime.now().year)
+            .first()
+        )
 
-        trends = db.query(PlayerTrends).filter(
-            PlayerTrends.player_id == player.id
-        ).order_by(PlayerTrends.calculated_date.desc()).first()
+        trends = (
+            db.query(PlayerTrends)
+            .filter(PlayerTrends.player_id == player.id)
+            .order_by(PlayerTrends.calculated_date.desc())
+            .first()
+        )
 
-        projections.append(ProjectionResponse(
-            player_id=player.id,
-            player_name=player.full_name,
-            opponent_team="TBD",  # Would come from schedule
-            projected_fantasy_points=projection,
-            season_average=season_stats.fantasy_ppg if season_stats else 0,
-            last_5_games_average=trends.last_5_games_fantasy if trends else 0,
-            matchup_history_average=None  # Would come from matchup analysis
-        ))
+        projections.append(
+            ProjectionResponse(
+                player_id=player.id,
+                player_name=player.full_name,
+                opponent_team="TBD",  # Would come from schedule
+                projected_fantasy_points=projection,
+                season_average=season_stats.fantasy_ppg if season_stats else 0,
+                last_5_games_average=trends.last_5_games_fantasy if trends else 0,
+                matchup_history_average=None,  # Would come from matchup analysis
+            )
+        )
 
     return projections
 
@@ -266,7 +275,7 @@ async def get_weekly_projections(
 async def get_matchup_history(
     player_id: int,
     season: Optional[int] = Query(None, description="Season year (defaults to current)"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get historical performance against all teams."""
     if season is None:
@@ -278,27 +287,32 @@ async def get_matchup_history(
         raise HTTPException(status_code=404, detail="Player not found")
 
     # Get all matchup analyses
-    matchups = db.query(MatchupAnalysis).join(WNBATeam).filter(
-        MatchupAnalysis.player_id == player_id,
-        MatchupAnalysis.season == season,
-        MatchupAnalysis.games_played > 0
-    ).all()
+    matchups = (
+        db.query(MatchupAnalysis)
+        .join(WNBATeam)
+        .filter(
+            MatchupAnalysis.player_id == player_id, MatchupAnalysis.season == season, MatchupAnalysis.games_played > 0
+        )
+        .all()
+    )
 
     results = []
     for matchup in matchups:
         team = db.query(WNBATeam).filter(WNBATeam.id == matchup.opponent_team_id).first()
 
-        results.append(MatchupHistoryResponse(
-            player_id=player.id,
-            opponent_team=team.display_name if team else "Unknown",
-            games_played=matchup.games_played,
-            avg_fantasy_points=matchup.avg_fantasy_points,
-            avg_points=matchup.avg_points,
-            avg_rebounds=matchup.avg_rebounds,
-            avg_assists=matchup.avg_assists,
-            best_fantasy_game=matchup.best_fantasy_game,
-            worst_fantasy_game=matchup.worst_fantasy_game
-        ))
+        results.append(
+            MatchupHistoryResponse(
+                player_id=player.id,
+                opponent_team=team.display_name if team else "Unknown",
+                games_played=matchup.games_played,
+                avg_fantasy_points=matchup.avg_fantasy_points,
+                avg_points=matchup.avg_points,
+                avg_rebounds=matchup.avg_rebounds,
+                avg_assists=matchup.avg_assists,
+                best_fantasy_game=matchup.best_fantasy_game,
+                worst_fantasy_game=matchup.worst_fantasy_game,
+            )
+        )
 
     return results
 
@@ -306,7 +320,7 @@ async def get_matchup_history(
 @router.post("/api/v1/analytics/calculate")
 async def trigger_analytics_calculation(
     player_id: Optional[int] = Query(None, description="Calculate for specific player only"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Manually trigger analytics calculation."""
     analytics_service = AnalyticsService(db)

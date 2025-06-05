@@ -2,13 +2,11 @@
 
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from sqlalchemy import desc, func, and_, or_
+
+from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import (
-    WNBATeam, Standings, Player, StatLine, Game,
-    PlayerSeasonStats, PlayerTrends
-)
+from app.models import Game, Player, PlayerSeasonStats, PlayerTrends, Standings, StatLine, WNBATeam
 
 
 class WNBAService:
@@ -35,70 +33,66 @@ class WNBAService:
             season = datetime.now().year
 
         # Get the most recent standings date
-        latest_date = self.db.query(func.max(Standings.date)).filter(
-            Standings.season == season
-        ).scalar()
+        latest_date = self.db.query(func.max(Standings.date)).filter(Standings.season == season).scalar()
 
         if not latest_date:
             # Fallback to WNBATeam data if no standings available
-            teams = self.db.query(WNBATeam).order_by(
-                WNBATeam.win_percentage.desc(),
-                WNBATeam.wins.desc()
-            ).all()
+            teams = self.db.query(WNBATeam).order_by(WNBATeam.win_percentage.desc(), WNBATeam.wins.desc()).all()
 
             standings = []
             for rank, team in enumerate(teams, 1):
-                standings.append({
-                    "rank": rank,
-                    "team_id": team.id,
-                    "team_name": team.display_name,
-                    "team_abbr": team.abbreviation,
-                    "wins": team.wins,
-                    "losses": team.losses,
-                    "win_percentage": team.win_percentage,
-                    "games_behind": team.games_behind or 0.0,
-                    "streak": team.streak,
-                    "last_10": team.last_10,
-                    "conference_rank": team.conference_rank,
-                    "home_record": f"{0}-{0}",  # Default if no detailed data
-                    "away_record": f"{0}-{0}",
-                    "points_for": 0.0,
-                    "points_against": 0.0,
-                    "point_differential": 0.0
-                })
+                standings.append(
+                    {
+                        "rank": rank,
+                        "team_id": team.id,
+                        "team_name": team.display_name,
+                        "team_abbr": team.abbreviation,
+                        "wins": team.wins,
+                        "losses": team.losses,
+                        "win_percentage": team.win_percentage,
+                        "games_behind": team.games_behind or 0.0,
+                        "streak": team.streak,
+                        "last_10": team.last_10,
+                        "conference_rank": team.conference_rank,
+                        "home_record": f"{0}-{0}",  # Default if no detailed data
+                        "away_record": f"{0}-{0}",
+                        "points_for": 0.0,
+                        "points_against": 0.0,
+                        "point_differential": 0.0,
+                    }
+                )
             return standings
 
         # Get standings for the latest date
         standings_query = (
             self.db.query(Standings, WNBATeam)
             .join(WNBATeam, Standings.team_id == WNBATeam.id)
-            .filter(
-                Standings.season == season,
-                Standings.date == latest_date
-            )
+            .filter(Standings.season == season, Standings.date == latest_date)
             .order_by(Standings.win_percentage.desc(), Standings.wins.desc())
         )
 
         standings = []
         for rank, (standing, team) in enumerate(standings_query.all(), 1):
-            standings.append({
-                "rank": rank,
-                "team_id": team.id,
-                "team_name": team.display_name,
-                "team_abbr": team.abbreviation,
-                "wins": standing.wins,
-                "losses": standing.losses,
-                "win_percentage": standing.win_percentage,
-                "games_behind": standing.games_behind,
-                "streak": team.streak,
-                "last_10": team.last_10,
-                "conference_rank": team.conference_rank,
-                "home_record": f"{standing.home_wins}-{standing.home_losses}",
-                "away_record": f"{standing.away_wins}-{standing.away_losses}",
-                "points_for": standing.points_for,
-                "points_against": standing.points_against,
-                "point_differential": standing.point_differential
-            })
+            standings.append(
+                {
+                    "rank": rank,
+                    "team_id": team.id,
+                    "team_name": team.display_name,
+                    "team_abbr": team.abbreviation,
+                    "wins": standing.wins,
+                    "losses": standing.losses,
+                    "win_percentage": standing.win_percentage,
+                    "games_behind": standing.games_behind,
+                    "streak": team.streak,
+                    "last_10": team.last_10,
+                    "conference_rank": team.conference_rank,
+                    "home_record": f"{standing.home_wins}-{standing.home_losses}",
+                    "away_record": f"{standing.away_wins}-{standing.away_losses}",
+                    "points_for": standing.points_for,
+                    "points_against": standing.points_against,
+                    "point_differential": standing.point_differential,
+                }
+            )
 
         return standings
 
@@ -119,32 +113,31 @@ class WNBAService:
             # Get season stats if available
             season_stats = (
                 self.db.query(PlayerSeasonStats)
-                .filter(
-                    PlayerSeasonStats.player_id == player.id,
-                    PlayerSeasonStats.season == season
-                )
+                .filter(PlayerSeasonStats.player_id == player.id, PlayerSeasonStats.season == season)
                 .first()
             )
 
-            roster.append({
-                "player_id": player.id,
-                "full_name": player.full_name,
-                "jersey_number": player.jersey_number,
-                "position": player.position,
-                "height": player.height,
-                "weight": player.weight,
-                "college": player.college,
-                "years_pro": player.years_pro,
-                "status": player.status,
-                "headshot_url": player.headshot_url,
-                # Season averages
-                "games_played": season_stats.games_played if season_stats else 0,
-                "ppg": season_stats.ppg if season_stats else 0.0,
-                "rpg": season_stats.rpg if season_stats else 0.0,
-                "apg": season_stats.apg if season_stats else 0.0,
-                "mpg": season_stats.mpg if season_stats else 0.0,
-                "fg_percentage": season_stats.fg_percentage if season_stats else 0.0
-            })
+            roster.append(
+                {
+                    "player_id": player.id,
+                    "full_name": player.full_name,
+                    "jersey_number": player.jersey_number,
+                    "position": player.position,
+                    "height": player.height,
+                    "weight": player.weight,
+                    "college": player.college,
+                    "years_pro": player.years_pro,
+                    "status": player.status,
+                    "headshot_url": player.headshot_url,
+                    # Season averages
+                    "games_played": season_stats.games_played if season_stats else 0,
+                    "ppg": season_stats.ppg if season_stats else 0.0,
+                    "rpg": season_stats.rpg if season_stats else 0.0,
+                    "apg": season_stats.apg if season_stats else 0.0,
+                    "mpg": season_stats.mpg if season_stats else 0.0,
+                    "fg_percentage": season_stats.fg_percentage if season_stats else 0.0,
+                }
+            )
 
         return roster
 
@@ -157,7 +150,7 @@ class WNBAService:
             self.db.query(Game)
             .filter(
                 or_(Game.home_team_id == team_id, Game.away_team_id == team_id),
-                func.extract('year', Game.date) == season
+                func.extract('year', Game.date) == season,
             )
             .order_by(Game.date.desc())
             .limit(limit)
@@ -173,19 +166,21 @@ class WNBAService:
             team_score = game.home_score if is_home else game.away_score
             opponent_score = game.away_score if is_home else game.home_score
 
-            schedule.append({
-                "game_id": game.id,
-                "date": game.date,
-                "is_home": is_home,
-                "opponent_id": opponent_id,
-                "opponent_name": opponent.display_name if opponent else "Unknown",
-                "opponent_abbr": opponent.abbreviation if opponent else "UNK",
-                "team_score": team_score,
-                "opponent_score": opponent_score,
-                "status": game.status,
-                "venue": game.venue,
-                "result": self._get_game_result(team_score, opponent_score, game.status)
-            })
+            schedule.append(
+                {
+                    "game_id": game.id,
+                    "date": game.date,
+                    "is_home": is_home,
+                    "opponent_id": opponent_id,
+                    "opponent_name": opponent.display_name if opponent else "Unknown",
+                    "opponent_abbr": opponent.abbreviation if opponent else "UNK",
+                    "team_score": team_score,
+                    "opponent_score": opponent_score,
+                    "status": game.status,
+                    "venue": game.venue,
+                    "result": self._get_game_result(team_score, opponent_score, game.status),
+                }
+            )
 
         return schedule
 
@@ -205,7 +200,7 @@ class WNBAService:
             .filter(
                 or_(Game.home_team_id == team_id, Game.away_team_id == team_id),
                 func.extract('year', Game.date) == season,
-                Game.status == 'final'
+                Game.status == 'final',
             )
             .all()
         )
@@ -255,7 +250,9 @@ class WNBAService:
             "away_record": f"{away_wins}-{away_losses}",
             "points_per_game": round(total_points_for / games_played, 1) if games_played > 0 else 0.0,
             "points_allowed_per_game": round(total_points_against / games_played, 1) if games_played > 0 else 0.0,
-            "point_differential": round((total_points_for - total_points_against) / games_played, 1) if games_played > 0 else 0.0
+            "point_differential": round((total_points_for - total_points_against) / games_played, 1)
+            if games_played > 0
+            else 0.0,
         }
 
     def get_player_game_log(self, player_id: int, limit: int = 10) -> List[Dict]:
@@ -277,33 +274,35 @@ class WNBAService:
             if stat.opponent_id:
                 opponent = self.db.query(WNBATeam).filter(WNBATeam.id == stat.opponent_id).first()
 
-            game_log.append({
-                "game_id": game.id,
-                "date": game.date,
-                "opponent_id": stat.opponent_id,
-                "opponent_name": opponent.display_name if opponent else "Unknown",
-                "opponent_abbr": opponent.abbreviation if opponent else "UNK",
-                "is_home": stat.is_home_game,
-                "is_starter": stat.is_starter,
-                "minutes_played": stat.minutes_played,
-                "points": stat.points,
-                "rebounds": stat.rebounds,
-                "assists": stat.assists,
-                "steals": stat.steals,
-                "blocks": stat.blocks,
-                "turnovers": stat.turnovers,
-                "field_goals_made": stat.field_goals_made,
-                "field_goals_attempted": stat.field_goals_attempted,
-                "field_goal_percentage": stat.field_goal_percentage,
-                "three_pointers_made": stat.three_pointers_made,
-                "three_pointers_attempted": stat.three_pointers_attempted,
-                "three_point_percentage": stat.three_point_percentage,
-                "free_throws_made": stat.free_throws_made,
-                "free_throws_attempted": stat.free_throws_attempted,
-                "free_throw_percentage": stat.free_throw_percentage,
-                "plus_minus": stat.plus_minus,
-                "did_not_play": stat.did_not_play
-            })
+            game_log.append(
+                {
+                    "game_id": game.id,
+                    "date": game.date,
+                    "opponent_id": stat.opponent_id,
+                    "opponent_name": opponent.display_name if opponent else "Unknown",
+                    "opponent_abbr": opponent.abbreviation if opponent else "UNK",
+                    "is_home": stat.is_home_game,
+                    "is_starter": stat.is_starter,
+                    "minutes_played": stat.minutes_played,
+                    "points": stat.points,
+                    "rebounds": stat.rebounds,
+                    "assists": stat.assists,
+                    "steals": stat.steals,
+                    "blocks": stat.blocks,
+                    "turnovers": stat.turnovers,
+                    "field_goals_made": stat.field_goals_made,
+                    "field_goals_attempted": stat.field_goals_attempted,
+                    "field_goal_percentage": stat.field_goal_percentage,
+                    "three_pointers_made": stat.three_pointers_made,
+                    "three_pointers_attempted": stat.three_pointers_attempted,
+                    "three_point_percentage": stat.three_point_percentage,
+                    "free_throws_made": stat.free_throws_made,
+                    "free_throws_attempted": stat.free_throws_attempted,
+                    "free_throw_percentage": stat.free_throw_percentage,
+                    "plus_minus": stat.plus_minus,
+                    "did_not_play": stat.did_not_play,
+                }
+            )
 
         return game_log
 
@@ -323,7 +322,7 @@ class WNBAService:
             "three_point_percentage": PlayerSeasonStats.three_point_percentage,
             "free_throw_percentage": PlayerSeasonStats.ft_percentage,
             "minutes": PlayerSeasonStats.mpg,
-            "fantasy_points": PlayerSeasonStats.fantasy_ppg
+            "fantasy_points": PlayerSeasonStats.fantasy_ppg,
         }
 
         if stat_category not in stat_mapping:
@@ -335,10 +334,7 @@ class WNBAService:
             self.db.query(PlayerSeasonStats, Player, WNBATeam)
             .join(Player, PlayerSeasonStats.player_id == Player.id)
             .join(WNBATeam, Player.wnba_team_id == WNBATeam.id)
-            .filter(
-                PlayerSeasonStats.season == season,
-                PlayerSeasonStats.games_played >= 5  # Minimum games threshold
-            )
+            .filter(PlayerSeasonStats.season == season, PlayerSeasonStats.games_played >= 5)  # Minimum games threshold
             .order_by(stat_field.desc())
             .limit(limit)
             .all()
@@ -357,23 +353,25 @@ class WNBAService:
                 "three_point_percentage": "three_point_percentage",
                 "free_throw_percentage": "ft_percentage",
                 "minutes": "mpg",
-                "fantasy_points": "fantasy_ppg"
+                "fantasy_points": "fantasy_ppg",
             }
 
             field_name = field_mapping.get(stat_category, stat_category)
             value = getattr(stats, field_name, 0.0)
 
-            result.append({
-                "rank": rank,
-                "player_id": player.id,
-                "player_name": player.full_name,
-                "team_id": team.id,
-                "team_name": team.display_name,
-                "team_abbr": team.abbreviation,
-                "games_played": stats.games_played,
-                "value": value,
-                "position": player.position
-            })
+            result.append(
+                {
+                    "rank": rank,
+                    "player_id": player.id,
+                    "player_name": player.full_name,
+                    "team_id": team.id,
+                    "team_name": team.display_name,
+                    "team_abbr": team.abbreviation,
+                    "games_played": stats.games_played,
+                    "value": value,
+                    "position": player.position,
+                }
+            )
 
         return result
 
@@ -394,15 +392,13 @@ class WNBAService:
         query: Optional[str] = None,
         team_id: Optional[int] = None,
         position: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[Dict]:
         """Search for players with various filters."""
         players_query = self.db.query(Player).join(WNBATeam)
 
         if query:
-            players_query = players_query.filter(
-                Player.full_name.ilike(f"%{query}%")
-            )
+            players_query = players_query.filter(Player.full_name.ilike(f"%{query}%"))
 
         if team_id:
             players_query = players_query.filter(Player.wnba_team_id == team_id)
@@ -410,11 +406,7 @@ class WNBAService:
         if position:
             players_query = players_query.filter(Player.position == position)
 
-        players = (
-            players_query.order_by(Player.full_name)
-            .limit(limit)
-            .all()
-        )
+        players = players_query.order_by(Player.full_name).limit(limit).all()
 
         result = []
         for player in players:
@@ -422,32 +414,31 @@ class WNBAService:
             current_season = datetime.now().year
             season_stats = (
                 self.db.query(PlayerSeasonStats)
-                .filter(
-                    PlayerSeasonStats.player_id == player.id,
-                    PlayerSeasonStats.season == current_season
-                )
+                .filter(PlayerSeasonStats.player_id == player.id, PlayerSeasonStats.season == current_season)
                 .first()
             )
 
-            result.append({
-                "player_id": player.id,
-                "full_name": player.full_name,
-                "jersey_number": player.jersey_number,
-                "position": player.position,
-                "team_id": player.wnba_team_id,
-                "team_name": player.wnba_team.display_name if player.wnba_team else None,
-                "team_abbr": player.wnba_team.abbreviation if player.wnba_team else None,
-                "height": player.height,
-                "weight": player.weight,
-                "college": player.college,
-                "years_pro": player.years_pro,
-                "status": player.status,
-                "headshot_url": player.headshot_url,
-                # Current season stats
-                "ppg": season_stats.ppg if season_stats else 0.0,
-                "rpg": season_stats.rpg if season_stats else 0.0,
-                "apg": season_stats.apg if season_stats else 0.0,
-                "games_played": season_stats.games_played if season_stats else 0
-            })
+            result.append(
+                {
+                    "player_id": player.id,
+                    "full_name": player.full_name,
+                    "jersey_number": player.jersey_number,
+                    "position": player.position,
+                    "team_id": player.wnba_team_id,
+                    "team_name": player.wnba_team.display_name if player.wnba_team else None,
+                    "team_abbr": player.wnba_team.abbreviation if player.wnba_team else None,
+                    "height": player.height,
+                    "weight": player.weight,
+                    "college": player.college,
+                    "years_pro": player.years_pro,
+                    "status": player.status,
+                    "headshot_url": player.headshot_url,
+                    # Current season stats
+                    "ppg": season_stats.ppg if season_stats else 0.0,
+                    "rpg": season_stats.rpg if season_stats else 0.0,
+                    "apg": season_stats.apg if season_stats else 0.0,
+                    "games_played": season_stats.games_played if season_stats else 0,
+                }
+            )
 
         return result

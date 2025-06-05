@@ -63,8 +63,8 @@ line-length = 120
 target-version = "py310"
 # Only select error, fixable, and warning codes (skip docstring checks)
 select = ["E", "F", "W", "C90"]
-# Ignore whitespace, no-newline, line-length, and unused import warnings
-ignore = ["E203", "W292", "E501", "F401"]
+# Ignore whitespace, no-newline, line-length, unused import warnings, boolean comparison for SQLAlchemy, and complexity/import order
+ignore = ["E203", "W292", "E501", "F401", "E712", "E402", "C901"]
 
 exclude = [
     ".git",

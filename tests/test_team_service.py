@@ -3,9 +3,9 @@ from datetime import datetime
 import pytest
 from sqlalchemy.orm import Session
 
+from app.api.schemas import TeamUpdate
 from app.models import League, Team, TransactionLog, User
 from app.services.team import TeamService
-from app.api.schemas import TeamUpdate
 
 
 @pytest.fixture
@@ -30,11 +30,7 @@ def setup_team_test(db: Session):
     db.add_all([team1, team2, team3])
     db.commit()
 
-    return {
-        "users": [user1, user2],
-        "leagues": [league1, league2],
-        "teams": [team1, team2, team3],
-    }
+    return {"users": [user1, user2], "leagues": [league1, league2], "teams": [team1, team2, team3]}
 
 
 def test_get_team_by_id(db: Session, setup_team_test):
@@ -83,12 +79,14 @@ def test_get_teams_by_league_id(db: Session, setup_team_test):
 
 def test_create_team_in_league_success(db: Session, setup_team_test):
     """Test successfully creating a team in a league."""
-    league_id = setup_team_test["leagues"][0].id
+    setup_team_test["leagues"][0].id
     owner_id = setup_team_test["users"][1].id
     name = "New Team"
 
     # User2 doesn't have a team in league2 yet
-    team = TeamService.create_team_in_league(db, name=name, league_id=setup_team_test["leagues"][1].id, owner_id=owner_id)
+    team = TeamService.create_team_in_league(
+        db, name=name, league_id=setup_team_test["leagues"][1].id, owner_id=owner_id
+    )
 
     assert team is not None
     assert team.name == name
@@ -106,10 +104,7 @@ def test_create_team_league_not_found(db: Session, setup_team_test):
     """Test creating a team with non-existent league."""
     with pytest.raises(ValueError, match="League not found"):
         TeamService.create_team_in_league(
-            db,
-            name="New Team",
-            league_id=9999,  # Non-existent league
-            owner_id=setup_team_test["users"][0].id
+            db, name="New Team", league_id=9999, owner_id=setup_team_test["users"][0].id  # Non-existent league
         )
 
 
@@ -125,19 +120,13 @@ def test_create_team_duplicate_in_league(db: Session, setup_team_test):
 
     with pytest.raises(ValueError, match="Team name already exists in this league"):
         TeamService.create_team_in_league(
-            db,
-            name=existing_name,  # Existing name
-            league_id=league_id,
-            owner_id=new_user.id
+            db, name=existing_name, league_id=league_id, owner_id=new_user.id  # Existing name
         )
 
     # Test case-insensitive
     with pytest.raises(ValueError, match="Team name already exists in this league"):
         TeamService.create_team_in_league(
-            db,
-            name=existing_name.upper(),  # Different case
-            league_id=league_id,
-            owner_id=new_user.id
+            db, name=existing_name.upper(), league_id=league_id, owner_id=new_user.id  # Different case
         )
 
 
@@ -147,12 +136,7 @@ def test_create_team_one_per_user_per_league(db: Session, setup_team_test):
     owner_id = setup_team_test["users"][0].id  # Already has team in league1
 
     with pytest.raises(ValueError, match="User already owns a team in this league"):
-        TeamService.create_team_in_league(
-            db,
-            name="Another Team",
-            league_id=league_id,
-            owner_id=owner_id
-        )
+        TeamService.create_team_in_league(db, name="Another Team", league_id=league_id, owner_id=owner_id)
 
 
 def test_update_team_details_success(db: Session, setup_team_test):
@@ -162,10 +146,7 @@ def test_update_team_details_success(db: Session, setup_team_test):
     new_name = "Updated Team Name"
 
     updated_team = TeamService.update_team_details(
-        db,
-        team_id=team_id,
-        owner_id=owner_id,
-        data=TeamUpdate(name=new_name)
+        db, team_id=team_id, owner_id=owner_id, data=TeamUpdate(name=new_name)
     )
 
     assert updated_team is not None
@@ -181,10 +162,7 @@ def test_update_team_details_success(db: Session, setup_team_test):
 def test_update_team_not_found(db: Session, setup_team_test):
     """Test updating a non-existent team."""
     result = TeamService.update_team_details(
-        db,
-        team_id=9999,  # Non-existent team
-        owner_id=setup_team_test["users"][0].id,
-        data=TeamUpdate(name="New Name")
+        db, team_id=9999, owner_id=setup_team_test["users"][0].id, data=TeamUpdate(name="New Name")  # Non-existent team
     )
 
     assert result is None
@@ -196,12 +174,7 @@ def test_update_team_not_owner(db: Session, setup_team_test):
     non_owner_id = setup_team_test["users"][1].id  # user2
 
     with pytest.raises(PermissionError, match="Not team owner"):
-        TeamService.update_team_details(
-            db,
-            team_id=team_id,
-            owner_id=non_owner_id,
-            data=TeamUpdate(name="New Name")
-        )
+        TeamService.update_team_details(db, team_id=team_id, owner_id=non_owner_id, data=TeamUpdate(name="New Name"))
 
 
 def test_update_team_duplicate_name(db: Session, setup_team_test):
@@ -211,12 +184,7 @@ def test_update_team_duplicate_name(db: Session, setup_team_test):
     existing_name = setup_team_test["teams"][1].name  # Name of another team in same league
 
     with pytest.raises(ValueError, match="Team name already exists in this league"):
-        TeamService.update_team_details(
-            db,
-            team_id=team_id,
-            owner_id=owner_id,
-            data=TeamUpdate(name=existing_name)
-        )
+        TeamService.update_team_details(db, team_id=team_id, owner_id=owner_id, data=TeamUpdate(name=existing_name))
 
 
 def test_update_team_same_name(db: Session, setup_team_test):
@@ -225,10 +193,7 @@ def test_update_team_same_name(db: Session, setup_team_test):
     current_name = team.name
 
     updated_team = TeamService.update_team_details(
-        db,
-        team_id=team.id,
-        owner_id=team.owner_id,
-        data=TeamUpdate(name=current_name)
+        db, team_id=team.id, owner_id=team.owner_id, data=TeamUpdate(name=current_name)
     )
 
     # No change, so no update should happen

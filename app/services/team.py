@@ -5,8 +5,8 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import League, Team, TransactionLog
 from app.api.schemas import TeamUpdate
+from app.models import League, Team, TransactionLog
 
 
 class TeamService:
@@ -25,13 +25,12 @@ class TeamService:
     def get_teams_by_owner_id(db: Session, owner_id: int) -> List[Team]:
         """Return all teams for a given owner (user)."""
         from sqlalchemy.orm import joinedload
+
         from app.models import RosterSlot
+
         return list(
             db.query(Team)
-            .options(
-                joinedload(Team.roster_slots).joinedload(RosterSlot.player),
-                joinedload(Team.scores)
-            )
+            .options(joinedload(Team.roster_slots).joinedload(RosterSlot.player), joinedload(Team.scores))
             .filter(Team.owner_id == owner_id)
             .all()
         )
@@ -40,13 +39,12 @@ class TeamService:
     def get_teams_by_league_id(db: Session, league_id: int) -> List[Team]:
         """Return all teams in a league."""
         from sqlalchemy.orm import joinedload
+
         from app.models import RosterSlot
+
         return list(
             db.query(Team)
-            .options(
-                joinedload(Team.roster_slots).joinedload(RosterSlot.player),
-                joinedload(Team.scores)
-            )
+            .options(joinedload(Team.roster_slots).joinedload(RosterSlot.player), joinedload(Team.scores))
             .filter(Team.league_id == league_id)
             .all()
         )
@@ -83,9 +81,7 @@ class TeamService:
             raise ValueError("League not found")
 
         # One team per user per league
-        already_has_team = (
-            db.query(Team).filter(Team.league_id == league_id, Team.owner_id == owner_id).count() > 0
-        )
+        already_has_team = db.query(Team).filter(Team.league_id == league_id, Team.owner_id == owner_id).count() > 0
         if already_has_team:
             raise ValueError("User already owns a team in this league")
 
@@ -100,9 +96,7 @@ class TeamService:
         # Transaction log
         db.add(
             TransactionLog(
-                user_id=owner_id,
-                action=f"CREATE TEAM '{name}' in league {league_id}",
-                timestamp=datetime.utcnow(),
+                user_id=owner_id, action=f"CREATE TEAM '{name}' in league {league_id}", timestamp=datetime.utcnow()
             )
         )
 

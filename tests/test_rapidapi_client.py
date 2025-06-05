@@ -5,7 +5,7 @@ import httpx
 import pytest
 from tenacity import RetryError
 
-from app.external_apis.rapidapi_client import RapidApiClient, RapidApiError, RateLimitError, ApiKeyError, RetryableError
+from app.external_apis.rapidapi_client import ApiKeyError, RapidApiClient, RapidApiError, RateLimitError, RetryableError
 
 
 @pytest.fixture

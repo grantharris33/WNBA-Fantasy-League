@@ -4,12 +4,12 @@ import asyncio
 import datetime as dt
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 from app import models
 from app.core.database import SessionLocal
-from app.external_apis.rapidapi_client import wnba_client, RapidApiError, RateLimitError, ApiKeyError, RetryableError
+from app.external_apis.rapidapi_client import ApiKeyError, RapidApiError, RateLimitError, RetryableError, wnba_client
 from app.models import IngestLog
 
 
@@ -90,6 +90,7 @@ def _parse_draft_info(draft_str: str | None) -> tuple[int | None, int | None, in
         # Extract round
         if "round" in draft_str.lower():
             import re
+
             round_match = re.search(r'round\s*(\d+)', draft_str.lower())
             if round_match:
                 round_num = int(round_match.group(1))
@@ -97,6 +98,7 @@ def _parse_draft_info(draft_str: str | None) -> tuple[int | None, int | None, in
         # Extract pick
         if "pick" in draft_str.lower():
             import re
+
             pick_match = re.search(r'pick\s*(\d+)', draft_str.lower())
             if pick_match:
                 pick_num = int(pick_match.group(1))
@@ -114,6 +116,7 @@ def _parse_birth_date(birth_str: str | None) -> dt.datetime | None:
     try:
         # Common formats: "1995-06-15", "June 15, 1995", "6/15/1995"
         from dateutil import parser
+
         return parser.parse(birth_str)
     except (ValueError, TypeError, ImportError):
         # If dateutil is not available, try simple formats
@@ -137,7 +140,7 @@ async def _upsert_player_from_roster(session, roster_player: Dict[str, Any]) -> 
             id=player_id,
             full_name=roster_player.get("displayName", ""),
             created_at=dt.datetime.utcnow(),
-            updated_at=dt.datetime.utcnow()
+            updated_at=dt.datetime.utcnow(),
         )
         session.add(player)
     else:
@@ -321,9 +324,11 @@ async def ingest_player_profiles() -> None:
 
                             # Also link to the WNBATeam record for proper relationships
                             if team_abbr:
-                                wnba_team = session.query(models.WNBATeam).filter(
-                                    models.WNBATeam.abbreviation == team_abbr
-                                ).first()
+                                wnba_team = (
+                                    session.query(models.WNBATeam)
+                                    .filter(models.WNBATeam.abbreviation == team_abbr)
+                                    .first()
+                                )
                                 if wnba_team:
                                     player.wnba_team_id = wnba_team.id
 
@@ -344,7 +349,10 @@ async def ingest_player_profiles() -> None:
                         except Exception as e:
                             session.rollback()
                             failed_players += 1
-                            _log_error(provider="rapidapi", msg=f"Error processing player {athlete.get('playerId', 'unknown')}: {e}")
+                            _log_error(
+                                provider="rapidapi",
+                                msg=f"Error processing player {athlete.get('playerId', 'unknown')}: {e}",
+                            )
                             continue
 
                 finally:
@@ -363,7 +371,7 @@ async def ingest_player_profiles() -> None:
         # Final summary
         _log_info(
             provider="rapidapi",
-            msg=f"Player ingestion complete: {processed_teams} teams, {processed_players} players processed, {failed_players} failed"
+            msg=f"Player ingestion complete: {processed_teams} teams, {processed_players} players processed, {failed_players} failed",
         )
 
     except Exception as e:

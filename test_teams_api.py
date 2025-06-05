@@ -1,5 +1,7 @@
 import asyncio
+
 from app.external_apis.rapidapi_client import wnba_client
+
 
 async def test_teams():
     try:
@@ -11,6 +13,7 @@ async def test_teams():
         print(f'Error: {e}')
     finally:
         await wnba_client.close()
+
 
 if __name__ == "__main__":
     asyncio.run(test_teams())

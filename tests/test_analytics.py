@@ -1,27 +1,20 @@
 """Tests for the analytics system."""
 
+from datetime import date, datetime, timedelta
+
 import pytest
-from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 
-from app.models import (
-    Player, StatLine, Game, WNBATeam,
-    PlayerSeasonStats, PlayerTrends, MatchupAnalysis
-)
+from app.models import Game, MatchupAnalysis, Player, PlayerSeasonStats, PlayerTrends, StatLine, WNBATeam
 from app.services.analytics import AnalyticsService
 
 
 @pytest.fixture
 def sample_player(db: Session):
     """Create a sample player for testing."""
-    player = Player(
-        id=1001,
-        full_name="Test Player",
-        position="G",
-        team_abbr="TST"
-    )
+    player = Player(id=1001, full_name="Test Player", position="G", team_abbr="TST")
     db.add(player)
-    db.commit()
+    db.flush()
     return player
 
 
@@ -29,14 +22,10 @@ def sample_player(db: Session):
 def sample_team(db: Session):
     """Create a sample WNBA team for testing."""
     team = WNBATeam(
-        id=101,
-        name="Test Team",
-        location="Test City",
-        abbreviation="TST",
-        display_name="Test City Test Team"
+        id=101, name="Test Team", location="Test City", abbreviation="TST", display_name="Test City Test Team"
     )
     db.add(team)
-    db.commit()
+    db.flush()
     return team
 
 
@@ -56,7 +45,7 @@ def sample_games_and_stats(db: Session, sample_player, sample_team):
             away_team_id=sample_team.id,
             home_score=80 + i,
             away_score=75 + i,
-            status="final"
+            status="final",
         )
         games.append(game)
         db.add(game)
@@ -68,7 +57,7 @@ def sample_games_and_stats(db: Session, sample_player, sample_team):
             game_date=game_date,
             points=20.0 + (i % 3) * 5,  # 20, 25, 30, 20, 25...
             rebounds=8.0 + (i % 2) * 2,  # 8, 10, 8, 10...
-            assists=5.0 + (i % 2),       # 5, 6, 5, 6...
+            assists=5.0 + (i % 2),  # 5, 6, 5, 6...
             steals=2.0,
             blocks=1.0,
             minutes_played=30.0 + i % 5,
@@ -83,12 +72,12 @@ def sample_games_and_stats(db: Session, sample_player, sample_team):
             did_not_play=False,
             team_id=sample_team.id,
             opponent_id=sample_team.id,
-            is_home_game=True
+            is_home_game=True,
         )
         stats.append(stat)
         db.add(stat)
 
-    db.commit()
+    db.flush()
     return games, stats
 
 
@@ -96,10 +85,10 @@ def test_calculate_player_efficiency_rating(db: Session, sample_player, sample_g
     """Test PER calculation."""
     analytics_service = AnalyticsService(db)
 
-    per = analytics_service.calculate_player_efficiency_rating(
-        sample_player.id,
-        datetime.now().year
-    )
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
+    per = analytics_service.calculate_player_efficiency_rating(sample_player.id, datetime.now().year)
 
     assert per > 0
     # PER should be reasonable for the given stats
@@ -110,11 +99,7 @@ def test_calculate_true_shooting_percentage(db: Session):
     """Test true shooting percentage calculation."""
     analytics_service = AnalyticsService(db)
 
-    player_stats = {
-        'points': 25,
-        'field_goals_attempted': 15,
-        'free_throws_attempted': 5
-    }
+    player_stats = {'points': 25, 'field_goals_attempted': 15, 'free_throws_attempted': 5}
 
     ts_pct = analytics_service.calculate_true_shooting_percentage(player_stats)
 
@@ -125,6 +110,9 @@ def test_calculate_true_shooting_percentage(db: Session):
 def test_calculate_fantasy_consistency(db: Session, sample_player, sample_games_and_stats):
     """Test fantasy consistency score calculation."""
     analytics_service = AnalyticsService(db)
+
+    # Flush to ensure all data is available in this transaction
+    db.flush()
 
     consistency = analytics_service.calculate_fantasy_consistency(sample_player.id, games=5)
 
@@ -152,10 +140,10 @@ def test_update_player_season_stats(db: Session, sample_player, sample_games_and
     """Test updating player season statistics."""
     analytics_service = AnalyticsService(db)
 
-    season_stats = analytics_service.update_player_season_stats(
-        sample_player.id,
-        datetime.now().year
-    )
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
+    season_stats = analytics_service.update_player_season_stats(sample_player.id, datetime.now().year)
 
     assert season_stats is not None
     assert season_stats.player_id == sample_player.id
@@ -172,6 +160,9 @@ def test_update_player_trends(db: Session, sample_player, sample_games_and_stats
     """Test updating player trends."""
     analytics_service = AnalyticsService(db)
 
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
     trends = analytics_service.update_player_trends(sample_player.id)
 
     assert trends is not None
@@ -185,13 +176,13 @@ def test_project_fantasy_points(db: Session, sample_player, sample_team, sample_
     """Test fantasy point projection."""
     analytics_service = AnalyticsService(db)
 
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
     # First calculate season stats
     analytics_service.update_player_season_stats(sample_player.id, datetime.now().year)
 
-    projection = analytics_service.project_fantasy_points(
-        sample_player.id,
-        sample_team.id
-    )
+    projection = analytics_service.project_fantasy_points(sample_player.id, sample_team.id)
 
     assert projection > 0
     # Projection should be reasonable based on the sample data
@@ -200,6 +191,9 @@ def test_project_fantasy_points(db: Session, sample_player, sample_team, sample_
 
 def test_analytics_api_endpoints(client, db: Session, sample_player, sample_games_and_stats):
     """Test analytics API endpoints."""
+    # Flush to ensure all data is available in this transaction
+    db.flush()
+
     # Test get player analytics
     response = client.get(f"/api/v1/players/{sample_player.id}/analytics")
     assert response.status_code == 200
