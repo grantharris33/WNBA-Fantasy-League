@@ -396,9 +396,7 @@ async def resend_verification(current_user: User = Depends(get_current_user), db
         raise HTTPException(status_code=400, detail="Email already verified")
 
     # Generate new token
-    profile.email_verification_token = create_access_token(
-        subject=current_user.email, expires_delta=timedelta(days=1)
-    )
+    profile.email_verification_token = create_access_token(subject=current_user.email, expires_delta=timedelta(days=1))
     profile.email_verification_sent_at = datetime.utcnow()
     db.commit()
 

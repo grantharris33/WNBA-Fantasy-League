@@ -79,7 +79,7 @@ async def _startup() -> None:
     # Skip scheduler startup in test environment
     if os.getenv("TESTING") == "true":
         return
-        
+
     start_scheduler()
 
     # Schedule nightly job (03:00 UTC) if not already
