@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
+from pydantic import BaseModel
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,25 @@ class CacheService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    def _serialize_data(self, data: Any) -> Any:
+        """
+        Serialize data for caching, handling Pydantic models.
+        
+        Args:
+            data: Data to serialize
+            
+        Returns:
+            JSON-serializable data
+        """
+        if isinstance(data, BaseModel):
+            return data.dict()
+        elif isinstance(data, list):
+            return [self._serialize_data(item) for item in data]
+        elif isinstance(data, dict):
+            return {key: self._serialize_data(value) for key, value in data.items()}
+        else:
+            return data
 
     def get(self, key: str) -> Optional[Dict[str, Any]]:
         """
@@ -57,13 +77,13 @@ class CacheService:
             self.db.rollback()
             return None
 
-    def set(self, key: str, data: Dict[str, Any], ttl_seconds: int = 3600, endpoint: Optional[str] = None) -> bool:
+    def set(self, key: str, data: Any, ttl_seconds: int = 3600, endpoint: Optional[str] = None) -> bool:
         """
         Set cached data.
 
         Args:
             key: Cache key
-            data: Data to cache
+            data: Data to cache (can be Pydantic models)
             ttl_seconds: Time to live in seconds (default 1 hour)
             endpoint: API endpoint this cache is for
 
@@ -73,22 +93,25 @@ class CacheService:
         try:
             expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
 
+            # Serialize data to handle Pydantic models
+            serialized_data = self._serialize_data(data)
+
             # Calculate approximate size
-            size_bytes = len(json.dumps(data, default=str))
+            size_bytes = len(json.dumps(serialized_data, default=str))
 
             # Check if entry already exists
             existing = self.db.query(ApiCache).filter(ApiCache.cache_key == key).first()
 
             if existing:
                 # Update existing entry
-                existing.data = data
+                existing.data = serialized_data
                 existing.expires_at = expires_at
                 existing.size_bytes = size_bytes
                 existing.endpoint = endpoint
             else:
                 # Create new entry
                 cache_entry = ApiCache(
-                    cache_key=key, data=data, expires_at=expires_at, endpoint=endpoint, size_bytes=size_bytes
+                    cache_key=key, data=serialized_data, expires_at=expires_at, endpoint=endpoint, size_bytes=size_bytes
                 )
                 self.db.add(cache_entry)
 
