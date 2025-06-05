@@ -13,8 +13,12 @@ import LeagueDetailPage from './pages/LeagueDetailPage';
 import MyTeamsPage from './pages/MyTeamsPage';
 import ScoreboardPage from './pages/ScoreboardPage';
 import GameDetailPage from './pages/GameDetailPage';
+import GamesPage from './pages/GamesPage';
 import PlayersPage from './pages/PlayersPage';
 import PlayerDetailPage from './pages/PlayerDetailPage';
+import BonusesPage from './pages/BonusesPage';
+import HelpPage from './pages/HelpPage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
@@ -34,9 +38,13 @@ function App() {
             <Route path="/league/:leagueId/manage" element={<LeagueManagementPage />} />
             <Route path="/draft/:leagueId" element={<DraftPage />} />
             <Route path="/team/:teamId" element={<TeamPage />} />
+            <Route path="/games" element={<GamesPage />} />
             <Route path="/game/:gameId" element={<GameDetailPage />} />
             <Route path="/players" element={<PlayersPage />} />
             <Route path="/player/:playerId" element={<PlayerDetailPage />} />
+            <Route path="/bonuses" element={<BonusesPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
           {/* Redirect to home for undefined routes */}

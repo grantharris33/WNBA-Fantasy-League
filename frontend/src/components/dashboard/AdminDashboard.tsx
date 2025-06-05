@@ -6,11 +6,11 @@ import { useAuth } from '../../contexts/AuthContext';
 // Mock admin API service for now - this would be replaced with the actual service
 const adminApi = {
   async getAuditLog() { return []; },
-  async getTeamLineupHistory(_teamId: number) { return []; },
-  async getAdminLineupView(_teamId: number, _weekId: number) { return { lineup: [] }; },
-  async modifyHistoricalLineup(_teamId: number, _weekId: number, _starterIds: number[], _justification: string) { return { success: true }; },
-  async recalculateScore(_teamId: number, _weekId: number, _justification: string) { return { success: true }; },
-  async grantAdditionalMoves(_teamId: number, _additionalMoves: number, _justification: string) { return { success: true }; }
+  async getTeamLineupHistory() { return []; },
+  async getAdminLineupView() { return { lineup: [] }; },
+  async modifyHistoricalLineup() { return { success: true }; },
+  async recalculateScore() { return { success: true }; },
+  async grantAdditionalMoves() { return { success: true }; }
 };
 
 interface Team {
@@ -128,7 +128,7 @@ export const AdminDashboard: React.FC = () => {
       const lineupData = await adminApi.getAdminLineupView(teamId, weekId);
       setCurrentLineup(lineupData.lineup);
       setModifyLineupForm({
-        starterIds: lineupData.lineup.filter((p: any) => p.is_starter).map((p: any) => p.player_id),
+        starterIds: lineupData.lineup.filter((p: { is_starter: boolean }) => p.is_starter).map((p: { player_id: number }) => p.player_id),
         justification: ''
       });
     } catch (error) {
