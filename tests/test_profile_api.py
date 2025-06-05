@@ -32,13 +32,7 @@ def auth_headers(test_user: User, db: Session):
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture
-def client(db: Session):
-    """Create test client with database override."""
-    app.dependency_overrides[get_db] = lambda: db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+# Use the client fixture from conftest.py instead of defining our own
 
 
 class TestProfileAPI:
