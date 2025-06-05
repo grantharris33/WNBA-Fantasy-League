@@ -581,7 +581,6 @@ class AdminMoveGrant(Base):
     admin_user = relationship("User", backref="admin_moves_granted")
 
 
-# ---------------------------------------------------------------------------
 # Data Quality Models
 # ---------------------------------------------------------------------------
 
@@ -631,6 +630,35 @@ class DataAnomalyLog(Base):
     is_resolved: bool = Column(Boolean, default=False)
     resolved_at: datetime | None = Column(DateTime)
     resolution_notes: str | None = Column(Text)
+
+
+# ---------------------------------------------------------------------------
+# Notification Model
+# ---------------------------------------------------------------------------
+
+
+class Notification(Base):
+    __tablename__ = "notification"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    user_id: int = Column(Integer, ForeignKey("user.id"), nullable=False)
+    title: str = Column(String, nullable=False)
+    message: str = Column(Text, nullable=False)
+    type: str = Column(String, default="info", nullable=False)  # info, success, warning, error
+    is_read: bool = Column(Boolean, default=False, nullable=False)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    read_at: datetime | None = Column(DateTime, nullable=True)
+
+    # Optional references to related entities
+    league_id: int | None = Column(Integer, ForeignKey("league.id"), nullable=True)
+    team_id: int | None = Column(Integer, ForeignKey("team.id"), nullable=True)
+    player_id: int | None = Column(Integer, ForeignKey("player.id"), nullable=True)
+
+    # Relationships
+    user = relationship("User", backref="notifications")
+    league = relationship("League", backref="notifications")
+    team = relationship("Team", backref="notifications")
+    player = relationship("Player", backref="notifications")
 
 
 # ---------------------------------------------------------------------------

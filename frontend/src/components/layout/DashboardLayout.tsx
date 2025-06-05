@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -9,12 +9,13 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const sidebarLinks = [
     { to: '/', label: 'Dashboard', icon: 'dashboard' },
     { to: '/scoreboard', label: 'League Standings', icon: 'emoji_events' },
     { to: '/my-teams', label: 'Team Stats', icon: 'bar_chart' },
-    { to: '/games', label: 'Recent Activity', icon: 'history' },
+    { to: '/games', label: 'Recent Games', icon: 'history' },
     { to: '/players', label: 'Player Stats', icon: 'person' },
   ];
 
@@ -38,10 +39,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           <div className="flex items-center gap-4">
             {user && (
               <>
+                <button 
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                  title="Toggle Sidebar"
+                >
+                  <span className="material-icons text-2xl">menu</span>
+                </button>
                 <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
                   <span className="material-icons text-2xl">notifications</span>
                 </button>
-                <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-slate-200 hover:border-[#0c7ff2] transition-all" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face")'}}></div>
+                <Link to="/settings" className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-slate-200 hover:border-[#0c7ff2] transition-all" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face")'}}></Link>
                 <button
                   onClick={logout}
                   className="text-slate-600 hover:text-slate-800 text-sm font-medium transition-colors"
@@ -54,28 +62,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </header>
 
         <div className="flex flex-1">
-          <aside className="w-72 bg-white border-r border-slate-200 p-6 shadow-sm">
+          <aside className={`${sidebarCollapsed ? 'w-16' : 'w-72'} bg-white border-r border-slate-200 ${sidebarCollapsed ? 'p-2' : 'p-6'} shadow-sm transition-all duration-300`}>
             <nav className="flex flex-col gap-2">
               {sidebarLinks.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 rounded-lg transition-all ${
                     isActivePath(link.to)
                       ? 'bg-[#0c7ff2] text-white font-semibold shadow-md hover:bg-opacity-90'
                       : 'hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2]'
                   }`}
+                  title={sidebarCollapsed ? link.label : ''}
                 >
                   <span className="material-icons">{link.icon}</span>
-                  <p className="text-sm leading-normal">{link.label}</p>
+                  {!sidebarCollapsed && <p className="text-sm leading-normal">{link.label}</p>}
                 </Link>
               ))}
               <Link
                 to="/help"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all mt-auto border-t border-slate-200 pt-4"
+                className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 rounded-lg hover:bg-slate-100 text-slate-700 hover:text-[#0c7ff2] transition-all mt-auto border-t border-slate-200 pt-4`}
+                title={sidebarCollapsed ? 'Help' : ''}
               >
                 <span className="material-icons">help_outline</span>
-                <p className="text-sm font-medium leading-normal">Help</p>
+                {!sidebarCollapsed && <p className="text-sm font-medium leading-normal">Help</p>}
               </Link>
             </nav>
           </aside>
