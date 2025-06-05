@@ -6,9 +6,13 @@ const NavBar: React.FC = () => {
   const { user } = useAuth();
 
   const navLinks = [
+    { to: '/', label: 'Dashboard', icon: 'home' },
     { to: '/my-teams', label: 'My Team', icon: 'sports_basketball' },
+    { to: '/scoreboard', label: 'Scoreboard', icon: 'leaderboard' },
     { to: '/players', label: 'Player Stats', icon: 'bar_chart' },
     { to: '/draft', label: 'Draft Room', icon: 'groups' },
+    { to: '/join', label: 'Join League', icon: 'add_circle' },
+    ...(user?.is_admin ? [{ to: '/admin', label: 'Admin', icon: 'settings' }] : []),
   ];
 
 

@@ -19,6 +19,8 @@ import PlayerDetailPage from './pages/PlayerDetailPage';
 import BonusesPage from './pages/BonusesPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
+import AdminPage from './pages/AdminPage';
+import SignupPage from './pages/SignupPage';
 
 function App() {
   return (
@@ -27,6 +29,7 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>
@@ -45,6 +48,7 @@ function App() {
             <Route path="/bonuses" element={<BonusesPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
 
           {/* Redirect to home for undefined routes */}
