@@ -145,7 +145,8 @@ def current_scores(*, db: Session = Depends(get_db)) -> List[ScoreOut]:  # noqa:
     cached_scores = cache_service.get(cache_key)
 
     if cached_scores is not None:
-        return cached_scores
+        # Convert cached dictionaries back to ScoreOut objects
+        return [ScoreOut(**score_data) for score_data in cached_scores]
 
     # Determine latest week id (if any)
     latest_week = db.query(func.max(TeamScore.week)).scalar()
@@ -194,8 +195,9 @@ def current_scores(*, db: Session = Depends(get_db)) -> List[ScoreOut]:  # noqa:
     # Sort descending by season points
     result.sort(key=lambda s: s.season_points, reverse=True)
 
-    # Cache the results for 5 minutes
-    cache_service.set(cache_key, result, ttl_seconds=300, endpoint="current_scores")
+    # Cache the results for 5 minutes - convert to dictionaries for JSON serialization
+    cache_data = [score.dict() for score in result]
+    cache_service.set(cache_key, cache_data, ttl_seconds=300, endpoint="current_scores")
 
     return result
 
