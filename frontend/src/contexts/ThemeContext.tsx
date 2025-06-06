@@ -68,7 +68,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const response = await api.get('/api/v1/profile/preferences');
+        const response = await api.get('/api/v1/profile/preferences') as any;
         if (response.data) {
           setThemeState(response.data.theme || 'system');
           setAccentColorState(response.data.accent_color || '#3B82F6');
@@ -87,7 +87,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     
     // Save to backend if user is logged in
     try {
-      await api.put('/api/v1/profile/preferences', { theme: newTheme });
+      await api.put<unknown>('/api/v1/profile/preferences', { theme: newTheme });
     } catch (error) {
       // Silently fail if not logged in
       console.error('Failed to save theme preference:', error);
@@ -99,7 +99,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     
     // Save to backend if user is logged in
     try {
-      await api.put('/api/v1/profile/preferences', { accent_color: color });
+      await api.put<unknown>('/api/v1/profile/preferences', { accent_color: color });
     } catch (error) {
       // Silently fail if not logged in
       console.error('Failed to save accent color preference:', error);

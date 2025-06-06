@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, fetchJSON } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -78,14 +78,14 @@ const ProfilePage: React.FC = () => {
         api.get('/api/v1/profile/preferences')
       ]);
       
-      setProfile(profileRes.data);
-      setPreferences(prefsRes.data);
+      setProfile((profileRes as any).data);
+      setPreferences((prefsRes as any).data);
       
       // Set form values
-      setDisplayName(profileRes.data.display_name || '');
-      setBio(profileRes.data.bio || '');
-      setLocation(profileRes.data.location || '');
-      setTimezone(profileRes.data.timezone || 'UTC');
+      setDisplayName((profileRes as any).data.display_name || '');
+      setBio((profileRes as any).data.bio || '');
+      setLocation((profileRes as any).data.location || '');
+      setTimezone((profileRes as any).data.timezone || 'UTC');
     } catch {
       setError('Failed to load profile');
     } finally {
@@ -106,7 +106,7 @@ const ProfilePage: React.FC = () => {
         timezone
       });
       
-      setProfile(response.data);
+      setProfile((response as any).data);
       setSuccessMessage('Profile updated successfully');
     } catch (err: unknown) {
       const errorMessage = err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'detail' in err.response.data ? String(err.response.data.detail) : 'Failed to update profile';
@@ -183,13 +183,16 @@ const ProfilePage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await api.post('/api/v1/profile/avatar', formData, {
+      // Note: This should use fetchJSON directly with proper headers for multipart
+      const response = await fetchJSON('/api/v1/profile/avatar', {
+        method: 'POST',
+        body: formData,
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
       
-      setProfile(response.data);
+      setProfile((response as any).data);
       setSuccessMessage('Avatar uploaded successfully');
     } catch {
       setError('Failed to upload avatar');

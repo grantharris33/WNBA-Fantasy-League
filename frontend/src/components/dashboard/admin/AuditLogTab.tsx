@@ -284,7 +284,7 @@ const AuditLogEntry: React.FC<AuditLogEntryProps> = ({ entry, isExpanded, onTogg
           </div>
 
           <div className="text-sm text-gray-700 mb-2">
-            {typeof details === 'object' && details.details ? details.details : entry.details}
+            {typeof details === 'object' && details.details ? String(details.details) : entry.details}
           </div>
 
           {isExpanded && typeof details === 'object' && (
@@ -348,5 +348,14 @@ const AuditStatCard: React.FC<AuditStatCardProps> = ({ title, value, icon, color
   );
 };
 
+
+// Helper function to parse details
+const parseDetails = (details: string): Record<string, unknown> => {
+  try {
+    return JSON.parse(details) as Record<string, unknown>;
+  } catch {
+    return { details };
+  }
+};
 
 export default AuditLogTab;
