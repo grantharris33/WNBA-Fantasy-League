@@ -73,7 +73,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           setThemeState(response.data.theme || 'system');
           setAccentColorState(response.data.accent_color || '#3B82F6');
         }
-      } catch (error) {
+      } catch {
         // If not logged in or preferences not found, use defaults
         console.log('Using default theme preferences');
       }

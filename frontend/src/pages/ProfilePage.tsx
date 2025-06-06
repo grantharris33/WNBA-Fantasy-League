@@ -26,7 +26,7 @@ interface UserPreferences {
   email_trade_offers: boolean;
   email_league_updates: boolean;
   email_weekly_summary: boolean;
-  dashboard_layout: any;
+  dashboard_layout: Record<string, unknown>;
   default_league_id?: number;
   show_player_photos: boolean;
   favorite_team_ids: number[];
@@ -86,7 +86,7 @@ const ProfilePage: React.FC = () => {
       setBio(profileRes.data.bio || '');
       setLocation(profileRes.data.location || '');
       setTimezone(profileRes.data.timezone || 'UTC');
-    } catch (err) {
+    } catch {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
@@ -108,8 +108,9 @@ const ProfilePage: React.FC = () => {
       
       setProfile(response.data);
       setSuccessMessage('Profile updated successfully');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update profile');
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'detail' in err.response.data ? String(err.response.data.detail) : 'Failed to update profile';
+      setError(errorMessage);
     }
   };
 
@@ -134,8 +135,8 @@ const ProfilePage: React.FC = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update password');
+    } catch {
+      setError('Failed to update password');
     }
   };
 
@@ -154,12 +155,12 @@ const ProfilePage: React.FC = () => {
       setSuccessMessage('Email updated. Please check your inbox to verify the new address.');
       setNewEmail('');
       setEmailPassword('');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update email');
+    } catch {
+      setError('Failed to update email');
     }
   };
 
-  const handlePreferenceUpdate = async (key: string, value: any) => {
+  const handlePreferenceUpdate = async (key: string, value: unknown) => {
     try {
       setError(null);
       
@@ -168,8 +169,8 @@ const ProfilePage: React.FC = () => {
       });
       
       setPreferences(prev => prev ? { ...prev, [key]: value } : null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update preferences');
+    } catch {
+      setError('Failed to update preferences');
     }
   };
 
@@ -190,8 +191,8 @@ const ProfilePage: React.FC = () => {
       
       setProfile(response.data);
       setSuccessMessage('Avatar uploaded successfully');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload avatar');
+    } catch {
+      setError('Failed to upload avatar');
     }
   };
 
@@ -200,8 +201,8 @@ const ProfilePage: React.FC = () => {
       setError(null);
       await api.post('/api/v1/profile/resend-verification');
       setSuccessMessage('Verification email sent');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to send verification email');
+    } catch {
+      setError('Failed to send verification email');
     }
   };
 
@@ -289,7 +290,7 @@ const ProfilePage: React.FC = () => {
                         await api.delete('/api/v1/profile/avatar');
                         fetchProfile();
                         setSuccessMessage('Avatar deleted successfully');
-                      } catch (err) {
+                      } catch {
                         setError('Failed to delete avatar');
                       }
                     }}

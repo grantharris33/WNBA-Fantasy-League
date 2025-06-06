@@ -25,10 +25,10 @@ class CacheService:
     def _serialize_data(self, data: Any) -> Any:
         """
         Serialize data for caching, handling Pydantic models.
-        
+
         Args:
             data: Data to serialize
-            
+
         Returns:
             JSON-serializable data
         """

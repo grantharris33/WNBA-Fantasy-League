@@ -34,7 +34,7 @@ export interface ValidationRule {
   entity_type: string;
   field_name: string;
   rule_type: string;
-  rule_config: Record<string, any>;
+  rule_config: Record<string, unknown>;
   is_active: boolean;
 }
 
@@ -71,7 +71,7 @@ export interface CreateValidationRuleRequest {
   entity_type: string;
   field_name: string;
   rule_type: string;
-  rule_config: Record<string, any>;
+  rule_config: Record<string, unknown>;
 }
 
 export interface LineupHistoryEntry {
@@ -286,8 +286,8 @@ class AdminApiService {
   /**
    * Run all quality checks
    */
-  async runAllQualityChecks(): Promise<any> {
-    return fetchJSON<any>('/admin/data-quality/checks/run-all', {
+  async runAllQualityChecks(): Promise<unknown> {
+    return fetchJSON<unknown>('/admin/data-quality/checks/run-all', {
       method: 'POST'
     });
   }
@@ -295,9 +295,9 @@ class AdminApiService {
   /**
    * Get quality trends
    */
-  async getQualityTrends(days: number = 30): Promise<any> {
+  async getQualityTrends(days: number = 30): Promise<unknown> {
     const params = new URLSearchParams({ days: days.toString() });
-    return fetchJSON<any>(`/admin/data-quality/trends?${params}`);
+    return fetchJSON<unknown>(`/admin/data-quality/trends?${params}`);
   }
 
   /**
@@ -313,9 +313,9 @@ class AdminApiService {
   /**
    * Trigger anomaly detection
    */
-  async detectAnomalies(gameDate?: string): Promise<any> {
+  async detectAnomalies(gameDate?: string): Promise<unknown> {
     const params = gameDate ? new URLSearchParams({ game_date: gameDate }) : '';
-    return fetchJSON<any>(`/admin/data-quality/detect-anomalies?${params}`, {
+    return fetchJSON<unknown>(`/admin/data-quality/detect-anomalies?${params}`, {
       method: 'POST'
     });
   }

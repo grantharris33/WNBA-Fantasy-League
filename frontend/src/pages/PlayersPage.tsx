@@ -62,7 +62,7 @@ const PlayersPage: React.FC = () => {
             }
           })
         );
-        setMyRosterPlayers(rosterPlayers.filter((player: any) => player !== null) as any);
+        setMyRosterPlayers(rosterPlayers.filter((player: unknown) => player !== null) as PlayerSearchResult[]);
       }
     } catch (err) {
       console.error('Failed to load roster players:', err);

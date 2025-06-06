@@ -49,12 +49,8 @@ const SignupPage = () => {
       // Log them in automatically
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      if (err.status === 400) {
-        setError(err.details?.detail || 'Email already registered');
-      } else {
-        setError('Failed to create account. Please try again.');
-      }
+    } catch {
+      setError('Failed to create account. Please try again.');
     } finally {
       setIsLoading(false);
     }

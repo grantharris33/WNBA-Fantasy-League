@@ -348,13 +348,5 @@ const AuditStatCard: React.FC<AuditStatCardProps> = ({ title, value, icon, color
   );
 };
 
-// Helper function to parse details
-const parseDetails = (details: string): any => {
-  try {
-    return JSON.parse(details);
-  } catch {
-    return { details };
-  }
-};
 
 export default AuditLogTab;
