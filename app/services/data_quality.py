@@ -124,6 +124,10 @@ class DataQualityService:
 
         return results
 
+    def run_all_quality_checks(self) -> Dict[str, Any]:
+        """Alias for run_all_active_checks for API consistency."""
+        return self.run_all_active_checks()
+
     # Validation Rules Management
     def create_validation_rule(
         self, entity_type: str, field_name: str, rule_type: str, rule_config: Dict[str, Any]

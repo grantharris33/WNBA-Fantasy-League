@@ -174,6 +174,7 @@ class UserOut(BaseModel):
     id: int
     email: str
     created_at: datetime
+    is_admin: bool
 
     class Config:
         orm_mode = True

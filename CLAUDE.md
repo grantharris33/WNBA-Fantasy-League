@@ -34,6 +34,10 @@ npm run build              # Production build
 npm run lint               # ESLint checking
 ```
 
+## Development Principles
+
+- Always run the full pytest suite and linters/formatters before pushing a commit
+
 ## Architecture
 
 ### Backend Structure

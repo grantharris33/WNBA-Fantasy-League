@@ -119,7 +119,7 @@ class AdminApiService {
     starterIds: number[],
     justification: string = ''
   ): Promise<AdminActionResponse> {
-    return fetchJSON<AdminActionResponse>(`/admin/teams/${teamId}/lineups/${weekId}`, {
+    return fetchJSON<AdminActionResponse>(`/api/v1/admin/teams/${teamId}/lineups/${weekId}`, {
       method: 'PUT',
       body: {
         starter_ids: starterIds,
@@ -136,7 +136,7 @@ class AdminApiService {
     weekId: number,
     justification: string = ''
   ): Promise<AdminActionResponse> {
-    return fetchJSON<AdminActionResponse>(`/admin/teams/${teamId}/weeks/${weekId}/recalculate`, {
+    return fetchJSON<AdminActionResponse>(`/api/v1/admin/teams/${teamId}/weeks/${weekId}/recalculate`, {
       method: 'POST',
       body: { justification }
     });
@@ -150,7 +150,7 @@ class AdminApiService {
     additionalMoves: number,
     justification: string = ''
   ): Promise<AdminActionResponse> {
-    return fetchJSON<AdminActionResponse>(`/admin/teams/${teamId}/moves/grant`, {
+    return fetchJSON<AdminActionResponse>(`/api/v1/admin/teams/${teamId}/moves/grant`, {
       method: 'POST',
       body: {
         additional_moves: additionalMoves,
@@ -176,21 +176,21 @@ class AdminApiService {
       params.append('team_id', teamId.toString());
     }
 
-    return fetchJSON<AuditLogEntry[]>(`/admin/audit-log?${params}`);
+    return fetchJSON<AuditLogEntry[]>(`/api/v1/admin/audit-log?${params}`);
   }
 
   /**
    * Get team lineup history with admin modification indicators
    */
   async getTeamLineupHistory(teamId: number): Promise<LineupHistoryEntry[]> {
-    return fetchJSON<LineupHistoryEntry[]>(`/admin/teams/${teamId}/lineup-history`);
+    return fetchJSON<LineupHistoryEntry[]>(`/api/v1/admin/teams/${teamId}/lineup-history`);
   }
 
   /**
    * Get detailed lineup view for admin modification
    */
   async getAdminLineupView(teamId: number, weekId: number): Promise<AdminLineupView> {
-    return fetchJSON<AdminLineupView>(`/admin/teams/${teamId}/weeks/${weekId}/lineup`);
+    return fetchJSON<AdminLineupView>(`/api/v1/admin/teams/${teamId}/weeks/${weekId}/lineup`);
   }
 
   // Data Quality Methods
@@ -199,7 +199,7 @@ class AdminApiService {
    * Get data quality dashboard overview
    */
   async getDataQualityDashboard(): Promise<DataQualityDashboard> {
-    return fetchJSON<DataQualityDashboard>('/admin/data-quality/dashboard');
+    return fetchJSON<DataQualityDashboard>('/api/v1/admin/data-quality/dashboard');
   }
 
   /**
@@ -207,14 +207,14 @@ class AdminApiService {
    */
   async getQualityChecks(activeOnly: boolean = true): Promise<QualityCheck[]> {
     const params = new URLSearchParams({ active_only: activeOnly.toString() });
-    return fetchJSON<QualityCheck[]>(`/admin/data-quality/checks?${params}`);
+    return fetchJSON<QualityCheck[]>(`/api/v1/admin/data-quality/checks?${params}`);
   }
 
   /**
    * Create a new quality check
    */
   async createQualityCheck(checkData: CreateQualityCheckRequest): Promise<QualityCheck> {
-    return fetchJSON<QualityCheck>('/admin/data-quality/checks', {
+    return fetchJSON<QualityCheck>('/api/v1/admin/data-quality/checks', {
       method: 'POST',
       body: checkData
     });
@@ -224,7 +224,7 @@ class AdminApiService {
    * Create a new validation rule
    */
   async createValidationRule(ruleData: CreateValidationRuleRequest): Promise<ValidationRule> {
-    return fetchJSON<ValidationRule>('/admin/data-quality/validation-rules', {
+    return fetchJSON<ValidationRule>('/api/v1/admin/data-quality/validation-rules', {
       method: 'POST',
       body: ruleData
     });
@@ -280,14 +280,14 @@ class AdminApiService {
       params.append('provider', provider);
     }
     
-    return fetchJSON<IngestLogEntry[]>(`/logs/ingest?${params}`);
+    return fetchJSON<IngestLogEntry[]>(`/api/v1/logs/ingest?${params}`);
   }
 
   /**
    * Run all quality checks
    */
   async runAllQualityChecks(): Promise<unknown> {
-    return fetchJSON<unknown>('/admin/data-quality/checks/run-all', {
+    return fetchJSON<unknown>('/api/v1/admin/data-quality/checks/run-all', {
       method: 'POST'
     });
   }
@@ -318,6 +318,44 @@ class AdminApiService {
     return fetchJSON<unknown>(`/admin/data-quality/detect-anomalies?${params}`, {
       method: 'POST'
     });
+  }
+
+  /**
+   * Get system statistics for overview dashboard
+   */
+  async getSystemStats(): Promise<{
+    totalUsers: number;
+    totalTeams: number;
+    totalLeagues: number;
+    activeDataIssues: number;
+    lastIngestTime?: string;
+  }> {
+    return fetchJSON<{
+      totalUsers: number;
+      totalTeams: number;
+      totalLeagues: number;
+      activeDataIssues: number;
+      lastIngestTime?: string;
+    }>('/api/v1/admin/system-stats');
+  }
+
+  /**
+   * Get all teams for admin management
+   */
+  async getTeams(): Promise<Array<{
+    id: number;
+    name: string;
+    owner_email?: string;
+    moves_this_week: number;
+    league_name?: string;
+  }>> {
+    return fetchJSON<Array<{
+      id: number;
+      name: string;
+      owner_email?: string;
+      moves_this_week: number;
+      league_name?: string;
+    }>>('/api/v1/admin/teams');
   }
 }
 

@@ -38,19 +38,9 @@ const AdminDashboard: React.FC = () => {
   const loadSystemStats = async () => {
     try {
       setLoading(true);
-      // Load basic system statistics
-      const [qualityDashboard, auditLogs] = await Promise.all([
-        adminApi.getDataQualityDashboard().catch(() => null),
-        adminApi.getAuditLog(undefined, 1).catch(() => [])
-      ]);
-
-      setSystemStats({
-        totalUsers: 0, // Would need API endpoint
-        totalTeams: 0, // Would need API endpoint
-        totalLeagues: 0, // Would need API endpoint
-        activeDataIssues: qualityDashboard?.total_unresolved_anomalies || 0,
-        lastIngestTime: auditLogs[0]?.timestamp
-      });
+      // Load system statistics from the new API endpoint
+      const stats = await adminApi.getSystemStats();
+      setSystemStats(stats);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load system statistics');
     } finally {
@@ -166,7 +156,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ systemStats, onRefresh }) => 
                     Total Users
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {systemStats?.totalUsers || 'N/A'}
+                    {systemStats?.totalUsers?.toLocaleString() || 'N/A'}
                   </dd>
                 </dl>
               </div>
@@ -186,7 +176,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ systemStats, onRefresh }) => 
                     Total Teams
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {systemStats?.totalTeams || 'N/A'}
+                    {systemStats?.totalTeams?.toLocaleString() || 'N/A'}
                   </dd>
                 </dl>
               </div>
@@ -206,7 +196,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ systemStats, onRefresh }) => 
                     Active Leagues
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {systemStats?.totalLeagues || 'N/A'}
+                    {systemStats?.totalLeagues?.toLocaleString() || 'N/A'}
                   </dd>
                 </dl>
               </div>
@@ -226,7 +216,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ systemStats, onRefresh }) => 
                     Data Issues
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {systemStats?.activeDataIssues || 0}
+                    {systemStats?.activeDataIssues?.toLocaleString() || 0}
                   </dd>
                 </dl>
               </div>

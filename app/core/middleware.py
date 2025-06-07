@@ -37,21 +37,15 @@ class ChangeLogMiddleware(BaseHTTPMiddleware):
         # Capture route path for logging
         path = request.url.path
 
-        # Get database session
-        try:
-            db = next(get_db())
-        except Exception:
-            # If we can't get a DB session, just continue without logging
-            return await call_next(request)
-
-        # Pre-request state snapshot could be captured here if needed
-        # For this MVP implementation, we'll use a simpler approach
-
-        # Process the request
+        # Process the request first
         response = await call_next(request)
 
         # Only log successful mutations (2xx responses)
         if 200 <= response.status_code < 300:
+            # Use a separate session for logging to avoid transaction conflicts
+            from app.core.database import SessionLocal
+
+            db = SessionLocal()
             try:
                 # Create a log entry with the basic info
                 log_entry = TransactionLog(
@@ -69,6 +63,8 @@ class ChangeLogMiddleware(BaseHTTPMiddleware):
             except SQLAlchemyError:
                 # Don't fail the request if logging fails
                 db.rollback()
+            finally:
+                db.close()
 
         return response
 

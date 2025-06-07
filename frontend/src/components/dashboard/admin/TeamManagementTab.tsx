@@ -3,6 +3,7 @@ import LoadingSpinner from '../../common/LoadingSpinner';
 import ErrorMessage from '../../common/ErrorMessage';
 import ConfirmationModal from '../../common/ConfirmationModal';
 import { adminApi, type LineupHistoryEntry, type AdminLineupView } from '../../../services/adminApi';
+import { formatWeekWithDates, getCurrentISOWeek } from '../../../lib/weekUtils';
 
 interface Team {
   id: number;
@@ -21,9 +22,9 @@ interface Player {
 }
 
 const TeamManagementTab: React.FC = () => {
-  const [teams] = useState<Team[]>([]); // Would need API endpoint
+  const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<number>(202501); // Current week
+  const [selectedWeek, setSelectedWeek] = useState<number>(getCurrentISOWeek());
   const [lineupHistory, setLineupHistory] = useState<LineupHistoryEntry[]>([]);
   const [currentLineup, setCurrentLineup] = useState<AdminLineupView | null>(null);
   const [loading, setLoading] = useState(false);
@@ -40,10 +41,23 @@ const TeamManagementTab: React.FC = () => {
   const [additionalMoves, setAdditionalMoves] = useState(1);
 
   useEffect(() => {
+    loadTeams();
+  }, []);
+
+  useEffect(() => {
     if (selectedTeam) {
       loadTeamData();
     }
   }, [selectedTeam, selectedWeek]);
+
+  const loadTeams = async () => {
+    try {
+      const teamsData = await adminApi.getTeams();
+      setTeams(teamsData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load teams');
+    }
+  };
 
   const loadTeamData = async () => {
     if (!selectedTeam) return;
@@ -152,7 +166,7 @@ const TeamManagementTab: React.FC = () => {
             </select>
             {teams.length === 0 && (
               <p className="text-sm text-gray-500 mt-1">
-                No teams found. Team data would be loaded from API.
+                No teams found.
               </p>
             )}
           </div>
@@ -169,7 +183,7 @@ const TeamManagementTab: React.FC = () => {
               placeholder="e.g., 202501"
             />
             <p className="text-sm text-gray-500 mt-1">
-              Format: YYYYWW (e.g., 202501 for 2025 week 1)
+              Current: {formatWeekWithDates(selectedWeek)}
             </p>
           </div>
         </div>
@@ -190,7 +204,7 @@ const TeamManagementTab: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-lg font-medium text-gray-900">
-                  Current Lineup - Week {selectedWeek}
+                  Current Lineup - {formatWeekWithDates(selectedWeek)}
                 </h4>
                 <div className="space-x-2">
                   <button
@@ -266,7 +280,7 @@ const TeamManagementTab: React.FC = () => {
                 {lineupHistory.map(entry => (
                   <div key={entry.week_id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-2">
-                      <h5 className="font-medium text-gray-900">Week {entry.week_id}</h5>
+                      <h5 className="font-medium text-gray-900">{formatWeekWithDates(entry.week_id)}</h5>
                       <div className="flex items-center space-x-2">
                         {entry.admin_modified && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">

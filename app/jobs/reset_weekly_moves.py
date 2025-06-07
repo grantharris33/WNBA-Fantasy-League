@@ -9,6 +9,24 @@ from app.services.roster import RosterService
 logger = logging.getLogger(__name__)
 
 
+def reset_weekly_moves_job() -> None:
+    """
+    Job wrapper that creates its own database session for the weekly reset.
+    """
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        reset_weekly_moves(db)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in weekly reset job: {e}")
+        raise
+    finally:
+        db.close()
+
+
 def reset_weekly_moves(db: Session) -> None:
     """
     Reset the moves_this_week counter for all teams to 0 and handle starter carryover.
