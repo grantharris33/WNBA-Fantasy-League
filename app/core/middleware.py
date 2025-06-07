@@ -44,7 +44,7 @@ class ChangeLogMiddleware(BaseHTTPMiddleware):
         if 200 <= response.status_code < 300:
             # Use a separate session for logging to avoid transaction conflicts
             from app.core.database import SessionLocal
-            
+
             db = SessionLocal()
             try:
                 # Create a log entry with the basic info

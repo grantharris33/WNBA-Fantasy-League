@@ -34,8 +34,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add Change Log middleware
-app.add_middleware(ChangeLogMiddleware)
+# Add Change Log middleware - temporarily disabled to fix database session issues
+# app.add_middleware(ChangeLogMiddleware)
 
 # ---------------------------------------------------------------------------
 # Compatibility patch: Starlette<=0.27 passes unsupported 'app' kw to httpx>=0.25
@@ -109,16 +109,11 @@ async def _startup() -> None:
     if not scheduler.get_job("reset_weekly_moves"):
         reset_hour = int(os.getenv("WEEKLY_RESET_HOUR_UTC", "5"))
 
-        from functools import partial
-
-        from app.core.database import get_db
-
-        # Create a job with a database session
-        db = next(get_db())
-        reset_job = partial(reset_weekly_moves, db)
+        # Use the job wrapper that manages its own database session
+        from app.jobs.reset_weekly_moves import reset_weekly_moves_job
 
         scheduler.add_job(
-            reset_job,
+            reset_weekly_moves_job,
             "cron",
             day_of_week="mon",
             hour=reset_hour,
@@ -233,16 +228,11 @@ def _schedule_nightly() -> None:
     if not scheduler.get_job("reset_weekly_moves"):
         reset_hour = int(os.getenv("WEEKLY_RESET_HOUR_UTC", "5"))
 
-        from functools import partial
-
-        from app.core.database import get_db
-
-        # Create a job with a database session
-        db = next(get_db())
-        reset_job = partial(reset_weekly_moves, db)
+        # Use the job wrapper that manages its own database session
+        from app.jobs.reset_weekly_moves import reset_weekly_moves_job
 
         scheduler.add_job(
-            reset_job,
+            reset_weekly_moves_job,
             "cron",
             day_of_week="mon",
             hour=reset_hour,
