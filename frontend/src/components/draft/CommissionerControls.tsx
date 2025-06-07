@@ -8,8 +8,6 @@ interface CommissionerControlsProps {
   currentUserId: number | undefined;
   leagueCommissionerId: number | undefined; // Fetched from league details
   draftId: number | undefined;
-  apiBaseUrl: string;
-  authToken: string | null;
   leagueSettings?: { draft_timer_seconds?: number };
   // onAction: (action: 'pause' | 'resume') => void; // Callback after successful API call
 }
@@ -19,8 +17,6 @@ const CommissionerControls: React.FC<CommissionerControlsProps> = ({
   currentUserId,
   leagueCommissionerId,
   draftId,
-  apiBaseUrl,
-  authToken,
   leagueSettings,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,24 +31,16 @@ const CommissionerControls: React.FC<CommissionerControlsProps> = ({
   const canResume = draftState.status === 'paused';
 
   const handleDraftAction = async (action: 'pause' | 'resume') => {
-    if (!authToken) {
-      toast.error('Authentication token not found for commissioner action.');
+    if (!draftId) {
+      toast.error('Draft ID not found for commissioner action.');
       return;
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/draft/${draftId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: `Failed to ${action} draft` }));
-        const errorMsg = errorData.detail || `Could not ${action} draft.`;
-        toast.error(errorMsg);
-        throw new Error(errorMsg); // Still throw to indicate failure if needed elsewhere
+      if (action === 'pause') {
+        await api.draft.pauseDraft(draftId);
+      } else if (action === 'resume') {
+        await api.draft.resumeDraft(draftId);
       }
       // Success toast will be triggered by DraftPage useEffect watching state change from WebSocket
       // toast.success(`Draft ${action} request sent successfully.`); // This might be too early
@@ -60,10 +48,7 @@ const CommissionerControls: React.FC<CommissionerControlsProps> = ({
       // onAction?.(action);
     } catch (err) {
       console.error(`Error during draft ${action}:`, err);
-      // Error already toasted if it was an API error response. This catches network errors etc.
-      if (!(err instanceof Error && err.message.includes('Could not'))) { // Avoid double toast for API errors
-        toast.error(err instanceof Error ? err.message : `Unknown error during ${action}.`);
-      }
+      toast.error(err instanceof Error ? err.message : `Unknown error during ${action}.`);
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +59,7 @@ const CommissionerControls: React.FC<CommissionerControlsProps> = ({
 
     try {
       setIsLoading(true);
-      await api.leagues.updateTimer(draftId, timerSeconds);
+      await api.draft.updateTimer(draftId, timerSeconds);
       toast.success(`Timer updated to ${timerSeconds} seconds`);
       setShowTimerSettings(false);
     } catch (error) {

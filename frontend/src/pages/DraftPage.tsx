@@ -19,7 +19,6 @@ import CommissionerControls from '../components/draft/CommissionerControls';
 // Use LeagueOut directly instead of custom LeagueDetails
 type LeagueDetails = LeagueOut;
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
 const LOCAL_STORAGE_QUEUE_KEY_PREFIX = 'wnbaFantasyPlayerQueue_';
 
 const DraftPage: React.FC = () => {
@@ -322,19 +321,7 @@ const DraftPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/draft/${draftId}/pick`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ player_id: playerToPick.id }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Pick failed with status: ' + response.status }));
-        throw new Error(errorData.detail || 'Failed to make pick.');
-      }
+      await api.draft.makePick(draftId, playerToPick.id);
       // Success: WebSocket `pick_made` event should handle UI updates for draft log & available players.
       // No need to manually update availablePlayers here if WS is reliable.
       console.log(`Player ${playerToPick.full_name} picked successfully.`);
@@ -486,8 +473,6 @@ const DraftPage: React.FC = () => {
             currentUserId={user.id}
             leagueCommissionerId={leagueDetails.commissioner_id}
             draftId={draftId}
-            apiBaseUrl={API_BASE_URL}
-            authToken={token}
             leagueSettings={leagueDetails.settings}
         />
       )}
