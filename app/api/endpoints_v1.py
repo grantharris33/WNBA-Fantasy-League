@@ -112,7 +112,7 @@ def team_detail(*, team_id: int, db: Session = Depends(get_db)):  # noqa: D401
     for rs in team.roster_slots:
         player_out = PlayerOut.from_orm(rs.player)
         roster_slot = RosterSlotOut(
-            player_id=rs.player_id, position=rs.position, is_starter=rs.is_starter, player=player_out
+            id=rs.id, player_id=rs.player_id, position=rs.position, is_starter=rs.is_starter, player=player_out
         )
         roster_slots.append(roster_slot)
 

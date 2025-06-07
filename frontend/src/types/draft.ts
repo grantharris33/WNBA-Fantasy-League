@@ -1,23 +1,7 @@
-export interface Player {
-  id: number;
-  full_name: string;
-  position?: string | null;
-  team_abbr?: string | null;
-  // 2024 season stats for draft comparison
-  stats_2024?: {
-    ppg: number;
-    rpg: number;
-    apg: number;
-    spg: number;
-    bpg: number;
-    fg_percentage: number;
-    three_point_percentage: number;
-    ft_percentage: number;
-    mpg: number;
-    fantasy_ppg: number;
-    games_played: number;
-  } | null;
-}
+import { PlayerWithStats } from './Player';
+
+// Re-export Player types from the comprehensive Player module
+export type Player = PlayerWithStats;
 
 export interface DraftPick {
   id: number;

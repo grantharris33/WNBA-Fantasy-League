@@ -183,13 +183,10 @@ const ProfilePage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
       
-      // Note: This should use fetchJSON directly with proper headers for multipart
+      // FormData will be handled properly by fetchJSON
       const response = await fetchJSON('/api/v1/profile/avatar', {
         method: 'POST',
-        body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        body: formData
       });
       
       setProfile((response as any).data);

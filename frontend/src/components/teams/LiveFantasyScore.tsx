@@ -58,8 +58,8 @@ const LiveFantasyScore: React.FC<LiveFantasyScoreProps> = ({
   const connectWebSocket = useCallback(() => {
     if (!autoUpdate) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/v1/live/ws/teams/${teamId}/fantasy-score`;
+    const WS_URL_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+    const wsUrl = `${WS_URL_BASE}/api/v1/live/ws/teams/${teamId}/fantasy-score`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

@@ -3,6 +3,8 @@ export * from './Team';
 export * from './League';
 export * from './draft';
 export * from './Score';
+export * from './Player';
+export * from './WNBA';
 
 export type { UserOut } from './User';
 export type { UserTeam } from './Team';

@@ -105,6 +105,7 @@ class PlayerOut(BaseModel):
 
 
 class RosterSlotOut(BaseModel):
+    id: int
     player_id: int
     position: str | None = None
     is_starter: bool = False

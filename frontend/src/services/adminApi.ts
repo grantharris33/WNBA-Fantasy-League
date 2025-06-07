@@ -235,14 +235,14 @@ class AdminApiService {
    */
   async getValidationRules(entityType?: string): Promise<ValidationRule[]> {
     const params = entityType ? new URLSearchParams({ entity_type: entityType }) : '';
-    return fetchJSON<ValidationRule[]>(`/admin/data-quality/validation-rules?${params}`);
+    return fetchJSON<ValidationRule[]>(`/api/v1/admin/data-quality/validation-rules?${params}`);
   }
 
   /**
    * Run a specific quality check
    */
   async runQualityCheck(checkId: number): Promise<AdminActionResponse> {
-    return fetchJSON<AdminActionResponse>(`/admin/data-quality/checks/${checkId}/run`, {
+    return fetchJSON<AdminActionResponse>(`/api/v1/admin/data-quality/checks/${checkId}/run`, {
       method: 'POST'
     });
   }
@@ -264,7 +264,7 @@ class AdminApiService {
       params.append('severity', severity);
     }
 
-    return fetchJSON<AnomalyEntry[]>(`/admin/data-quality/anomalies?${params}`);
+    return fetchJSON<AnomalyEntry[]>(`/api/v1/admin/data-quality/anomalies?${params}`);
   }
 
   /**
@@ -297,14 +297,14 @@ class AdminApiService {
    */
   async getQualityTrends(days: number = 30): Promise<unknown> {
     const params = new URLSearchParams({ days: days.toString() });
-    return fetchJSON<unknown>(`/admin/data-quality/trends?${params}`);
+    return fetchJSON<unknown>(`/api/v1/admin/data-quality/trends?${params}`);
   }
 
   /**
    * Resolve an anomaly
    */
   async resolveAnomaly(anomalyId: number, resolutionNotes: string): Promise<AdminActionResponse> {
-    return fetchJSON<AdminActionResponse>(`/admin/data-quality/anomalies/${anomalyId}/resolve`, {
+    return fetchJSON<AdminActionResponse>(`/api/v1/admin/data-quality/anomalies/${anomalyId}/resolve`, {
       method: 'POST',
       body: { resolution_notes: resolutionNotes }
     });
@@ -315,7 +315,7 @@ class AdminApiService {
    */
   async detectAnomalies(gameDate?: string): Promise<unknown> {
     const params = gameDate ? new URLSearchParams({ game_date: gameDate }) : '';
-    return fetchJSON<unknown>(`/admin/data-quality/detect-anomalies?${params}`, {
+    return fetchJSON<unknown>(`/api/v1/admin/data-quality/detect-anomalies?${params}`, {
       method: 'POST'
     });
   }

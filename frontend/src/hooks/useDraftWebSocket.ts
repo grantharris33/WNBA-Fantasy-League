@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DraftState } from '../types/draft';
 
-const WS_URL_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/api/v1/draft/ws';
+const WS_URL_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
 
 interface UseDraftWebSocketOptions {
   leagueId: string | null;
@@ -61,7 +61,7 @@ export const useDraftWebSocket = ({
 
       connectionCountRef.current += 1;
       isConnectingRef.current = true;
-      const wsUrl = `${WS_URL_BASE}/${leagueId}?token=${token}`;
+      const wsUrl = `${WS_URL_BASE}/api/v1/draft/ws/${leagueId}?token=${token}`;
       console.log(`[WebSocket] Attempting connection #${connectionCountRef.current} to: ${wsUrl}`);
 
       const ws = new WebSocket(wsUrl);
@@ -93,8 +93,9 @@ export const useDraftWebSocket = ({
 
           // Handle ping/pong messages from server
           if (message.type === 'ping') {
-            console.log(`[WebSocket] Received ping from server`);
-            return; // Just ignore pings
+            console.log(`[WebSocket] Received ping from server, sending pong`);
+            ws.send(JSON.stringify({ type: 'pong' }));
+            return;
           }
 
           // Backend sends messages with "event" field, not "type"
