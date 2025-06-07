@@ -1,11 +1,12 @@
 from typing import Annotated, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user
 from app.core.database import get_db
-from app.models import User
+from app.models import User, Team
 from app.services.admin import AdminService
 from app.services.data_quality import DataQualityService
 
@@ -564,5 +565,165 @@ async def run_quality_check(
             else f"Quality check {check_id} failed",
             data={"check_id": check_id},
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/data-quality/checks/run-all")
+async def run_all_quality_checks(
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+) -> AdminActionResponse:
+    """
+    Run all active data quality checks.
+    Requires admin privileges.
+    """
+    try:
+        quality_service = DataQualityService(db)
+        results = quality_service.run_all_quality_checks()
+        
+        return AdminActionResponse(
+            success=True,
+            message=f"Ran {len(results)} quality checks",
+            data={"results": results}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/data-quality/anomalies")
+async def list_anomalies(
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    unresolved_only: bool = Query(True, description="Filter to unresolved anomalies only"),
+    severity: Optional[str] = Query(None, description="Filter by severity"),
+    limit: int = Query(50, ge=1, le=1000, description="Number of records to return"),
+) -> List[AnomalyResponse]:
+    """
+    List data quality anomalies.
+    Requires admin privileges.
+    """
+    try:
+        from app.models import DataQualityAnomaly
+        
+        query = db.query(DataQualityAnomaly)
+        if unresolved_only:
+            query = query.filter(DataQualityAnomaly.is_resolved == False)
+        if severity:
+            query = query.filter(DataQualityAnomaly.severity == severity)
+            
+        query = query.order_by(desc(DataQualityAnomaly.detected_at))
+        anomalies = query.limit(limit).all()
+        
+        return [
+            AnomalyResponse(
+                id=anomaly.id,
+                entity_type=anomaly.entity_type,
+                entity_id=str(anomaly.entity_id),
+                anomaly_type=anomaly.anomaly_type,
+                description=anomaly.description,
+                severity=anomaly.severity,
+                detected_at=anomaly.detected_at.isoformat(),
+                is_resolved=anomaly.is_resolved,
+                resolved_at=anomaly.resolved_at.isoformat() if anomaly.resolved_at else None,
+                resolution_notes=anomaly.resolution_notes,
+            )
+            for anomaly in anomalies
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/data-quality/anomalies/{anomaly_id}/resolve")
+async def resolve_anomaly(
+    anomaly_id: int = Path(..., description="Anomaly ID"),
+    request: ResolveAnomalyRequest = Body(...),
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+) -> AdminActionResponse:
+    """
+    Resolve a data quality anomaly.
+    Requires admin privileges.
+    """
+    try:
+        quality_service = DataQualityService(db)
+        success = quality_service.resolve_anomaly(anomaly_id, request.resolution_notes)
+        
+        return AdminActionResponse(
+            success=success,
+            message=f"Anomaly {anomaly_id} resolved successfully" if success else f"Failed to resolve anomaly {anomaly_id}",
+            data={"anomaly_id": anomaly_id}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/system-stats")
+async def get_system_stats(
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+) -> Dict:
+    """
+    Get system statistics for admin dashboard.
+    Requires admin privileges.
+    """
+    try:
+        from app.models import League, Team, User
+        
+        # Get basic counts
+        total_users = db.query(User).count()
+        total_teams = db.query(Team).count()
+        total_leagues = db.query(League).count()
+        
+        # Get quality issues count
+        quality_service = DataQualityService(db)
+        dashboard_data = quality_service.get_quality_dashboard_data()
+        active_data_issues = dashboard_data.get("total_unresolved_anomalies", 0)
+        
+        # Get last ingest time from audit logs  
+        admin_service = AdminService(db)
+        recent_logs = admin_service.get_admin_audit_log(limit=1)
+        last_ingest_time = recent_logs[0]["timestamp"] if recent_logs else None
+        
+        return {
+            "totalUsers": total_users,
+            "totalTeams": total_teams, 
+            "totalLeagues": total_leagues,
+            "activeDataIssues": active_data_issues,
+            "lastIngestTime": last_ingest_time
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/teams")
+async def list_teams(
+    current_user: Annotated[User, Depends(get_admin_user)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+) -> List[Dict]:
+    """
+    List all teams for admin management.
+    Requires admin privileges.
+    """
+    try:
+        from app.models import League
+        
+        teams = (
+            db.query(Team, User.email, League.name)
+            .join(User, Team.owner_id == User.id)
+            .join(League, Team.league_id == League.id)
+            .all()
+        )
+        
+        return [
+            {
+                "id": team.id,
+                "name": team.name,
+                "owner_email": owner_email,
+                "moves_this_week": team.moves_this_week,
+                "league_name": league_name,
+            }
+            for team, owner_email, league_name in teams
+        ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
