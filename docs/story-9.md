@@ -1,7 +1,6 @@
 # Story 9: Implement Email Service
 
-**Priority**: P2 - Important  
-**Effort**: 2 days  
+**Priority**: P2 - Important
 **Dependencies**: Story 2 (Notifications)
 
 ## Overview
@@ -17,9 +16,9 @@ The email service is referenced throughout the codebase but not implemented. Thi
 
 ## Technical Tasks
 
-### Backend Implementation (12 hours)
+### Backend Implementation
 
-#### 1. Create Email Service (6 hours)
+#### 1. Create Email Service
 ```python
 # app/services/email.py
 class EmailService:
@@ -33,7 +32,7 @@ class EmailService:
     - [ ] send_draft_reminder_email(user, draft)
 ```
 
-#### 2. Create Email Templates (3 hours)
+#### 2. Create Email Templates
 ```python
 # app/templates/emails/
 - [ ] base.html - Base email template with branding
@@ -44,7 +43,7 @@ class EmailService:
 - [ ] notification.html - Generic notification
 ```
 
-#### 3. Add Email Queue System (3 hours)
+#### 3. Add Email Queue System
 ```python
 # app/services/email_queue.py
 - [ ] Queue email for sending
@@ -55,12 +54,11 @@ class EmailService:
 
 ### Configuration (4 hours)
 
-#### 1. Email Provider Setup (2 hours)
+#### 1. Email Provider Setup
 ```python
 # Environment variables
-EMAIL_PROVIDER=sendgrid  # or smtp, ses
-SENDGRID_API_KEY=<key>
-# OR
+EMAIL_PROVIDER=smtp  # or ses
+
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=<email>
@@ -70,7 +68,7 @@ FROM_EMAIL=noreply@wnbafantasy.com
 FROM_NAME=WNBA Fantasy League
 ```
 
-#### 2. Development Email Setup (2 hours)
+#### 2. Development Email Setup
 ```python
 # For development - log emails instead of sending
 if settings.ENVIRONMENT == "development":
@@ -79,9 +77,9 @@ if settings.ENVIRONMENT == "development":
     - [ ] Use MailHog for local SMTP
 ```
 
-### API Integration (4 hours)
+### API Integration
 
-#### 1. Update User Endpoints (2 hours)
+#### 1. Update User Endpoints
 ```python
 # app/api/users.py
 - [ ] Add email verification endpoint
@@ -90,7 +88,7 @@ if settings.ENVIRONMENT == "development":
 - [ ] Add password reset confirm endpoint
 ```
 
-#### 2. Update Profile Endpoints (2 hours)
+#### 2. Update Profile Endpoints
 ```python
 # app/api/profile.py
 - [ ] Fix email update to send verification
@@ -111,13 +109,13 @@ if settings.ENVIRONMENT == "development":
         .container { max-width: 600px; margin: 0 auto; }
         .header { background: #FF6B6B; color: white; padding: 20px; }
         .content { padding: 20px; }
-        .button { 
-            background: #FF6B6B; 
-            color: white; 
-            padding: 12px 24px; 
-            text-decoration: none; 
-            border-radius: 4px; 
-            display: inline-block; 
+        .button {
+            background: #FF6B6B;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
         }
     </style>
 </head>
@@ -177,9 +175,6 @@ if settings.ENVIRONMENT == "development":
 
 ## Development Tools
 ```bash
-# Local email testing
-docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog
-
 # Email preview
 /api/v1/admin/email-preview/{template}
 ```

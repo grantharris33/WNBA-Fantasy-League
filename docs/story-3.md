@@ -1,7 +1,6 @@
 # Story 3: Implement Waiver Wire System
 
 **Priority**: P1 - Essential Feature
-**Effort**: 4-5 days
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -17,9 +16,9 @@ Currently, players can only add/drop free agents immediately. A waiver wire syst
 
 ## Technical Tasks
 
-### Backend Implementation (20 hours)
+### Backend Implementation
 
-#### 1. Database Schema Updates (2 hours)
+#### 1. Database Schema Updates
 ```sql
 -- Add waiver fields to players
 ALTER TABLE players ADD COLUMN waiver_expires_at TIMESTAMP;
@@ -44,7 +43,7 @@ ALTER TABLE leagues ADD COLUMN waiver_period_days INTEGER DEFAULT 2;
 ALTER TABLE leagues ADD COLUMN waiver_type VARCHAR(20) DEFAULT 'reverse_standings';
 ```
 
-#### 2. Create Waiver Service (8 hours)
+#### 2. Create Waiver Service
 ```python
 # app/services/waiver.py
 - [ ] Create WaiverService class
@@ -56,7 +55,7 @@ ALTER TABLE leagues ADD COLUMN waiver_type VARCHAR(20) DEFAULT 'reverse_standing
 - [ ] Handle roster size validation
 ```
 
-#### 3. Create Waiver API Endpoints (4 hours)
+#### 3. Create Waiver API Endpoints
 ```python
 # app/api/waiver.py
 - [ ] GET /api/v1/leagues/{league_id}/waivers - List players on waivers
@@ -66,7 +65,7 @@ ALTER TABLE leagues ADD COLUMN waiver_type VARCHAR(20) DEFAULT 'reverse_standing
 - [ ] GET /api/v1/teams/{team_id}/waiver-priority - Get priority
 ```
 
-#### 4. Create Waiver Processing Job (4 hours)
+#### 4. Create Waiver Processing Job
 ```python
 # app/jobs/waiver_processing.py
 - [ ] Create process_daily_waivers function
@@ -77,7 +76,7 @@ ALTER TABLE leagues ADD COLUMN waiver_type VARCHAR(20) DEFAULT 'reverse_standing
 - [ ] Add to scheduler (3 AM daily)
 ```
 
-#### 5. Update Roster Service (2 hours)
+#### 5. Update Roster Service
 ```python
 # app/services/roster.py
 - [ ] Update drop_player to set waiver_expires_at
@@ -85,9 +84,9 @@ ALTER TABLE leagues ADD COLUMN waiver_type VARCHAR(20) DEFAULT 'reverse_standing
 - [ ] Add validation for waiver claims
 ```
 
-### Frontend Implementation (16 hours)
+### Frontend Implementation
 
-#### 1. Create Waiver Components (8 hours)
+#### 1. Create Waiver Components
 ```typescript
 // frontend/src/components/waiver/
 - [ ] WaiverWire.tsx - Main waiver wire page
@@ -97,13 +96,13 @@ ALTER TABLE leagues ADD COLUMN waiver_type VARCHAR(20) DEFAULT 'reverse_standing
 - [ ] WaiverCountdown.tsx - Time until processing
 ```
 
-#### 2. Update Free Agents View (4 hours)
+#### 2. Update Free Agents View
 - [ ] Show waiver status for players
 - [ ] Different UI for waiver vs free agent players
 - [ ] Add "Claim" button for waiver players
 - [ ] Show waiver expiration time
 
-#### 3. Add Waiver Types and API Integration (4 hours)
+#### 3. Add Waiver Types and API Integration
 ```typescript
 // frontend/src/types/waiver.ts
 - [ ] Define WaiverClaim interface

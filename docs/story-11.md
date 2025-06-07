@@ -1,7 +1,6 @@
 # Story 11: Complete Settings Page Implementation
 
-**Priority**: P2 - Important  
-**Effort**: 2 days  
+**Priority**: P2 - Important
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -17,9 +16,9 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 
 ## Technical Tasks
 
-### Backend Implementation (8 hours)
+### Backend Implementation
 
-#### 1. Update User Preferences Model (2 hours)
+#### 1. Update User Preferences Model
 ```python
 # app/models/user_profile.py
 # Verify/update UserPreferences model to include:
@@ -36,7 +35,7 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 - [ ] language (future)
 ```
 
-#### 2. Update Preferences Service (3 hours)
+#### 2. Update Preferences Service
 ```python
 # app/services/user_preferences.py
 - [ ] get_user_preferences(user_id)
@@ -46,7 +45,7 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 - [ ] apply_privacy_settings(user_data, viewer_id)
 ```
 
-#### 3. Update API Endpoints (3 hours)
+#### 3. Update API Endpoints
 ```python
 # app/api/profile.py
 - [ ] Ensure GET /api/v1/profile/preferences returns all settings
@@ -55,9 +54,9 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 - [ ] Add validation for theme values
 ```
 
-### Frontend Implementation (12 hours)
+### Frontend Implementation
 
-#### 1. Fix Settings State Management (4 hours)
+#### 1. Fix Settings State Management
 ```typescript
 // frontend/src/pages/SettingsPage.tsx
 - [ ] Load actual preferences from API on mount
@@ -67,7 +66,7 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 - [ ] Implement optimistic updates
 ```
 
-#### 2. Implement Theme Persistence (3 hours)
+#### 2. Implement Theme Persistence
 ```typescript
 // frontend/src/contexts/ThemeContext.tsx
 - [ ] Load theme preference from backend
@@ -77,7 +76,7 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 - [ ] Handle system theme preference
 ```
 
-#### 3. Implement Timezone Support (3 hours)
+#### 3. Implement Timezone Support
 ```typescript
 // frontend/src/utils/datetime.ts
 - [ ] Create timezone-aware date formatting
@@ -90,7 +89,7 @@ The Settings page exists but doesn't actually save settings. Theme changes don't
 - [ ] Provide timezone formatting functions
 ```
 
-#### 4. Update Settings UI (2 hours)
+#### 4. Update Settings UI
 ```typescript
 // frontend/src/pages/SettingsPage.tsx
 - [ ] Add saving indicators
@@ -190,7 +189,7 @@ Settings
 ## Database Migration
 ```sql
 -- Ensure all preference fields exist
-ALTER TABLE user_preferences 
+ALTER TABLE user_preferences
 ADD COLUMN IF NOT EXISTS theme VARCHAR(10) DEFAULT 'light';
 ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC';
 -- etc...

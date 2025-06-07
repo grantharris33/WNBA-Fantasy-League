@@ -1,7 +1,6 @@
 # Story 7: Critical Testing and Documentation
 
-**Priority**: P0 - Critical Path  
-**Effort**: 3-4 days  
+**Priority**: P0 - Critical Path
 **Dependencies**: None (can be done in parallel)
 
 ## Overview
@@ -17,9 +16,9 @@ The application lacks critical test coverage and documentation needed for a stab
 
 ## Technical Tasks
 
-### Backend Testing (16 hours)
+### Backend Testing
 
-#### 1. Add Missing Service Tests (8 hours)
+#### 1. Add Missing Service Tests
 ```python
 # tests/test_league_service.py
 - [ ] Test league creation with various settings
@@ -37,7 +36,7 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] Mock external API calls
 ```
 
-#### 2. Add Missing API Tests (6 hours)
+#### 2. Add Missing API Tests
 ```python
 # tests/test_scores_api.py
 - [ ] Test score calculation endpoints
@@ -50,7 +49,7 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] Test invalid ID handling
 ```
 
-#### 3. Add Integration Tests (2 hours)
+#### 3. Add Integration Tests
 ```python
 # tests/test_integration_flow.py
 - [ ] Test complete draft flow
@@ -58,9 +57,9 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] Test scoring calculation flow
 ```
 
-### Frontend Testing (12 hours)
+### Frontend Testing
 
-#### 1. Add Critical Component Tests (8 hours)
+#### 1. Add Critical Component Tests
 ```typescript
 // frontend/src/components/__tests__/
 - [ ] ProtectedRoute.test.tsx
@@ -70,7 +69,7 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] CreateLeagueModal.test.tsx
 ```
 
-#### 2. Add Hook Tests (4 hours)
+#### 2. Add Hook Tests
 ```typescript
 // frontend/src/hooks/__tests__/
 - [ ] useDraftWebSocket.test.ts
@@ -78,9 +77,9 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] useApi.test.ts
 ```
 
-### API Documentation (8 hours)
+### API Documentation
 
-#### 1. Generate OpenAPI Documentation (4 hours)
+#### 1. Generate OpenAPI Documentation
 ```python
 # app/main.py
 - [ ] Configure FastAPI OpenAPI generation
@@ -89,7 +88,7 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] Add authentication documentation
 ```
 
-#### 2. Create API Guide (4 hours)
+#### 2. Create API Guide
 ```markdown
 # docs/API_GUIDE.md
 - [ ] Authentication flow
@@ -99,9 +98,9 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] WebSocket protocols
 ```
 
-### User Documentation (8 hours)
+### User Documentation
 
-#### 1. Create User Guides (6 hours)
+#### 1. Create User Guides
 ```markdown
 # docs/user-guides/
 - [ ] GETTING_STARTED.md - Account creation and first steps
@@ -111,7 +110,7 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] COMMISSIONER_GUIDE.md - League management
 ```
 
-#### 2. Create Quick Reference (2 hours)
+#### 2. Create Quick Reference
 ```markdown
 # docs/QUICK_REFERENCE.md
 - [ ] Keyboard shortcuts
@@ -120,9 +119,9 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] FAQ
 ```
 
-### Deployment Documentation (4 hours)
+### Deployment Documentation
 
-#### 1. Update Production Deployment Guide (2 hours)
+#### 1. Update Production Deployment Guide
 ```markdown
 # docs/DEPLOYMENT_PRODUCTION.md
 - [ ] Environment variable reference
@@ -132,7 +131,7 @@ The application lacks critical test coverage and documentation needed for a stab
 - [ ] SSL configuration
 ```
 
-#### 2. Create Operations Runbook (2 hours)
+#### 2. Create Operations Runbook
 ```markdown
 # docs/OPERATIONS.md
 - [ ] Common issues and solutions

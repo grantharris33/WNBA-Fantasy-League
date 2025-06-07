@@ -1,7 +1,6 @@
 # Story 5: Complete Player Analytics Frontend
 
 **Priority**: P1 - Essential Feature
-**Effort**: 3-4 days
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -17,9 +16,9 @@ The backend has comprehensive player analytics endpoints but no frontend impleme
 
 ## Technical Tasks
 
-### Frontend Implementation (24 hours)
+### Frontend Implementation
 
-#### 1. Create Analytics Components (12 hours)
+#### 1. Create Analytics Components
 ```typescript
 // frontend/src/components/analytics/
 - [ ] PlayerAnalyticsCard.tsx - Overview of key metrics
@@ -31,7 +30,7 @@ The backend has comprehensive player analytics endpoints but no frontend impleme
 - [ ] PlayerComparison.tsx - Compare multiple players
 ```
 
-#### 2. Update Player Detail Page (4 hours)
+#### 2. Update Player Detail Page
 ```typescript
 // frontend/src/pages/PlayerDetailPage.tsx
 - [ ] Add analytics tab/section
@@ -41,7 +40,7 @@ The backend has comprehensive player analytics endpoints but no frontend impleme
 - [ ] Add data refresh capability
 ```
 
-#### 3. Create Analytics Hooks (4 hours)
+#### 3. Create Analytics Hooks
 ```typescript
 // frontend/src/hooks/usePlayerAnalytics.ts
 - [ ] Fetch player analytics data
@@ -53,7 +52,7 @@ The backend has comprehensive player analytics endpoints but no frontend impleme
 - [ ] Data transformation for charts
 ```
 
-#### 4. Add Analytics to Player Lists (4 hours)
+#### 4. Add Analytics to Player Lists
 ```typescript
 // Update player list components to show:
 - [ ] Trending indicators (↑↓)
@@ -63,9 +62,9 @@ The backend has comprehensive player analytics endpoints but no frontend impleme
 - [ ] Quick stats popup on hover
 ```
 
-### Data Visualization (8 hours)
+### Data Visualization
 
-#### 1. Install and Configure Chart Library (2 hours)
+#### 1. Install and Configure Chart Library
 ```bash
 npm install recharts
 ```
@@ -80,9 +79,9 @@ npm install recharts
 - [ ] Matchup heat map
 - [ ] Rolling average chart
 
-### API Integration Updates (4 hours)
+### API Integration Updates
 
-#### 1. Add Analytics API Functions (2 hours)
+#### 1. Add Analytics API Functions
 ```typescript
 // frontend/src/lib/api.ts
 - [ ] getPlayerAnalytics(playerId)
@@ -91,7 +90,7 @@ npm install recharts
 - [ ] getMatchupHistory(playerId)
 ```
 
-#### 2. Add TypeScript Types (2 hours)
+#### 2. Add TypeScript Types
 ```typescript
 // frontend/src/types/analytics.ts
 interface PlayerAnalytics {

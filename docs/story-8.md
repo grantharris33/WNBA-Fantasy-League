@@ -1,7 +1,6 @@
 # Story 8: Production Deployment Configuration
 
-**Priority**: P0 - Critical Path  
-**Effort**: 2-3 days  
+**Priority**: P0 - Critical Path
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -17,9 +16,9 @@ The application needs proper production configuration including environment setu
 
 ## Technical Tasks
 
-### Environment Configuration (8 hours)
+### Environment Configuration
 
-#### 1. Create Environment Templates (2 hours)
+#### 1. Create Environment Templates
 ```bash
 # Create environment files
 - [ ] .env.development - Development settings
@@ -28,7 +27,7 @@ The application needs proper production configuration including environment setu
 - [ ] .env.example - Template with all variables
 ```
 
-#### 2. Backend Configuration Updates (3 hours)
+#### 2. Backend Configuration Updates
 ```python
 # app/core/config.py
 - [ ] Add environment-specific settings
@@ -38,7 +37,7 @@ The application needs proper production configuration including environment setu
 - [ ] Set up proper logging levels
 ```
 
-#### 3. Frontend Configuration (3 hours)
+#### 3. Frontend Configuratio
 ```typescript
 // frontend/src/config/
 - [ ] environment.ts - Environment detection
@@ -46,9 +45,9 @@ The application needs proper production configuration including environment setu
 - [ ] features.config.ts - Feature flags
 ```
 
-### Security Hardening (8 hours)
+### Security Hardening
 
-#### 1. Backend Security (4 hours)
+#### 1. Backend Security
 ```python
 # Security implementations
 - [ ] Add rate limiting middleware
@@ -59,7 +58,7 @@ The application needs proper production configuration including environment setu
 - [ ] Implement CSRF protection
 ```
 
-#### 2. Frontend Security (2 hours)
+#### 2. Frontend Security
 ```typescript
 // Security measures
 - [ ] Content Security Policy headers
@@ -68,7 +67,7 @@ The application needs proper production configuration including environment setu
 - [ ] Environment variable validation
 ```
 
-#### 3. Infrastructure Security (2 hours)
+#### 3. Infrastructure Security
 ```yaml
 # docker-compose.prod.yml
 - [ ] Use secrets management
@@ -77,9 +76,9 @@ The application needs proper production configuration including environment setu
 - [ ] Implement fail2ban
 ```
 
-### Monitoring and Logging (6 hours)
+### Monitoring and Logging
 
-#### 1. Application Monitoring (3 hours)
+#### 1. Application Monitoring
 ```python
 # app/core/monitoring.py
 - [ ] Add health check endpoints
@@ -88,7 +87,7 @@ The application needs proper production configuration including environment setu
 - [ ] Create status dashboard endpoint
 ```
 
-#### 2. Logging Configuration (3 hours)
+#### 2. Logging Configuration
 ```python
 # Structured logging
 - [ ] Configure JSON logging
@@ -98,9 +97,9 @@ The application needs proper production configuration including environment setu
 - [ ] Add audit logging
 ```
 
-### Database and Backup (4 hours)
+### Database and Backup
 
-#### 1. Database Optimization (2 hours)
+#### 1. Database Optimization
 ```sql
 -- Performance optimizations
 - [ ] Add missing indexes
@@ -109,19 +108,19 @@ The application needs proper production configuration including environment setu
 - [ ] Set up read replicas (future)
 ```
 
-#### 2. Backup System (2 hours)
+#### 2. Backup System
 ```bash
 # scripts/backup.sh
 - [ ] Automated daily backups
 - [ ] Backup rotation (keep 30 days)
 - [ ] Backup verification
 - [ ] Restore procedures
-- [ ] Off-site backup storage
+- [ ] Off-site backup storage (use Wasabi S3-compatiable storage)
 ```
 
-### Deployment Automation (6 hours)
+### Deployment Automation
 
-#### 1. Docker Configuration (3 hours)
+#### 1. Docker Configuration
 ```dockerfile
 # Dockerfile.prod
 - [ ] Multi-stage builds
@@ -131,7 +130,7 @@ The application needs proper production configuration including environment setu
 - [ ] Health checks
 ```
 
-#### 2. CI/CD Pipeline (3 hours)
+#### 2. CI/CD Pipeline
 ```yaml
 # .github/workflows/deploy.yml
 - [ ] Automated testing
@@ -210,7 +209,6 @@ GET /api/v1/status - Application status
 - Security scan shows no high vulnerabilities
 - Monitoring dashboards operational
 - Automated backups running
-- Deployment completes in <10 minutes
 - Zero-downtime deployment verified
 - Performance benchmarks met
 - All security measures implemented

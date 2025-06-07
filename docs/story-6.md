@@ -1,7 +1,6 @@
 # Story 6: Complete Live Game Tracking System
 
-**Priority**: P1 - Essential Feature  
-**Effort**: 4-5 days  
+**Priority**: P1 - Essential Feature
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -17,9 +16,9 @@ The backend has WebSocket support for live game tracking but the frontend implem
 
 ## Technical Tasks
 
-### Frontend Implementation (32 hours)
+### Frontend Implementation
 
-#### 1. Complete Live Game Components (12 hours)
+#### 1. Complete Live Game Components
 ```typescript
 // frontend/src/components/games/
 - [ ] LiveScoreboard.tsx - Shows all live games
@@ -30,7 +29,7 @@ The backend has WebSocket support for live game tracking but the frontend implem
 - [ ] GameClock.tsx - Game time and quarter display
 ```
 
-#### 2. Create Live Game Pages (6 hours)
+#### 2. Create Live Game Pages
 ```typescript
 // frontend/src/pages/
 - [ ] LiveScoreboardPage.tsx - All live games dashboard
@@ -38,7 +37,7 @@ The backend has WebSocket support for live game tracking but the frontend implem
 - [ ] LiveFantasyPage.tsx - User's fantasy team live scoring
 ```
 
-#### 3. Implement WebSocket Management (8 hours)
+#### 3. Implement WebSocket Management
 ```typescript
 // frontend/src/hooks/useLiveGames.ts
 - [ ] WebSocket connection management
@@ -52,7 +51,7 @@ The backend has WebSocket support for live game tracking but the frontend implem
 - [ ] Track scoring plays
 ```
 
-#### 4. Add Real-time State Management (6 hours)
+#### 4. Add Real-time State Management
 ```typescript
 // frontend/src/contexts/LiveGameContext.tsx
 - [ ] Manage live game state
@@ -61,7 +60,7 @@ The backend has WebSocket support for live game tracking but the frontend implem
 - [ ] Optimistic UI updates
 ```
 
-### WebSocket Protocol Implementation (8 hours)
+### WebSocket Protocol Implementation
 
 #### 1. Define Message Types (2 hours)
 ```typescript
@@ -73,7 +72,7 @@ interface LiveGameMessage {
 }
 ```
 
-#### 2. Implement Message Handlers (6 hours)
+#### 2. Implement Message Handlers
 ```typescript
 // frontend/src/lib/websocket.ts
 - [ ] Handle game score updates
@@ -83,15 +82,15 @@ interface LiveGameMessage {
 - [ ] Error handling and recovery
 ```
 
-### UI/UX Implementation (8 hours)
+### UI/UX Implementation
 
-#### 1. Live Indicators (4 hours)
+#### 1. Live Indicators
 - [ ] Pulsing dot for live games
 - [ ] Score change animations
 - [ ] Player scoring notifications
 - [ ] Quarter/time updates
 
-#### 2. Mobile Optimization (4 hours)
+#### 2. Mobile Optimization
 - [ ] Compact live game cards
 - [ ] Swipeable game details
 - [ ] Efficient data usage
@@ -155,7 +154,7 @@ interface LiveGameMessage {
 - [ ] Component rendering tests
 - [ ] Performance tests under load
 
-## Backend Verification (4 hours)
+## Backend Verification
 - [ ] Verify WebSocket endpoints work correctly
 - [ ] Test message format compatibility
 - [ ] Ensure proper authentication

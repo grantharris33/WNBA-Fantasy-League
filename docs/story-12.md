@@ -1,7 +1,6 @@
 # Story 12: Performance Optimization and Caching
 
-**Priority**: P2 - Important  
-**Effort**: 3 days  
+**Priority**: P2 - Important
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -16,9 +15,8 @@ The application has performance issues including N+1 queries, lack of caching, l
 
 ## Technical Tasks
 
-### Backend Performance (16 hours)
-
-#### 1. Fix N+1 Query Problems (6 hours)
+### Backend Performance
+#### 1. Fix N+1 Query Problems
 ```python
 # Identify and fix N+1 queries in:
 - [ ] League standings calculation
@@ -40,7 +38,7 @@ teams = db.query(Team)\
     .filter_by(league_id=league_id).all()
 ```
 
-#### 2. Implement Caching Layer (6 hours)
+#### 2. Implement Caching Layer
 ```python
 # app/services/cache.py improvements
 - [ ] Add Redis caching (fallback to in-memory)
@@ -56,7 +54,7 @@ teams = db.query(Team)\
 - [ ] GET /api/v1/lookup/* (5 min TTL)
 ```
 
-#### 3. Database Optimization (4 hours)
+#### 3. Database Optimization
 ```sql
 -- Add missing indexes
 CREATE INDEX idx_roster_slots_team_player ON roster_slots(team_id, player_id);
@@ -71,9 +69,9 @@ CREATE INDEX idx_players_active ON players(is_active) WHERE is_active = true;
 - [ ] Player stats aggregation
 ```
 
-### Frontend Performance (12 hours)
+### Frontend Performance
 
-#### 1. Bundle Optimization (4 hours)
+#### 1. Bundle Optimization
 ```typescript
 // vite.config.ts
 - [ ] Enable code splitting by route
@@ -90,7 +88,7 @@ CREATE INDEX idx_players_active ON players(is_active) WHERE is_active = true;
 - [ ] Eliminate dead code
 ```
 
-#### 2. Component Optimization (4 hours)
+#### 2. Component Optimization
 ```typescript
 // Add React performance optimizations
 - [ ] Use React.memo for expensive components
@@ -108,7 +106,7 @@ const PlayerList = React.memo(({ players }) => {
 });
 ```
 
-#### 3. API Call Optimization (4 hours)
+#### 3. API Call Optimization
 ```typescript
 // frontend/src/hooks/useApi.ts
 - [ ] Implement request deduplication
@@ -128,9 +126,9 @@ const { data, isLoading } = useQuery({
 });
 ```
 
-### Infrastructure Optimization (4 hours)
+### Infrastructure Optimization
 
-#### 1. Add CDN Support (2 hours)
+#### 1. Add CDN Support
 ```nginx
 # nginx.conf
 - [ ] Configure cache headers for static assets
@@ -138,7 +136,7 @@ const { data, isLoading } = useQuery({
 - [ ] Set up CDN for images/assets
 ```
 
-#### 2. Add Response Compression (2 hours)
+#### 2. Add Response Compression
 ```python
 # app/main.py
 from fastapi.middleware.gzip import GZipMiddleware

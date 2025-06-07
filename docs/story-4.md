@@ -1,7 +1,6 @@
 # Story 4: Implement Trading System
 
 **Priority**: P1 - Essential Feature
-**Effort**: 5-6 days
 **Dependencies**: Story 1 (Integration fixes), Story 2 (Notifications)
 
 ## Overview
@@ -18,9 +17,9 @@ Implement a complete trading system allowing teams to propose, negotiate, and ex
 
 ## Technical Tasks
 
-### Backend Implementation (24 hours)
+### Backend Implementation
 
-#### 1. Database Schema (2 hours)
+#### 1. Database Schema
 ```sql
 -- Create trades table
 CREATE TABLE trades (
@@ -70,7 +69,7 @@ ALTER TABLE leagues ADD COLUMN trade_approval_type VARCHAR(20) DEFAULT 'none';
 ALTER TABLE leagues ADD COLUMN trade_veto_threshold INTEGER DEFAULT 4;
 ```
 
-#### 2. Create Trade Service (10 hours)
+#### 2. Create Trade Service
 ```python
 # app/services/trade.py
 class TradeService:
@@ -87,7 +86,7 @@ class TradeService:
     - [ ] check_trade_deadline(league_id)
 ```
 
-#### 3. Create Trade API Endpoints (6 hours)
+#### 3. Create Trade API Endpoints
 ```python
 # app/api/trades.py
 - [ ] GET /api/v1/leagues/{league_id}/trades - List league trades
@@ -103,7 +102,7 @@ class TradeService:
 - [ ] GET /api/v1/trades/{trade_id}/analysis - Trade fairness analysis
 ```
 
-#### 4. Create Trade Processing Job (3 hours)
+#### 4. Create Trade Processing Job
 ```python
 # app/jobs/trade_processing.py
 - [ ] check_expired_trades() - Cancel expired trades
@@ -111,7 +110,7 @@ class TradeService:
 - [ ] check_trade_deadline() - Disable trading after deadline
 ```
 
-#### 5. Add Trade Validation (3 hours)
+#### 5. Add Trade Validation
 ```python
 # Validation rules:
 - [ ] Both teams must have roster space
@@ -122,9 +121,9 @@ class TradeService:
 - [ ] Validate trade fairness (optional warning)
 ```
 
-### Frontend Implementation (20 hours)
+### Frontend Implementation
 
-#### 1. Create Trade Components (12 hours)
+#### 1. Create Trade Components
 ```typescript
 // frontend/src/components/trades/
 - [ ] TradeCenter.tsx - Main trade interface
@@ -136,14 +135,14 @@ class TradeService:
 - [ ] TradePlayerSelector.tsx - Select players for trade
 ```
 
-#### 2. Create Trade Pages (4 hours)
+#### 2. Create Trade Pages
 ```typescript
 // frontend/src/pages/
 - [ ] TradeCenterPage.tsx - Browse and propose trades
 - [ ] TradeDetailPage.tsx - View specific trade
 ```
 
-#### 3. Add Trade State Management (4 hours)
+#### 3. Add Trade State Management
 ```typescript
 // frontend/src/hooks/useTrades.ts
 - [ ] Fetch and cache trades

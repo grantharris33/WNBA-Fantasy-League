@@ -1,7 +1,6 @@
 # Story 10: Mobile Optimization
 
-**Priority**: P2 - Important  
-**Effort**: 3-4 days  
+**Priority**: P2 - Important
 **Dependencies**: None
 
 ## Overview
@@ -17,9 +16,9 @@ While the application uses Tailwind CSS for responsive design, it lacks specific
 
 ## Technical Tasks
 
-### Mobile Navigation (8 hours)
+### Mobile Navigation
 
-#### 1. Create Mobile Navigation Components (4 hours)
+#### 1. Create Mobile Navigation Components
 ```typescript
 // frontend/src/components/layout/mobile/
 - [ ] MobileNavBar.tsx - Bottom navigation bar
@@ -28,16 +27,16 @@ While the application uses Tailwind CSS for responsive design, it lacks specific
 - [ ] TabBar.tsx - iOS-style tab navigation
 ```
 
-#### 2. Implement Navigation Patterns (4 hours)
+#### 2. Implement Navigation Patterns
 - [ ] Bottom navigation for primary actions
 - [ ] Hamburger menu for secondary options
 - [ ] Swipe gestures for menu open/close
 - [ ] Back button handling
 - [ ] Deep linking support
 
-### Mobile-Specific Components (12 hours)
+### Mobile-Specific Components
 
-#### 1. Create Mobile Views (8 hours)
+#### 1. Create Mobile Views
 ```typescript
 // frontend/src/components/mobile/
 - [ ] MobilePlayerCard.tsx - Compact player display
@@ -47,7 +46,7 @@ While the application uses Tailwind CSS for responsive design, it lacks specific
 - [ ] MobileGameCard.tsx - Expandable game details
 ```
 
-#### 2. Touch Interactions (4 hours)
+#### 2. Touch Interactions
 ```typescript
 // frontend/src/hooks/
 - [ ] useSwipeGesture.ts - Swipe detection
@@ -56,30 +55,30 @@ While the application uses Tailwind CSS for responsive design, it lacks specific
 - [ ] useDoubleTap.ts - Double tap actions
 ```
 
-### Performance Optimization (8 hours)
+### Performance Optimization
 
-#### 1. Data Loading Optimization (4 hours)
+#### 1. Data Loading Optimization
 - [ ] Implement pagination for long lists
 - [ ] Add infinite scroll where appropriate
 - [ ] Reduce initial payload size
 - [ ] Implement progressive data loading
 - [ ] Add skeleton screens for loading states
 
-#### 2. Image Optimization (2 hours)
+#### 2. Image Optimization
 - [ ] Serve responsive images based on device
 - [ ] Lazy load images below the fold
 - [ ] Use WebP format with fallbacks
 - [ ] Implement blur-up technique
 
-#### 3. Bundle Optimization (2 hours)
+#### 3. Bundle Optimization
 - [ ] Code split by route
 - [ ] Lazy load heavy components
 - [ ] Minimize initial JavaScript bundle
 - [ ] Implement service worker caching
 
-### PWA Implementation (6 hours)
+### PWA Implementation
 
-#### 1. PWA Configuration (3 hours)
+#### 1. PWA Configuration
 ```json
 // frontend/public/manifest.json
 {
@@ -104,7 +103,7 @@ While the application uses Tailwind CSS for responsive design, it lacks specific
 }
 ```
 
-#### 2. Service Worker (3 hours)
+#### 2. Service Worker
 ```typescript
 // frontend/src/serviceWorker.ts
 - [ ] Cache static assets
@@ -113,16 +112,16 @@ While the application uses Tailwind CSS for responsive design, it lacks specific
 - [ ] Push notification support (future)
 ```
 
-### Mobile UX Patterns (6 hours)
+### Mobile UX Patterns
 
-#### 1. Form Optimization (3 hours)
+#### 1. Form Optimization
 - [ ] Mobile-friendly input types
 - [ ] Auto-complete suggestions
 - [ ] Inline validation
 - [ ] Touch-friendly date/time pickers
 - [ ] Numeric keyboards for number inputs
 
-#### 2. Mobile-First Features (3 hours)
+#### 2. Mobile-First Features
 - [ ] Shake to refresh
 - [ ] Floating action buttons
 - [ ] Bottom sheets for modals

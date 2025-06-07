@@ -1,7 +1,6 @@
 # Story 13: Configure Missing Scheduled Jobs
 
-**Priority**: P1 - Essential Feature  
-**Effort**: 1-2 days  
+**Priority**: P1 - Essential Feature
 **Dependencies**: None
 
 ## Overview
@@ -16,9 +15,9 @@ Several important scheduled jobs exist in the codebase but aren't configured in 
 
 ## Technical Tasks
 
-### Add Missing Jobs to Scheduler (8 hours)
+### Add Missing Jobs to Scheduler
 
-#### 1. Configure Teams and Standings Jobs (3 hours)
+#### 1. Configure Teams and Standings Jobs
 ```python
 # app/core/scheduler.py - Add these jobs:
 
@@ -39,7 +38,7 @@ scheduler.add_job(
     trigger="cron",
     hour="2,8,14,20",
     minute=45,
-    id="ingest_standings", 
+    id="ingest_standings",
     name="Ingest WNBA Standings",
     misfire_grace_time=3600
 )
@@ -57,7 +56,7 @@ scheduler.add_job(
 )
 ```
 
-#### 2. Configure Data Quality Jobs (2 hours)
+#### 2. Configure Data Quality Jobs
 ```python
 # Data quality checks (runs every 4 hours)
 scheduler.add_job(
@@ -73,7 +72,7 @@ scheduler.add_job(
 # Clean up old data (runs weekly)
 scheduler.add_job(
     func=cleanup_old_data,
-    trigger="cron", 
+    trigger="cron",
     day_of_week="sun",
     hour=3,
     minute=0,
@@ -83,7 +82,7 @@ scheduler.add_job(
 )
 ```
 
-#### 3. Configure Cache and Maintenance Jobs (3 hours)
+#### 3. Configure Cache and Maintenance Jobs
 ```python
 # Cache cleanup (runs every hour)
 scheduler.add_job(
@@ -117,9 +116,9 @@ scheduler.add_job(
 )
 ```
 
-### Create Missing Job Functions (8 hours)
+### Create Missing Job Functions
 
-#### 1. Implement Data Quality Job (3 hours)
+#### 1. Implement Data Quality Job
 ```python
 # app/jobs/data_quality_job.py
 async def run_data_quality_checks():
@@ -130,7 +129,7 @@ async def run_data_quality_checks():
         check_score_calculation_accuracy,
         check_draft_state_consistency,
     ]
-    
+
     for check in checks:
         try:
             result = await check()
@@ -141,7 +140,7 @@ async def run_data_quality_checks():
             logger.error(f"Data quality check failed: {e}")
 ```
 
-#### 2. Implement Cleanup Jobs (3 hours)
+#### 2. Implement Cleanup Jobs
 ```python
 # app/jobs/maintenance.py
 def cleanup_old_data():
@@ -159,9 +158,9 @@ def cleanup_expired_cache():
     # Log cache statistics
 ```
 
-#### 3. Implement Analytics Job (2 hours)
+#### 3. Implement Analytics Job
 ```python
-# app/jobs/analytics_job.py  
+# app/jobs/analytics_job.py
 def calculate_league_analytics():
     """Calculate league-wide analytics"""
     # Calculate league scoring trends
@@ -170,14 +169,14 @@ def calculate_league_analytics():
     # Generate league power rankings
 ```
 
-### Job Monitoring and Management (4 hours)
+### Job Monitoring and Management
 
-#### 1. Add Job Status Tracking (2 hours)
+#### 1. Add Job Status Tracking
 ```python
 # app/models/__init__.py
 class JobExecution(Base):
     __tablename__ = "job_executions"
-    
+
     id = Column(Integer, primary_key=True)
     job_id = Column(String(100), nullable=False)
     job_name = Column(String(200))
@@ -188,17 +187,17 @@ class JobExecution(Base):
     execution_time_ms = Column(Integer)
 ```
 
-#### 2. Add Admin Endpoints (2 hours)
+#### 2. Add Admin Endpoints
 ```python
 # app/api/admin.py
 @router.get("/api/v1/admin/jobs")
 def get_scheduled_jobs():
     """List all scheduled jobs and their status"""
-    
+
 @router.post("/api/v1/admin/jobs/{job_id}/run")
 def trigger_job(job_id: str):
     """Manually trigger a scheduled job"""
-    
+
 @router.get("/api/v1/admin/jobs/history")
 def get_job_history():
     """Get job execution history"""

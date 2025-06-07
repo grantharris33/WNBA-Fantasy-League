@@ -1,7 +1,6 @@
 # Story 2: Implement Notification System
 
 **Priority**: P0 - Critical Path
-**Effort**: 3-4 days
 **Dependencies**: Story 1 (Integration fixes)
 
 ## Overview
@@ -18,9 +17,9 @@ The notification model exists in the backend but there's no service implementati
 
 ## Technical Tasks
 
-### Backend Implementation (16 hours)
+### Backend Implementation
 
-#### 1. Create Notification Service (6 hours)
+#### 1. Create Notification Service
 ```python
 # app/services/notification.py
 - [ ] Create NotificationService class
@@ -31,7 +30,7 @@ The notification model exists in the backend but there's no service implementati
 - [ ] Add notification types enum
 ```
 
-#### 2. Create Notification API Endpoints (4 hours)
+#### 2. Create Notification API Endpoints
 ```python
 # app/api/notifications.py
 - [ ] GET /api/v1/notifications - List user notifications
@@ -41,16 +40,16 @@ The notification model exists in the backend but there's no service implementati
 - [ ] DELETE /api/v1/notifications/{id} - Delete notification
 ```
 
-#### 3. Add Notification Triggers (6 hours)
+#### 3. Add Notification Triggers
 - [ ] Draft events: picks made, draft started/completed
 - [ ] Roster moves: add/drop, lineup changes
 - [ ] Trade offers: proposed, accepted, rejected
 - [ ] League events: new member joined, settings changed
 - [ ] Game events: games starting, final scores
 
-### Frontend Implementation (16 hours)
+### Frontend Implementation
 
-#### 1. Create Notification Components (8 hours)
+#### 1. Create Notification Components
 ```typescript
 // frontend/src/components/notifications/
 - [ ] NotificationBadge.tsx - Shows unread count
@@ -59,7 +58,7 @@ The notification model exists in the backend but there's no service implementati
 - [ ] NotificationPreferences.tsx - Settings component
 ```
 
-#### 2. Add Notification State Management (4 hours)
+#### 2. Add Notification State Management
 ```typescript
 // frontend/src/contexts/NotificationContext.tsx
 - [ ] Create notification context
@@ -68,13 +67,13 @@ The notification model exists in the backend but there's no service implementati
 - [ ] Cache management
 ```
 
-#### 3. Integrate Into UI (4 hours)
+#### 3. Integrate Into UI
 - [ ] Add notification badge to navbar
 - [ ] Create notification center page/modal
 - [ ] Add notification preferences to settings
 - [ ] Show toast notifications for real-time events
 
-### WebSocket Integration (4 hours)
+### WebSocket Integration
 - [ ] Add notification events to WebSocket protocol
 - [ ] Implement real-time notification delivery
 - [ ] Handle connection state and reconnection
@@ -96,7 +95,7 @@ CREATE TABLE notifications (
 );
 
 -- Add index for performance
-CREATE INDEX idx_notifications_user_unread 
+CREATE INDEX idx_notifications_user_unread
 ON notifications(user_id, is_read, created_at DESC);
 ```
 
