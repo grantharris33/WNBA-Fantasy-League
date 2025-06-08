@@ -32,13 +32,13 @@ def regular_user(db: Session):
 @pytest.fixture
 def admin_token(admin_user: User):
     """Create an access token for the admin user."""
-    return create_access_token(subject=admin_user.id)
+    return create_access_token(data={"sub": str(admin_user.id)})
 
 
 @pytest.fixture
 def regular_token(regular_user: User):
     """Create an access token for the regular user."""
-    return create_access_token(subject=regular_user.id)
+    return create_access_token(data={"sub": str(regular_user.id)})
 
 
 @pytest.fixture

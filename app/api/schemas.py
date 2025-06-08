@@ -756,3 +756,37 @@ class ScoreUpdateResponse(BaseModel):
     message: str
     updated_at: datetime
     week_updated: int
+
+
+# Notification Schemas
+class NotificationResponse(BaseModel):
+    """Response schema for notification data."""
+
+    id: int
+    title: str
+    message: str
+    type: str
+    is_read: bool
+    created_at: datetime
+    read_at: Optional[datetime] = None
+    league_id: Optional[int] = None
+    team_id: Optional[int] = None
+    player_id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class NotificationListResponse(BaseModel):
+    """Response schema for notification list."""
+
+    notifications: List[NotificationResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class UnreadCountResponse(BaseModel):
+    """Response schema for unread notification count."""
+
+    count: int

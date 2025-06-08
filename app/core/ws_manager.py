@@ -11,6 +11,8 @@ class ConnectionManager:
         self.live_game_connections: Dict[str, Set[WebSocket]] = {}
         # Map of team_id -> set of active WebSocket connections (for live fantasy scores)
         self.live_team_connections: Dict[int, Set[WebSocket]] = {}
+        # Map of user_id -> set of active WebSocket connections (for notifications)
+        self.notification_connections: Dict[int, Set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, league_id: int):
         """
@@ -252,6 +254,100 @@ class ConnectionManager:
         print(
             f"[WebSocketManager] Live team broadcast complete. Successful: {successful_broadcasts}, Failed: {len(disconnected)}"
         )
+
+    async def connect_notifications(self, websocket: WebSocket, user_id: int):
+        """
+        Connect a WebSocket to a specific user's notification channel.
+
+        Args:
+            websocket: The WebSocket connection to register
+            user_id: The user ID to associate this connection with
+        """
+        await websocket.accept()
+
+        # Create user entry if it doesn't exist
+        if user_id not in self.notification_connections:
+            self.notification_connections[user_id] = set()
+
+        self.notification_connections[user_id].add(websocket)
+        print(
+            f"[WebSocketManager] Connected to notifications for user {user_id}. Total connections: {len(self.notification_connections[user_id])}"
+        )
+
+    def disconnect_notifications(self, websocket: WebSocket, user_id: int):
+        """
+        Disconnect a WebSocket from a user's notification channel.
+
+        Args:
+            websocket: The WebSocket connection to unregister
+            user_id: The user ID this connection was associated with
+        """
+        if user_id in self.notification_connections:
+            if websocket in self.notification_connections[user_id]:
+                self.notification_connections[user_id].remove(websocket)
+
+            # Clean up empty user entries
+            if not self.notification_connections[user_id]:
+                del self.notification_connections[user_id]
+                print(
+                    f"[WebSocketManager] Disconnected from notifications for user {user_id}. No connections remaining."
+                )
+            else:
+                print(
+                    f"[WebSocketManager] Disconnected from notifications for user {user_id}. Remaining connections: {len(self.notification_connections[user_id])}"
+                )
+
+    async def send_notification_to_user(self, user_id: int, notification_data: dict):
+        """
+        Send a notification to a specific user via WebSocket.
+
+        Args:
+            user_id: The user ID to send the notification to
+            notification_data: The notification data to send
+        """
+        if user_id not in self.notification_connections:
+            print(f"[WebSocketManager] No notification connections for user {user_id}")
+            return
+
+        connection_count = len(self.notification_connections[user_id])
+        print(f"[WebSocketManager] Sending notification to {connection_count} connections for user {user_id}")
+
+        message = {"type": "notification", "notification": notification_data}
+
+        # Track failed connections to clean up
+        disconnected = set()
+        successful_sends = 0
+
+        for connection in self.notification_connections[user_id]:
+            try:
+                await connection.send_json(message)
+                successful_sends += 1
+            except Exception as e:
+                print(f"[WebSocketManager] Failed to send notification: {e}")
+                disconnected.add(connection)
+
+        # Clean up any failed connections
+        for connection in disconnected:
+            self.notification_connections[user_id].remove(connection)
+
+        # Clean up empty user entries
+        if not self.notification_connections[user_id]:
+            del self.notification_connections[user_id]
+
+        print(
+            f"[WebSocketManager] Notification send complete. Successful: {successful_sends}, Failed: {len(disconnected)}"
+        )
+
+    async def broadcast_notification_to_users(self, user_ids: List[int], notification_data: dict):
+        """
+        Broadcast a notification to multiple users via WebSocket.
+
+        Args:
+            user_ids: List of user IDs to send the notification to
+            notification_data: The notification data to send
+        """
+        for user_id in user_ids:
+            await self.send_notification_to_user(user_id, notification_data)
 
 
 # Global connection manager instance

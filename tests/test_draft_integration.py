@@ -67,7 +67,7 @@ async def test_draft_api_endpoints(db: Session, setup_draft_data):
     draft_state = draft_data["draft_state"]
 
     # Create a real JWT token
-    access_token = create_access_token(subject=commissioner.id)
+    access_token = create_access_token(data={"sub": str(commissioner.id)})
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Create a mock that returns the commissioner
@@ -132,7 +132,7 @@ async def test_websocket_draft_updates(db: Session, setup_draft_data):
     # we'll verify that the draft state can be accessed
 
     # Create a real JWT token
-    access_token = create_access_token(subject=commissioner.id)
+    access_token = create_access_token(data={"sub": str(commissioner.id)})
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Create a mock that returns the commissioner
