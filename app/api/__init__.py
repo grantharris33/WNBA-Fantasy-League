@@ -26,6 +26,7 @@ from .lookup import router as lookup_router
 from .profile import router as profile_router
 from .scores import router as scores_router
 from .users import router as users_router
+from .waiver import router as waiver_router
 from .wnba import router as wnba_router
 
 router = APIRouter()
@@ -64,6 +65,9 @@ router.include_router(league_router, prefix="/api/v1")
 
 # WNBA data endpoints
 router.include_router(wnba_router)
+
+# Waiver wire endpoints
+router.include_router(waiver_router, prefix="/api/v1")
 
 # Live games endpoints
 router.include_router(live_games_router)

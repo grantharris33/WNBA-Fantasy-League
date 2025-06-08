@@ -756,3 +756,60 @@ class ScoreUpdateResponse(BaseModel):
     message: str
     updated_at: datetime
     week_updated: int
+
+
+# ---------------------------------------------------------------------------
+# Waiver Wire Schemas
+# ---------------------------------------------------------------------------
+
+
+class WaiverClaimCreateRequest(BaseModel):
+    """Schema for creating a waiver claim."""
+
+    player_id: int = Field(..., description="ID of player to claim")
+    drop_player_id: Optional[int] = Field(None, description="ID of player to drop (if roster full)")
+    priority: Optional[int] = Field(None, description="Claim priority (auto-calculated if not provided)")
+
+
+class WaiverClaimResponse(BaseModel):
+    """Schema for waiver claim response."""
+
+    id: int
+    team_id: int
+    player_id: int
+    player_name: str
+    player_position: Optional[str] = None
+    drop_player_id: Optional[int] = None
+    drop_player_name: Optional[str] = None
+    priority: int
+    status: str
+    created_at: datetime
+    processed_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+
+class WaiverPlayerResponse(BaseModel):
+    """Schema for players on waivers."""
+
+    id: int
+    full_name: str
+    position: Optional[str] = None
+    team_abbr: Optional[str] = None
+    waiver_expires_at: Optional[datetime] = None
+    is_on_waivers: bool = False
+
+    class Config:
+        orm_mode = True
+
+
+class WaiverPriorityResponse(BaseModel):
+    """Schema for waiver priority information."""
+
+    team_id: int
+    team_name: Optional[str] = None
+    priority: int
+
+    class Config:
+        orm_mode = True

@@ -673,3 +673,36 @@ class RosterService:
         # Sort by is_starter descending, then id
         roster.sort(key=lambda x: (not x["is_starter"], x["id"]))
         return roster
+
+    def add_player(self, team_id: int, player_id: int, user_id: Optional[int] = None) -> bool:
+        """Add a player to team roster (wrapper for waiver system compatibility).
+
+        Returns True if successful, False otherwise.
+        """
+        try:
+            self.add_player_to_team(team_id, player_id, set_as_starter=False, user_id=user_id)
+            return True
+        except Exception:
+            return False
+
+    def drop_player(self, team_id: int, player_id: int, user_id: Optional[int] = None) -> bool:
+        """Drop a player from team roster and put on waivers (wrapper for waiver system compatibility).
+
+        Returns True if successful, False otherwise.
+        """
+        try:
+            # First drop the player from the team
+            self.drop_player_from_team(team_id, player_id, user_id=user_id)
+
+            # Get the team to find the league for waiver settings
+            team = self.db.query(Team).filter(Team.id == team_id).first()
+            if team and team.league_id:
+                # Put player on waivers
+                from app.services.waiver import WaiverService
+
+                waiver_service = WaiverService(self.db)
+                waiver_service.put_player_on_waivers(player_id, team.league_id)
+
+            return True
+        except Exception:
+            return False

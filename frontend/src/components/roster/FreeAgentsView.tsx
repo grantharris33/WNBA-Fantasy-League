@@ -71,25 +71,69 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
   const positions = Array.from(new Set(freeAgents.map(p => p.position).filter(Boolean))).sort();
   const teams = Array.from(new Set(freeAgents.map(p => p.team_abbr).filter(Boolean))).sort();
 
-  const renderPlayerCard = (player: Player) => (
-    <div
-      key={player.id}
-      className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md hover:border-[#0c7ff2] transition-all cursor-pointer"
-      onClick={() => handlePlayerClick(player.id)}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 mb-2">
-            <h3 className="text-sm font-medium text-slate-900 truncate">{player.full_name}</h3>
-            <div className="flex items-center space-x-1">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0c7ff2] bg-opacity-10 text-[#0c7ff2]">
-                {player.position || 'N/A'}
-              </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
-                {player.team_abbr || 'N/A'}
-              </span>
+  const isPlayerOnWaivers = (player: Player) => {
+    return player.waiver_expires_at && new Date(player.waiver_expires_at) > new Date();
+  };
+
+  const formatWaiverExpiration = (expirationDate: string) => {
+    const now = new Date();
+    const expiry = new Date(expirationDate);
+    const diffMs = expiry.getTime() - now.getTime();
+    
+    if (diffMs <= 0) {
+      return 'Expired';
+    }
+    
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 24) {
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays}d ${diffHours % 24}h`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h ${diffMinutes}m`;
+    } else {
+      return `${diffMinutes}m`;
+    }
+  };
+
+  const renderPlayerCard = (player: Player) => {
+    const onWaivers = isPlayerOnWaivers(player);
+    
+    return (
+      <div
+        key={player.id}
+        className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all cursor-pointer ${
+          onWaivers 
+            ? 'border-orange-200 bg-orange-50' 
+            : 'border-slate-200 hover:border-[#0c7ff2]'
+        }`}
+        onClick={() => handlePlayerClick(player.id)}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="text-sm font-medium text-slate-900 truncate">{player.full_name}</h3>
+              <div className="flex items-center space-x-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0c7ff2] bg-opacity-10 text-[#0c7ff2]">
+                  {player.position || 'N/A'}
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
+                  {player.team_abbr || 'N/A'}
+                </span>
+                {onWaivers && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                    WAIVER
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+
+            {onWaivers && player.waiver_expires_at && (
+              <div className="text-xs text-orange-600 mb-2">
+                Clears in: {formatWaiverExpiration(player.waiver_expires_at)}
+              </div>
+            )}
 
           {/* Player Stats */}
           <div className="grid grid-cols-3 gap-2 text-xs text-slate-500 mb-2">
@@ -109,38 +153,48 @@ const FreeAgentsView: React.FC<FreeAgentsViewProps> = ({ leagueId, onAddPlayer, 
         </div>
 
         <div className="flex flex-col items-end space-y-2 ml-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAddPlayer(player.id, false);
-            }}
-            disabled={movesRemaining <= 0}
-            className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md transition-colors ${
-              movesRemaining <= 0
-                ? 'text-slate-400 bg-slate-100 cursor-not-allowed'
-                : 'text-white bg-[#0c7ff2] hover:bg-[#0a6bc8]'
-            }`}
-            title={movesRemaining <= 0 ? 'No moves remaining this week' : 'Add to bench'}
-          >
-            <PlusIcon className="h-4 w-4 mr-1" />
-            Add
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAddPlayer(player.id, true);
-            }}
-            disabled={movesRemaining <= 0}
-            className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md transition-colors ${
-              movesRemaining <= 0
-                ? 'text-slate-400 bg-slate-100 cursor-not-allowed'
-                : 'text-green-700 bg-green-100 hover:bg-green-200'
-            }`}
-            title={movesRemaining <= 0 ? 'No starter moves remaining this week' : 'Add as starter'}
-          >
-            <UserPlusIcon className="h-4 w-4 mr-1" />
-            Starter
-          </button>
+          {onWaivers ? (
+            <div className="text-center">
+              <div className="text-xs text-orange-600 font-medium mb-1">On Waivers</div>
+              <div className="text-xs text-slate-500">Submit claim via</div>
+              <div className="text-xs text-slate-500">Waiver Wire page</div>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddPlayer(player.id, false);
+                }}
+                disabled={movesRemaining <= 0}
+                className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md transition-colors ${
+                  movesRemaining <= 0
+                    ? 'text-slate-400 bg-slate-100 cursor-not-allowed'
+                    : 'text-white bg-[#0c7ff2] hover:bg-[#0a6bc8]'
+                }`}
+                title={movesRemaining <= 0 ? 'No moves remaining this week' : 'Add to bench'}
+              >
+                <PlusIcon className="h-4 w-4 mr-1" />
+                Add
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddPlayer(player.id, true);
+                }}
+                disabled={movesRemaining <= 0}
+                className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md transition-colors ${
+                  movesRemaining <= 0
+                    ? 'text-slate-400 bg-slate-100 cursor-not-allowed'
+                    : 'text-green-700 bg-green-100 hover:bg-green-200'
+                }`}
+                title={movesRemaining <= 0 ? 'No starter moves remaining this week' : 'Add as starter'}
+              >
+                <UserPlusIcon className="h-4 w-4 mr-1" />
+                Starter
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
