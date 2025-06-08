@@ -5,6 +5,7 @@ from sqlalchemy import and_, exists, func, not_, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import AdminMoveGrant, League, Player, RosterSlot, Team, TransactionLog, User, WeeklyLineup
+from app.services.notification import NotificationService
 
 
 class RosterService:
@@ -162,6 +163,20 @@ class RosterService:
         self.db.add(TransactionLog(user_id=user_id, action=action, timestamp=datetime.utcnow()))
 
         self.db.commit()
+
+        # Send notification to team owner
+        if team.owner_id:
+            notification_service = NotificationService(self.db)
+            notification_service.notify_roster_move(
+                user_id=team.owner_id,
+                action="added",
+                player_name=player.full_name,
+                team_name=team.name,
+                league_id=team.league_id,
+                team_id=team_id,
+                player_id=player_id,
+            )
+
         return roster_slot
 
     def drop_player_from_team(self, team_id: int, player_id: int, user_id: Optional[int] = None) -> None:
@@ -193,6 +208,19 @@ class RosterService:
         )
 
         self.db.commit()
+
+        # Send notification to team owner
+        if team.owner_id:
+            notification_service = NotificationService(self.db)
+            notification_service.notify_roster_move(
+                user_id=team.owner_id,
+                action="dropped",
+                player_name=player.full_name,
+                team_name=team.name,
+                league_id=team.league_id,
+                team_id=team_id,
+                player_id=player_id,
+            )
 
     def _get_total_available_moves(self, team_id: int, week_id: int) -> int:
         """Calculate total available moves including admin grants for a specific week."""

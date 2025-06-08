@@ -1,9 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 const NavBar: React.FC = () => {
   const { user } = useAuth();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    fetchNotifications,
+    isLoading,
+  } = useNotifications();
 
   const navLinks = [
     { to: '/', label: 'Dashboard', icon: 'home' },
@@ -41,9 +52,16 @@ const NavBar: React.FC = () => {
       <div className="flex items-center gap-4">
         {user && (
           <>
-            <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
-              <span className="material-icons text-2xl">notifications</span>
-            </button>
+            <NotificationCenter
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onDelete={deleteNotification}
+              onLoadMore={() => fetchNotifications({ limit: 20, offset: notifications.length })}
+              isLoading={isLoading}
+              hasMore={notifications.length >= 20} // Simple pagination check
+            />
             <Link
               to="/profile"
               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-slate-200 hover:border-[#0c7ff2] transition-all"

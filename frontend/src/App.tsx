@@ -3,6 +3,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
@@ -24,13 +25,15 @@ import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
+import NotificationsPage from './pages/NotificationsPage';
 
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <ThemeProvider>
-          <BrowserRouter>
+          <NotificationProvider>
+            <BrowserRouter>
             <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -54,6 +57,7 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/admin" element={<AdminPage />} />
             </Route>
 
@@ -72,7 +76,8 @@ function App() {
               pauseOnHover
               theme="colored"
             />
-          </BrowserRouter>
+            </BrowserRouter>
+          </NotificationProvider>
         </ThemeProvider>
       </AuthProvider>
     </ErrorBoundary>

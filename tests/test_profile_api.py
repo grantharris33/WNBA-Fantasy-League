@@ -28,7 +28,7 @@ def auth_headers(test_user: User, db: Session):
     """Get auth headers for test user."""
     from app.core.security import create_access_token
 
-    token = create_access_token(subject=test_user.id)
+    token = create_access_token(data={"sub": str(test_user.id)})
     return {"Authorization": f"Bearer {token}"}
 
 

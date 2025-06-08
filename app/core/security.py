@@ -28,7 +28,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(subject: Any, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create a JWT access token with optional expiration
     """
@@ -37,6 +37,18 @@ def create_access_token(subject: Any, expires_delta: Optional[timedelta] = None)
     else:
         expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
 
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {"exp": expire}
+    to_encode.update(data)
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def decode_access_token(token: str) -> Optional[dict]:
+    """
+    Decode a JWT access token and return the payload
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None

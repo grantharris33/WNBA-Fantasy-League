@@ -5,6 +5,7 @@ from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from app.models import DraftPick, DraftState, League, Player, RosterSlot, Team, TransactionLog, User
+from app.services.notification import NotificationService, NotificationType
 
 
 class DraftService:
@@ -75,6 +76,13 @@ class DraftService:
         # Log the action
         self._log_transaction(user_id, f"Started draft for league {league_id}")
 
+        # Notify all league members that draft has started
+        league_teams = self.db.query(Team).filter(Team.league_id == league_id).all()
+        league_user_ids = [team.owner_id for team in league_teams if team.owner_id]
+
+        notification_service = NotificationService(self.db)
+        notification_service.notify_draft_start(user_ids=league_user_ids, league_name=league.name, league_id=league_id)
+
         return draft_state
 
     def make_pick(
@@ -118,10 +126,14 @@ class DraftService:
         if existing_pick:
             raise ValueError(f"Player {player_id} has already been drafted")
 
-        # Get player to check position
+        # Get player and team
         player = self.db.query(Player).filter(Player.id == player_id).first()
         if not player:
             raise ValueError(f"Player with ID {player_id} not found")
+
+        team = self.db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise ValueError(f"Team with ID {team_id} not found")
 
         # Verify roster positional rules are satisfiable
         # This would be a complex check to ensure the team can satisfy the requirement
@@ -170,6 +182,30 @@ class DraftService:
         # Log the action
         action = f"{'Auto-picked' if is_auto else 'Drafted'} player {player.full_name} for team {team_id}"
         self._log_transaction(user_id, action)
+
+        # Send notification to team owner
+        notification_service = NotificationService(self.db)
+        notification_service.notify_draft_pick(
+            user_id=team.owner_id,
+            player_name=player.full_name,
+            team_name=team.name,
+            league_id=draft.league_id,
+            team_id=team_id,
+            player_id=player_id,
+        )
+
+        # If draft is completed, notify all league members
+        if draft.status == "completed":
+            league_teams = self.db.query(Team).filter(Team.league_id == draft.league_id).all()
+            league_user_ids = [team.owner_id for team in league_teams if team.owner_id]
+
+            notification_service.create_bulk_notifications(
+                user_ids=league_user_ids,
+                title="Draft Completed",
+                message=f"The draft for {league.name} has been completed!",
+                notification_type=NotificationType.DRAFT_COMPLETE,
+                league_id=draft.league_id,
+            )
 
         return pick, draft
 
