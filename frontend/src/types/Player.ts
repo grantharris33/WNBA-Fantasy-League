@@ -25,6 +25,9 @@ export interface Player {
   created_at: string | null; // ISO date string
   updated_at: string | null; // ISO date string
   team_id: number | null;
+
+  // Waiver wire
+  waiver_expires_at: string | null; // ISO date string
 }
 
 // Simplified Player interface for cases where full data isn't needed

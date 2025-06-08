@@ -186,6 +186,21 @@ async def _startup() -> None:
             misfire_grace_time=3600,
         )
 
+    # Schedule daily waiver processing at 03:00 UTC
+    if not scheduler.get_job("daily_waiver_processing"):
+        waiver_hour = int(os.getenv("WAIVER_PROCESSING_HOUR_UTC", "3"))
+
+        from app.jobs.waiver_processing import process_daily_waivers
+
+        scheduler.add_job(
+            process_daily_waivers,
+            "cron",
+            hour=waiver_hour,
+            id="daily_waiver_processing",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
 
 @app.on_event("shutdown")
 async def _shutdown() -> None:
@@ -295,6 +310,21 @@ def _schedule_nightly() -> None:
             "cron",
             hour=analytics_hour,
             id="daily_analytics",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+    # Schedule daily waiver processing at 03:00 UTC
+    if not scheduler.get_job("daily_waiver_processing"):
+        waiver_hour = int(os.getenv("WAIVER_PROCESSING_HOUR_UTC", "3"))
+
+        from app.jobs.waiver_processing import process_daily_waivers
+
+        scheduler.add_job(
+            process_daily_waivers,
+            "cron",
+            hour=waiver_hour,
+            id="daily_waiver_processing",
             replace_existing=True,
             misfire_grace_time=3600,
         )

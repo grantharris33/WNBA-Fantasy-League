@@ -45,6 +45,10 @@ class League(Base):
     created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active: bool = Column(Boolean, default=True, nullable=False)
 
+    # Waiver settings
+    waiver_period_days: int = Column(Integer, default=2, nullable=False)
+    waiver_type: str = Column(String, default="reverse_standings", nullable=False)
+
     commissioner_id: int | None = Column(Integer, ForeignKey("user.id"))
     commissioner = relationship("User", back_populates="leagues_owned")
 
@@ -180,6 +184,9 @@ class Player(Base):
     # Metadata
     created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Waiver wire
+    waiver_expires_at: datetime | None = Column(DateTime, nullable=True, index=True)
 
     # Foreign key to fantasy Team and WNBA Team
     team_id: int | None = Column(Integer, ForeignKey("team.id"), nullable=True)
@@ -811,6 +818,31 @@ class CacheStatistics(Base):
         if self.total_requests == 0:
             return 0.0
         return (self.cache_hits / self.total_requests) * 100
+
+
+# ---------------------------------------------------------------------------
+# Waiver Wire Models
+# ---------------------------------------------------------------------------
+
+
+class WaiverClaim(Base):
+    __tablename__ = "waiver_claim"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    team_id: int = Column(Integer, ForeignKey("team.id"), nullable=False)
+    player_id: int = Column(Integer, ForeignKey("player.id"), nullable=False)
+    priority: int = Column(Integer, nullable=False)
+    drop_player_id: int | None = Column(Integer, ForeignKey("player.id"), nullable=True)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow, nullable=False)
+    processed_at: datetime | None = Column(DateTime, nullable=True)
+    status: str = Column(String, default="pending", nullable=False)  # pending, successful, failed, cancelled
+
+    # Relationships
+    team = relationship("Team", backref="waiver_claims")
+    player = relationship("Player", foreign_keys=[player_id], backref="waiver_claims_for")
+    drop_player = relationship("Player", foreign_keys=[drop_player_id], backref="waiver_claims_against")
+
+    __table_args__ = (UniqueConstraint("team_id", "player_id", "status", name="uq_team_player_pending_claim"),)
 
 
 # ---------------------------------------------------------------------------
